@@ -719,9 +719,14 @@ function parsePremiumReportJson(raw: string): GeneratedPremiumReport {
         ? (relationshipForecast.turningPoints as string[])
         : FALLBACK_PREMIUM_REPORT.relationshipForecast.turningPoints,
     },
-    couplesTasks: Array.isArray(r.couplesTasks)
-      ? (r.couplesTasks as PremiumCouplesTask[])
-      : FALLBACK_PREMIUM_REPORT.couplesTasks,
+    couplesTasks: (() => {
+      const raw = Array.isArray(r.couplesTasks)
+        ? (r.couplesTasks as PremiumCouplesTask[])
+        : FALLBACK_PREMIUM_REPORT.couplesTasks;
+      if (raw.length >= 4) return raw;
+      const fallback = FALLBACK_PREMIUM_REPORT.couplesTasks;
+      return [...raw, ...fallback.slice(raw.length, 4)] as PremiumCouplesTask[];
+    })(),
     communicationGuide: {
       title: String(communicationGuide?.title ?? FALLBACK_PREMIUM_REPORT.communicationGuide.title),
       forInitiator: String(communicationGuide?.forInitiator ?? FALLBACK_PREMIUM_REPORT.communicationGuide.forInitiator),
