@@ -1631,7 +1631,7 @@ function ReadyReport({
                           {nameA}的依恋模式
                         </p>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          <ReportText text={premiumReport.attachmentDeep.initiatorAnalysis} />
+                          <ReportText text={premiumReport.attachmentDeep.initiatorAnalysis ?? ""} />
                         </p>
                       </div>
                       <div className="border-t border-gray-100 pt-4">
@@ -1640,7 +1640,7 @@ function ReadyReport({
                           {nameB}的依恋模式
                         </p>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          <ReportText text={premiumReport.attachmentDeep.partnerAnalysis} />
+                          <ReportText text={premiumReport.attachmentDeep.partnerAnalysis ?? ""} />
                         </p>
                       </div>
                       <div className="border-t border-gray-100 pt-4">
@@ -1649,7 +1649,7 @@ function ReadyReport({
                           你们的互动模式
                         </p>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          <ReportText text={premiumReport.attachmentDeep.interactionPattern} />
+                          <ReportText text={premiumReport.attachmentDeep.interactionPattern ?? ""} />
                         </p>
                       </div>
                       <div className="border-t border-gray-100 pt-4">
@@ -1658,7 +1658,7 @@ function ReadyReport({
                           成长路径
                         </p>
                         <p className="text-sm text-gray-600 leading-relaxed">
-                          <ReportText text={premiumReport.attachmentDeep.growthPath} />
+                          <ReportText text={premiumReport.attachmentDeep.growthPath ?? ""} />
                         </p>
                       </div>
                     </div>
@@ -1678,7 +1678,7 @@ function ReadyReport({
                       </h2>
                     </div>
                     <p className="text-sm text-gray-600 leading-relaxed mb-4">
-                      <ReportText text={premiumReport.loveLanguageDeep.mismatchAnalysis} />
+                      <ReportText text={premiumReport.loveLanguageDeep.mismatchAnalysis ?? ""} />
                     </p>
                     <div className="space-y-3">
                       {premiumReport.loveLanguageDeep.dailyScenarios?.map((s, i) => (
@@ -1716,18 +1716,18 @@ function ReadyReport({
                           <Calendar className="w-4 h-4 text-violet-500 flex-shrink-0" />
                           近期展望
                         </p>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          <ReportText text={premiumReport.relationshipForecast.shortTerm} />
-                        </p>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      <ReportText text={premiumReport.relationshipForecast.shortTerm ?? ""} />
+                    </p>
                       </div>
                       <div className="border-t border-gray-100 pt-4">
                         <p className="text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
                           <TrendingUp className="w-4 h-4 text-violet-500 flex-shrink-0" />
                           长期展望
                         </p>
-                        <p className="text-sm text-gray-600 leading-relaxed">
-                          <ReportText text={premiumReport.relationshipForecast.longTerm} />
-                        </p>
+                    <p className="text-sm text-gray-600 leading-relaxed">
+                      <ReportText text={premiumReport.relationshipForecast.longTerm ?? ""} />
+                    </p>
                       </div>
                       {premiumReport.relationshipForecast.turningPoints && premiumReport.relationshipForecast.turningPoints.length > 0 && (
                         <div className="border-t border-gray-100 pt-4">
