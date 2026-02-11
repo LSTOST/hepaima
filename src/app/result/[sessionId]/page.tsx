@@ -1811,14 +1811,14 @@ function ReadyReport({
                           <MessageCircle className="w-4 h-4 text-violet-500 flex-shrink-0" />
                           给{nameA}的建议
                         </p>
-                        <CommunicationAdvice text={premiumReport.communicationGuide.forInitiator} />
+                        <CommunicationAdvice text={premiumReport.communicationGuide.forInitiator ?? ""} />
                       </div>
                       <div className="border-t border-gray-100 pt-4">
                         <p className="text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
                           <MessageCircle className="w-4 h-4 text-violet-500 flex-shrink-0" />
                           给{nameB}的建议
                         </p>
-                        <CommunicationAdvice text={premiumReport.communicationGuide.forPartner} />
+                        <CommunicationAdvice text={premiumReport.communicationGuide.forPartner ?? ""} />
                       </div>
                       <div className="border-t border-gray-100 pt-4">
                         <p className="text-sm font-semibold text-amber-600 mb-1.5 flex items-center gap-2">
