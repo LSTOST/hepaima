@@ -161,13 +161,14 @@ export async function POST(req: NextRequest) {
           initiatorScores,
           partnerScores
         );
+        const dimensionsRecord = dimensions as unknown as Record<string, number>;
 
         const resultStart = Date.now();
         const result = await prisma.result.create({
           data: {
             sessionId,
             overallScore,
-            dimensions: dimensions as unknown as Record<string, number>,
+            dimensions: dimensionsRecord,
             initiatorAttachment,
             partnerAttachment,
             initiatorLoveLanguage,
@@ -189,7 +190,7 @@ export async function POST(req: NextRequest) {
           initiatorLoveLanguage: LOVE_LANGUAGE_LABELS[initiatorLoveLanguage] ?? initiatorLoveLanguage,
           partnerLoveLanguage: LOVE_LANGUAGE_LABELS[partnerLoveLanguage] ?? partnerLoveLanguage,
           overallScore,
-          dimensions: dimensions as Record<string, number>,
+          dimensions: dimensionsRecord,
         };
       } else {
         const initiatorAnswers = toAnswerItems(updated.initiatorAnswers);
@@ -247,13 +248,15 @@ export async function POST(req: NextRequest) {
         };
 
         const overallScore = calculateOverallScore(mergedDimensions);
+        const mergedDimensionsRecord =
+          mergedDimensions as unknown as Record<string, number>;
 
         const resultStart = Date.now();
         const result = await prisma.result.create({
           data: {
             sessionId,
             overallScore,
-            dimensions: mergedDimensions as unknown as Record<string, number>,
+            dimensions: mergedDimensionsRecord,
             initiatorAttachment,
             partnerAttachment,
             initiatorLoveLanguage,
@@ -273,7 +276,7 @@ export async function POST(req: NextRequest) {
           initiatorLoveLanguage: LOVE_LANGUAGE_LABELS[initiatorLoveLanguage] ?? initiatorLoveLanguage,
           partnerLoveLanguage: LOVE_LANGUAGE_LABELS[partnerLoveLanguage] ?? partnerLoveLanguage,
           overallScore,
-          dimensions: mergedDimensions as Record<string, number>,
+          dimensions: mergedDimensionsRecord,
         };
       }
 
