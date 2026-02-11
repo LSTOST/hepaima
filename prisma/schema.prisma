@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  phone         String?   @unique
+  wechatOpenId  String?   @unique
+  deviceIds     String[]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  initiatedSessions Session[] @relation("Initiator")
+  joinedSessions    Session[] @relation("Partner")
+}
+
+model Session {
+  id                  String        @id @default(cuid())
+  inviteCode          String        @unique
+  mode                TestMode      @default(STAGED)
+  stage               Stage
+  status              SessionStatus @default(WAITING_PARTNER)
+
+  initiatorId         String?
+  initiator           User?         @relation("Initiator", fields: [initiatorId], references: [id])
+  initiatorDeviceId   String
+  initiatorName       String
+  initiatorAnswers    Json?
+  initiatorCompletedAt DateTime?
+
+  partnerId           String?
+  partner             User?         @relation("Partner", fields: [partnerId], references: [id])
+  partnerDeviceId     String?
+  partnerName         String?
+  partnerAnswers      Json?
+  partnerCompletedAt  DateTime?
+
+  result              Result?
+
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  expiresAt           DateTime
+}
+
+model Result {
+  id                    String         @id @default(cuid())
+  sessionId             String         @unique
+  session               Session        @relation(fields: [sessionId], references: [id])
+
+  overallScore          Int
+  dimensions            Json
+
+  initiatorTraits       Json?
+  partnerTraits         Json?
+
+  initiatorAttachment   AttachmentType
+  partnerAttachment     AttachmentType
+
+  initiatorLoveLanguage LoveLanguage
+  partnerLoveLanguage   LoveLanguage
+
+  reportBasic           Json?
+  reportStandard        Json?
+  reportPremium         Json?
+
+  purchasedTier         ReportTier     @default(FREE)
+
+  createdAt             DateTime       @default(now())
+}
+
+model Order {
+  id            String         @id @default(cuid())
+  resultId      String
+  deviceId      String
+  userId        String?
+
+  tier          ReportTier
+  amount        Int
+  status        OrderStatus    @default(PENDING)
+
+  paymentMethod PaymentMethod?
+  paymentId     String?
+  paidAt        DateTime?
+
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+enum TestMode {
+  UNIVERSAL
+  STAGED
+}
+
+enum Stage {
+  UNIVERSAL
+  AMBIGUOUS
+  ROMANCE
+  STABLE
+}
+
+enum SessionStatus {
+  WAITING_PARTNER
+  IN_PROGRESS
+  COMPLETED
+  EXPIRED
+}
+
+enum AttachmentType {
+  SECURE
+  ANXIOUS
+  AVOIDANT
+  FEARFUL
+}
+
+enum LoveLanguage {
+  WORDS
+  TIME
+  GIFTS
+  SERVICE
+  TOUCH
+}
+
+enum ReportTier {
+  FREE
+  STANDARD
+  PREMIUM
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  WECHAT
+  ALIPAY
+}

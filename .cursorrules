@@ -1,0 +1,25 @@
+# 合拍吗 - Cursor 项目规则
+
+## 项目信息
+- 产品名：合拍吗（hepaima.com）
+- 定位：基于心理学的情侣契合度测评工具
+- 面向中国市场，所有界面文案使用中文
+
+## 技术栈
+- Next.js 15 (App Router) + TypeScript
+- Tailwind CSS 4 + Shadcn UI (New York style)
+- Framer Motion (动画) + Lucide Icons (图标)
+- Prisma + PostgreSQL (数据库)
+- DeepSeek API (AI 报告生成)
+
+## 设计规范
+- 主色：粉 #EC4899，紫 #8B5CF6
+- 渐变：linear-gradient(135deg, #EC4899, #8B5CF6)
+- 背景：#FFFFFF / #FAFAFA / #FDF2F8
+- 正文：#1F2937，次要文字：#6B7280
+- 移动端优先，桌面端最大宽度 1000px
+
+## 回复要求
+- 中文回复
+- 给完整可运行的代码
+- 先给方案再解释
