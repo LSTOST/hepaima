@@ -2,7 +2,6 @@
 
 import React, { useCallback, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, ChevronLeft, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +23,6 @@ interface StagedQuizUIProps {
 }
 
 export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
-  const router = useRouter();
   const lastAnswersRef = useRef<{ questionId: number; answer: string }[] | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -60,7 +58,11 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
       lastAnswersRef.current = ans;
       setSubmitError(null);
       submitAnswers(ans)
-        .then(() => router.push(`/result/${sessionId}`))
+        .then(() => {
+          if (typeof window !== "undefined") {
+            window.location.href = `/result/${sessionId}`;
+          }
+        })
         .catch((err) =>
           setSubmitError(err instanceof Error ? err.message : "提交失败，请重试")
         );
@@ -82,7 +84,11 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
     if (!ans) return;
     setSubmitError(null);
     submitAnswers(ans)
-      .then(() => router.push(`/result/${sessionId}`))
+      .then(() => {
+        if (typeof window !== "undefined") {
+          window.location.href = `/result/${sessionId}`;
+        }
+      })
       .catch((err) =>
         setSubmitError(err instanceof Error ? err.message : "提交失败，请重试")
       );
