@@ -17,6 +17,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="zh-CN">
+      <head>
+        <link rel="icon" href="/favicon.png" type="image/png" sizes="32x32" />
+        <link rel="apple-touch-icon" href="/apple_touch_icon.png" />
+      </head>
       <body className="antialiased">
         {children}
       </body>

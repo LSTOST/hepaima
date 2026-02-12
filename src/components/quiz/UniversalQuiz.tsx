@@ -2,7 +2,6 @@
 
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -191,7 +190,7 @@ export function UniversalQuiz({
       <header className="relative z-10 bg-white/70 backdrop-blur-lg border-b border-gray-100">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
           <Link href="/" className="flex items-center">
-            <Image src="/logo_navbar.png" alt="合拍吗" width={120} height={30} priority />
+            <img src="/logo_navbar.png" alt="合拍吗" width={120} height={30} className="h-[30px] w-auto" />
           </Link>
           <Badge className="bg-gradient-to-r from-pink-50 to-violet-50 text-pink-600 border-pink-200 hover:bg-pink-50 px-3 py-1 text-sm font-medium rounded-full gap-1.5">
             <Heart className="w-3.5 h-3.5 fill-pink-400 text-pink-400" />

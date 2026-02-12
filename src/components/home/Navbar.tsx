@@ -4,7 +4,6 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { History, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +43,7 @@ export function Navbar() {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center">
-          <Image src="/logo_navbar.png" alt="合拍吗" width={120} height={30} priority />
+          <img src="/logo_navbar.png" alt="合拍吗" width={120} height={30} className="h-[30px] w-auto" />
         </Link>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link href="/history">
