@@ -150,10 +150,27 @@ export function UniversalQuiz({
             </>
           ) : (
             <>
-              <Loader2 className="w-12 h-12 text-pink-500 animate-spin mx-auto mb-6" />
-              <p className="text-lg font-medium text-gray-800">
+              <motion.div
+                className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-pink-50 to-violet-50 shadow-lg shadow-pink-100/50 mb-5"
+                animate={{ scale: [1, 1.02, 1], boxShadow: ["0 10px 40px -10px rgba(236,72,153,0.2)", "0 14px 50px -10px rgba(236,72,153,0.3)", "0 10px 40px -10px rgba(236,72,153,0.2)"] }}
+                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <Loader2 className="w-8 h-8 text-pink-500 animate-spin" />
+              </motion.div>
+              <p className="text-lg font-medium text-gray-800 mb-1">
                 正在生成你们的专属报告...
               </p>
+              <p className="text-sm text-gray-500 mb-5">答案已提交，马上就好</p>
+              <motion.div className="flex justify-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
+                {[0, 1, 2].map((i) => (
+                  <motion.span
+                    key={i}
+                    className="w-2 h-2 rounded-full bg-pink-300"
+                    animate={{ opacity: [0.4, 1, 0.4], scale: [0.9, 1.1, 0.9] }}
+                    transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
+                  />
+                ))}
+              </motion.div>
             </>
           )}
         </motion.div>

@@ -721,11 +721,27 @@ function ResultPageContent() {
 
   if (pageState === "loading") {
     return (
-      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-pink-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">加载中...</p>
+      <div className="min-h-screen bg-gradient-to-br from-pink-50/60 via-[#FAFAFA] to-violet-50/60 flex items-center justify-center overflow-hidden">
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/3 left-1/4 w-[320px] h-[320px] bg-pink-100/30 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 right-1/4 w-[280px] h-[280px] bg-violet-100/30 rounded-full blur-3xl" />
         </div>
+        <motion.div
+          className="relative z-10 text-center"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.35 }}
+        >
+          <motion.div
+            className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-white/90 shadow-lg shadow-pink-100/40 mb-4"
+            animate={{ boxShadow: ["0 8px 32px -8px rgba(236,72,153,0.2)", "0 12px 40px -8px rgba(236,72,153,0.3)", "0 8px 32px -8px rgba(236,72,153,0.2)"] }}
+            transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+          >
+            <Loader2 className="w-7 h-7 text-pink-500 animate-spin" />
+          </motion.div>
+          <p className="text-gray-800 font-medium mb-1">加载中...</p>
+          <p className="text-sm text-gray-500">正在准备你的报告</p>
+        </motion.div>
       </div>
     );
   }
@@ -773,7 +789,8 @@ function ResultPageContent() {
           >
             <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
           </motion.div>
-          <h1 className="text-xl font-bold text-gray-800 mb-3">正在生成你们的专属报告</h1>
+          <h1 className="text-xl font-bold text-gray-800 mb-2">正在生成你们的专属报告</h1>
+          <p className="text-gray-500 text-sm mb-4">AI 正在为你们分析契合度</p>
           <div className="min-h-[28px] flex items-center justify-center">
             <AnimatePresence mode="wait">
               <motion.p
@@ -782,14 +799,14 @@ function ResultPageContent() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.3 }}
-                className="text-gray-500 text-sm"
+                className="text-gray-600 text-sm font-medium"
               >
                 {GENERATING_TIPS[generatingTipIndex]}
               </motion.p>
             </AnimatePresence>
           </div>
           <motion.div
-            className="mt-8 flex justify-center gap-1"
+            className="mt-6 flex justify-center gap-1.5"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3 }}
@@ -797,9 +814,9 @@ function ResultPageContent() {
             {[0, 1, 2].map((i) => (
               <motion.span
                 key={i}
-                className="w-2 h-2 rounded-full bg-pink-300"
-                animate={{ opacity: [0.4, 1, 0.4], scale: [0.9, 1.1, 0.9] }}
-                transition={{ duration: 1.2, repeat: Infinity, delay: i * 0.2 }}
+                className="w-2.5 h-2.5 rounded-full bg-pink-400"
+                animate={{ opacity: [0.4, 1, 0.4], scale: [0.9, 1.15, 0.9] }}
+                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
               />
             ))}
           </motion.div>
@@ -823,9 +840,13 @@ function ResultPageContent() {
               transition={{ duration: 0.5 }}
               className="flex justify-center mb-6"
             >
-              <div className="w-20 h-20 rounded-full bg-pink-50 flex items-center justify-center">
+              <motion.div
+                className="w-20 h-20 rounded-full bg-pink-50 flex items-center justify-center shadow-lg shadow-pink-100/40"
+                animate={{ scale: [1, 1.03, 1], boxShadow: ["0 10px 40px -10px rgba(236,72,153,0.15)", "0 14px 48px -10px rgba(236,72,153,0.25)", "0 10px 40px -10px rgba(236,72,153,0.15)"] }}
+                transition={{ duration: 2.5, repeat: Infinity, ease: "easeInOut" }}
+              >
                 <Heart className="w-10 h-10 text-pink-500 fill-pink-500" />
-              </div>
+              </motion.div>
             </motion.div>
             <motion.h1
               initial={{ opacity: 0, y: 16 }}
@@ -838,9 +859,17 @@ function ResultPageContent() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
-              className="text-center text-gray-500 mb-10"
+              className="text-center text-gray-500 mb-2"
             >
               对方完成后自动生成配对报告
+            </motion.p>
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.25 }}
+              className="text-center text-gray-400 text-sm mb-10"
+            >
+              把邀请码或链接发给 TA，一起解锁专属报告吧
             </motion.p>
             <motion.div
               initial={{ opacity: 0, y: 24 }}
