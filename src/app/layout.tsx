@@ -4,6 +4,10 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "合拍吗 - 超级准的情侣契合度测试",
   description: "用科学的方式，读懂你们的爱情密码",
+  icons: {
+    icon: "/favicon.png",
+    apple: "/apple_touch_icon.png",
+  },
 };
 
 export default function RootLayout({

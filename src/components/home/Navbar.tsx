@@ -4,6 +4,7 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { History, Ticket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -42,14 +43,19 @@ export function Navbar() {
       className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 border-b border-white/20"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        <div className="flex flex-col items-start">
-          <span className="font-[family-name:var(--font-brand)] text-xl sm:text-2xl font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent leading-tight tracking-widest">
-            合拍吗
-          </span>
+        <Link href="/" className="flex flex-col items-start">
+          <Image
+            src="/logo_navbar.png"
+            alt="合拍吗"
+            width={120}
+            height={30}
+            className="h-7 sm:h-8 w-auto object-contain"
+            priority
+          />
           <span className="font-[family-name:var(--font-brand)] text-[10px] sm:text-xs text-gray-400 tracking-widest w-full text-center">
             hepaima.com
           </span>
-        </div>
+        </Link>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link href="/history">
             <Button
