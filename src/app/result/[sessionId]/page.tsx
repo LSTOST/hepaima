@@ -939,7 +939,15 @@ function ResultPageContent() {
     );
   }
 
-  return null;
+  // 避免白屏：ready 但数据未就绪、或未匹配到上述状态时显示加载
+  return (
+    <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+      <div className="text-center">
+        <Loader2 className="w-12 h-12 text-pink-500 animate-spin mx-auto mb-4" />
+        <p className="text-gray-600">加载中...</p>
+      </div>
+    </div>
+  );
 }
 
 function ReadyReport({

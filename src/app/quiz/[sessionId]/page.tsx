@@ -49,7 +49,7 @@ function QuizContent() {
       submitUniversalAnswers(answers)
         .then(() => {
           if (typeof window !== "undefined") {
-            window.location.href = `/result/${sessionId}`;
+            window.location.assign(`${window.location.origin}/result/${sessionId}`);
           }
         })
         .catch((err) => {
@@ -65,12 +65,12 @@ function QuizContent() {
     if (!ans) return;
     setSubmitError(null);
     setSubmitting(true);
-    submitUniversalAnswers(ans)
-      .then(() => {
-        if (typeof window !== "undefined") {
-          window.location.href = `/result/${sessionId}`;
-        }
-      })
+      submitUniversalAnswers(ans)
+        .then(() => {
+          if (typeof window !== "undefined") {
+            window.location.assign(`${window.location.origin}/result/${sessionId}`);
+          }
+        })
       .catch((err) => {
         setSubmitError(err instanceof Error ? err.message : "提交失败，请重试");
         setSubmitting(false);
