@@ -2,6 +2,7 @@
 
 import React, { useCallback, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, ChevronLeft, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -171,14 +172,9 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
 
       <header className="relative z-10 bg-white/70 backdrop-blur-lg border-b border-gray-100">
         <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
-          <div className="flex flex-col items-start">
-            <span className="font-[family-name:var(--font-brand)] text-lg font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent leading-tight tracking-widest">
-              合拍吗
-            </span>
-            <span className="font-[family-name:var(--font-brand)] text-[9px] text-gray-400 tracking-widest w-full text-center">
-              hepaima.com
-            </span>
-          </div>
+          <Link href="/" className="flex items-center">
+            <Image src="/logo_navbar.png" alt="合拍吗" width={120} height={30} priority />
+          </Link>
           <Badge className="bg-pink-50 text-pink-600 border-pink-200 hover:bg-pink-50 px-3 py-1 text-sm font-medium rounded-full gap-1.5">
             <Heart className="w-3.5 h-3.5 fill-pink-400 text-pink-400" />
             {stage.label}

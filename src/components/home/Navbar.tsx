@@ -43,18 +43,8 @@ export function Navbar() {
       className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 border-b border-white/20"
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-        <Link href="/" className="flex flex-col items-start">
-          <Image
-            src="/logo_navbar.png"
-            alt="合拍吗"
-            width={120}
-            height={30}
-            className="h-7 sm:h-8 w-auto object-contain"
-            priority
-          />
-          <span className="font-[family-name:var(--font-brand)] text-[10px] sm:text-xs text-gray-400 tracking-widest w-full text-center">
-            hepaima.com
-          </span>
+        <Link href="/" className="flex items-center">
+          <Image src="/logo_navbar.png" alt="合拍吗" width={120} height={30} priority />
         </Link>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link href="/history">
