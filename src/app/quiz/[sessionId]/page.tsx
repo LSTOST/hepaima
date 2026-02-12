@@ -49,6 +49,7 @@ function QuizContent() {
       submitUniversalAnswers(answers)
         .then(() => {
           if (typeof window !== "undefined") {
+            sessionStorage.removeItem(`quiz_universal_${sessionId}`);
             window.location.assign(`${window.location.origin}/result/${sessionId}`);
           }
         })
@@ -68,6 +69,7 @@ function QuizContent() {
       submitUniversalAnswers(ans)
         .then(() => {
           if (typeof window !== "undefined") {
+            sessionStorage.removeItem(`quiz_universal_${sessionId}`);
             window.location.assign(`${window.location.origin}/result/${sessionId}`);
           }
         })

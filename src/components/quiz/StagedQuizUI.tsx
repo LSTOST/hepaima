@@ -54,13 +54,15 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
     total,
   } = useQuiz({
     questions,
+    sessionId,
     onComplete: (ans) => {
       lastAnswersRef.current = ans;
       setSubmitError(null);
       submitAnswers(ans)
         .then(() => {
           if (typeof window !== "undefined") {
-            window.location.href = `/result/${sessionId}`;
+            sessionStorage.removeItem(`quiz_${sessionId}`);
+            window.location.assign(`${window.location.origin}/result/${sessionId}`);
           }
         })
         .catch((err) =>
@@ -86,7 +88,8 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
     submitAnswers(ans)
       .then(() => {
         if (typeof window !== "undefined") {
-          window.location.href = `/result/${sessionId}`;
+          sessionStorage.removeItem(`quiz_${sessionId}`);
+          window.location.assign(`${window.location.origin}/result/${sessionId}`);
         }
       })
       .catch((err) =>

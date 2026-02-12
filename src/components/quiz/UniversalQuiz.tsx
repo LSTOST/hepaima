@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
@@ -11,6 +11,7 @@ import { universalQuestions } from "@/lib/questions-universal";
 export type UniversalAnswerItem = { questionId: number; value: number };
 
 const AUTO_NEXT_DELAY_MS = 500;
+const UNIVERSAL_STORAGE_KEY = (sessionId: string) => `quiz_universal_${sessionId}`;
 
 interface UniversalQuizProps {
   sessionId: string;
@@ -30,11 +31,12 @@ export function UniversalQuiz({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<UniversalAnswerItem[]>([]);
   const [direction, setDirection] = useState(1);
+  const hasSubmittedRef = useRef(false);
+  const hasRestoredRef = useRef(false);
 
   const questions = universalQuestions;
   const total = questions.length;
   const currentQuestion = total > 0 ? questions[currentIndex] : null;
-  // 与题号显示一致：当前第几题 / 总题数（如 24/38 ≈ 63%）
   const progress = total > 0 ? ((currentIndex + 1) / total) * 100 : 0;
   const progressPercent = Math.round(progress);
   const isLastQuestion = currentIndex === total - 1;
@@ -42,9 +44,42 @@ export function UniversalQuiz({
     ? answers.find((a) => a.questionId === currentQuestion.id)?.value
     : undefined;
 
+  // 页面加载时从 sessionStorage 恢复进度
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const raw = sessionStorage.getItem(UNIVERSAL_STORAGE_KEY(sessionId));
+      if (!raw) return;
+      const { answers: savedAnswers, currentIndex: savedIndex } = JSON.parse(raw);
+      if (Array.isArray(savedAnswers) && typeof savedIndex === "number" && savedIndex >= 0 && savedIndex < total) {
+        setAnswers(savedAnswers);
+        setCurrentIndex(savedIndex);
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      hasRestoredRef.current = true;
+    }
+  }, [sessionId, total]);
+
+  // 每次答题后保存进度
+  useEffect(() => {
+    if (typeof window === "undefined" || !hasRestoredRef.current) return;
+    if (answers.length === 0 && currentIndex === 0) return;
+    try {
+      sessionStorage.setItem(
+        UNIVERSAL_STORAGE_KEY(sessionId),
+        JSON.stringify({ answers, currentIndex })
+      );
+    } catch {
+      /* ignore */
+    }
+  }, [sessionId, answers, currentIndex]);
+
   const selectValue = useCallback(
     (questionId: number, value: number) => {
       if (!currentQuestion || currentQuestion.id !== questionId) return;
+      if (hasSubmittedRef.current) return;
 
       const existingIdx = answers.findIndex((a) => a.questionId === questionId);
       const newAnswers =
@@ -54,6 +89,7 @@ export function UniversalQuiz({
       setAnswers(newAnswers);
 
       if (isLastQuestion) {
+        hasSubmittedRef.current = true;
         onComplete(newAnswers);
       } else {
         setDirection(1);
@@ -72,11 +108,12 @@ export function UniversalQuiz({
 
   const handleNext = useCallback(() => {
     if (isLastQuestion && currentAnswer !== undefined) {
-      onComplete(
-        answers.find((a) => a.questionId === currentQuestion?.id)
-          ? answers
-          : [...answers, { questionId: currentQuestion!.id, value: currentAnswer }]
-      );
+      if (hasSubmittedRef.current) return;
+      hasSubmittedRef.current = true;
+      const finalAnswers = answers.find((a) => a.questionId === currentQuestion?.id)
+        ? answers
+        : [...answers, { questionId: currentQuestion!.id, value: currentAnswer }];
+      onComplete(finalAnswers);
     } else if (!isLastQuestion) {
       setDirection(1);
       setCurrentIndex((i) => i + 1);

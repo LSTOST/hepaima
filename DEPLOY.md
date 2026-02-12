@@ -192,3 +192,8 @@ DATABASE_URL="你的生产库连接串" pnpm prisma migrate deploy
 | 成本 | 服务器 + 数据库费用 | 免费额度 + 按用量 |
 
 按需选择其一部署即可；同一套代码两种方式都支持。
+
+以后有代码更新时
+本机：改代码 → pnpm build → 再打一次 tar -czvf hepaima-next.tar.gz .next → 上传 hepaima-next.tar.gz 到服务器。
+若依赖有变：服务器上执行 git pull、pnpm install --frozen-lockfile，再按上面上传新的 .next 并 pm2 restart hepaima。
+这样构建都在本机完成，阿里云只负责运行，可以避免在服务器上卡住。
