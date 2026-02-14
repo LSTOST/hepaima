@@ -16,6 +16,7 @@ export async function POST(req: NextRequest) {
     const mode = (body?.mode as ModeValue | undefined) ?? "STAGED";
     const stageRaw = body?.stage as string | undefined;
     const nickname = body?.nickname as string | undefined;
+    const redeemCodeId = body?.redeemCodeId as string | undefined;
 
     if (!deviceId || !nickname) {
       return NextResponse.json(
@@ -68,17 +69,27 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    if (redeemCodeId) {
+      await prisma.redeemCode.updateMany({
+        where: { id: redeemCodeId },
+        data: { sessionId: session.id },
+      });
+    }
+
     return NextResponse.json({
       sessionId: session.id,
       inviteCode: session.inviteCode,
       expiresAt: session.expiresAt,
     });
   } catch (error) {
-    console.error("POST /api/v1/quiz/start error:", error);
-    return NextResponse.json(
-      { message: "创建测试会话失败，请稍后再试" },
-      { status: 500 },
-    );
+    const err = error instanceof Error ? error : new Error(String(error));
+    console.error("POST /api/v1/quiz/start error:", err.message);
+    console.error(err.stack);
+    const message =
+      process.env.NODE_ENV === "development"
+        ? `创建测试会话失败: ${err.message}`
+        : "创建测试会话失败，请稍后再试";
+    return NextResponse.json({ message }, { status: 500 });
   }
 }
 

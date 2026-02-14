@@ -23,6 +23,8 @@
 # misc
 .DS_Store
 *.pem
+# 证书目录保留结构，仅忽略 pem 文件
+/certs/**/*.pem
 
 # debug
 npm-debug.log*

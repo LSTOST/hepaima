@@ -39,6 +39,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import Link from "next/link";
 import { getCompatibilityLevel } from "@/lib/scoring";
+import { getDeviceId } from "@/lib/device";
 
 type PageState = "loading" | "waiting" | "generating" | "ready" | "error";
 
@@ -130,6 +131,7 @@ interface PremiumReportData {
 }
 
 interface ResultData {
+  id?: string;
   overallScore: number;
   initiatorAttachment: string;
   partnerAttachment: string;
@@ -152,6 +154,27 @@ const STAGE_LABELS: Record<string, string> = {
   ROMANCE: "热恋期",
   STABLE: "稳定期",
 };
+
+/** 注入支付宝表单并自动提交跳转 */
+function AlipayFormInjector({ html }: { html: string }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const submitted = React.useRef(false);
+  React.useEffect(() => {
+    if (!ref.current || submitted.current) return;
+    ref.current.innerHTML = html;
+    const form = ref.current.querySelector("form");
+    if (form) {
+      submitted.current = true;
+      (form as HTMLFormElement).submit();
+    }
+  }, [html]);
+  return (
+    <div className="text-center py-2">
+      <p className="text-sm text-gray-700 mb-2">正在跳转支付宝...</p>
+      <div ref={ref} className="hidden" aria-hidden />
+    </div>
+  );
+}
 
 /** 报告正文渲染：**文字** 转为加粗；'文字' 与 "文字" 去掉引号并加粗，不显示引号 */
 function ReportText({ text }: { text: string }) {
@@ -994,9 +1017,41 @@ function ReadyReport({
   const [unlocked, setUnlocked] = useState(resultData.purchasedTier === "PREMIUM");
   const [unlocking, setUnlocking] = useState(false);
 
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [payLoading, setPayLoading] = useState(false);
+  const [payStep, setPayStep] = useState<"choose" | "qrcode" | "redirect" | "form">("choose");
+  const [payResult, setPayResult] = useState<{
+    type: string;
+    code_url?: string;
+    h5_url?: string;
+    form_html?: string;
+    pay_url?: string;
+  } | null>(null);
+  const [payError, setPayError] = useState<string | null>(null);
+
   useEffect(() => {
     if (resultData.purchasedTier === "PREMIUM") setUnlocked(true);
   }, [resultData.purchasedTier]);
+
+  // 支付弹窗打开时轮询结果，支付成功后更新解锁状态
+  useEffect(() => {
+    if (!payDialogOpen || !sessionId) return;
+    const t = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/v1/result/${sessionId}`);
+        const data = await res.json();
+        if (res.ok && data?.result?.purchasedTier === "PREMIUM") {
+          setUnlocked(true);
+          setPayDialogOpen(false);
+          setPayStep("choose");
+          setPayResult(null);
+        }
+      } catch {
+        // ignore
+      }
+    }, 3000);
+    return () => clearInterval(t);
+  }, [payDialogOpen, sessionId]);
 
   const [premiumTipIndex, setPremiumTipIndex] = useState(0);
   const [basicReportTipIndex, setBasicReportTipIndex] = useState(0);
@@ -1033,6 +1088,67 @@ function ReadyReport({
       setUnlocked(false);
     } finally {
       setUnlocking(false);
+    }
+  };
+
+  const handlePay = async (paymentMethod: "WECHAT" | "ALIPAY") => {
+    const resultId = resultData.id;
+    if (!resultId) {
+      setPayError("无法获取结果信息，请刷新页面重试");
+      return;
+    }
+    const deviceId = getDeviceId();
+    if (!deviceId) {
+      setPayError("无法识别设备，请刷新页面重试");
+      return;
+    }
+    setPayError(null);
+    setPayLoading(true);
+    try {
+      const res = await fetch("/api/v1/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          resultId,
+          sessionId,
+          tier: "PREMIUM",
+          paymentMethod,
+          deviceId,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPayError(data.message || "创建订单失败");
+        return;
+      }
+      setPayResult({
+        type: data.type,
+        code_url: data.code_url,
+        h5_url: data.h5_url,
+        form_html: data.form_html,
+        pay_url: data.pay_url,
+      });
+      if (data.h5_url) {
+        setPayStep("redirect");
+        window.location.href = data.h5_url;
+        return;
+      }
+      if (data.pay_url) {
+        setPayStep("redirect");
+        window.location.href = data.pay_url;
+        return;
+      }
+      if (data.form_html) {
+        setPayStep("form");
+        return;
+      }
+      if (data.code_url) {
+        setPayStep("qrcode");
+      }
+    } catch (e) {
+      setPayError(e instanceof Error ? e.message : "网络错误，请重试");
+    } finally {
+      setPayLoading(false);
     }
   };
 
@@ -1548,31 +1664,24 @@ function ReadyReport({
                     ))}
                   </ul>
                   <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
-                    <span className="text-[20px] text-[#AAAAAA]" style={{ textDecoration: "line-through", marginRight: 12 }}>
-                      ¥19.9
-                    </span>
-                    <span
-                      className="inline-block px-2 py-0.5 rounded text-sm"
-                      style={{ background: "#FDF2F8", color: "#EC4899", fontSize: 14 }}
-                    >
-                      免费解锁
+                    <span className="text-xl font-semibold" style={{ color: "#EC4899" }}>
+                      ¥29.9
                     </span>
                   </div>
                   <Button
-                    onClick={handleUnlockPremium}
-                    disabled={unlocking}
+                    onClick={() => { setPayDialogOpen(true); setPayStep("choose"); setPayResult(null); setPayError(null); }}
                     className="w-full max-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white text-base font-semibold shadow-lg shadow-pink-500/10 transition-transform duration-200 hover:scale-[1.02] mx-auto"
                   >
-                    {unlocking ? (
-                      <>
-                        <Loader2 className="w-4.5 h-4.5 mr-2 animate-spin" />
-                        解锁中...
-                      </>
-                    ) : (
-                      "立即解锁"
-                    )}
+                    微信 / 支付宝 解锁
                   </Button>
-                  <p className="mt-2 text-xs" style={{ color: "#AAAAAA" }}>限时免费 · 原价 ¥19.9</p>
+                  <button
+                    type="button"
+                    onClick={handleUnlockPremium}
+                    disabled={unlocking}
+                    className="mt-2 text-xs text-gray-500 hover:text-gray-700 underline"
+                  >
+                    {unlocking ? "解锁中..." : "限时免费解锁"}
+                  </button>
                 </div>
               </ScrollCard>
             </div>
@@ -2058,6 +2167,53 @@ function ReadyReport({
                   </div>
                 </div>
               </div>
+          </DialogContent>
+        </Dialog>
+
+        <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+          <DialogContent className="sm:max-w-sm">
+            <DialogTitle className="sr-only">支付解锁</DialogTitle>
+            {payStep === "choose" && (
+              <>
+                <h3 className="text-lg font-semibold text-gray-800 text-center">选择支付方式</h3>
+                {payError && (
+                  <p className="text-sm text-red-600 text-center">{payError}</p>
+                )}
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <Button
+                    onClick={() => handlePay("WECHAT")}
+                    disabled={payLoading}
+                    className="h-12 rounded-xl bg-[#07C160] hover:bg-[#06AD56] text-white"
+                  >
+                    {payLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "微信支付"}
+                  </Button>
+                  <Button
+                    onClick={() => handlePay("ALIPAY")}
+                    disabled={payLoading}
+                    className="h-12 rounded-xl bg-[#1677FF] hover:bg-[#4096FF] text-white"
+                  >
+                    {payLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "支付宝"}
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 text-center mt-2">支付成功后将自动解锁深度报告</p>
+              </>
+            )}
+            {payStep === "qrcode" && payResult?.code_url && (
+              <div className="text-center py-2">
+                <p className="text-sm text-gray-700 mb-3">请使用微信扫码支付</p>
+                <img
+                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(payResult.code_url)}`}
+                  alt="微信支付二维码"
+                  width={220}
+                  height={220}
+                  className="mx-auto rounded-lg border border-gray-200"
+                />
+                <p className="text-xs text-gray-500 mt-2">支付完成后将自动刷新</p>
+              </div>
+            )}
+            {payStep === "form" && payResult?.form_html && (
+              <AlipayFormInjector html={payResult.form_html} />
+            )}
           </DialogContent>
         </Dialog>
       </div>

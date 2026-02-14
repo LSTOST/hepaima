@@ -40,6 +40,7 @@ export async function GET(
     return NextResponse.json({
       status: "ready",
       result: {
+        id: r.id,
         overallScore: r.overallScore,
         initiatorAttachment: ATTACHMENT_LABELS[r.initiatorAttachment] ?? r.initiatorAttachment,
         partnerAttachment: ATTACHMENT_LABELS[r.partnerAttachment] ?? r.partnerAttachment,

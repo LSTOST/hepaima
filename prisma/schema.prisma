@@ -91,6 +91,18 @@ model Order {
   updatedAt     DateTime       @updatedAt
 }
 
+model RedeemCode {
+  id             String     @id @default(cuid())
+  code           String     @unique // 兑换码，格式 HP-XXXX-XXXX
+  batchId        String?    // 批次号
+  status         CodeStatus @default(UNUSED)
+  usedByDeviceId String?
+  usedAt         DateTime?
+  sessionId      String?    // 关联的测评session
+  createdAt      DateTime   @default(now())
+  expiresAt      DateTime?  // 过期时间
+}
+
 enum TestMode {
   UNIVERSAL
   STAGED
@@ -141,4 +153,11 @@ enum OrderStatus {
 enum PaymentMethod {
   WECHAT
   ALIPAY
+}
+
+enum CodeStatus {
+  UNUSED
+  USED
+  EXPIRED
+  DISABLED
 }
