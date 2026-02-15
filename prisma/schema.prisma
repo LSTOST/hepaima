@@ -92,15 +92,27 @@ model Order {
 }
 
 model RedeemCode {
-  id             String     @id @default(cuid())
-  code           String     @unique // 兑换码，格式 HP-XXXX-XXXX
-  batchId        String?    // 批次号
-  status         CodeStatus @default(UNUSED)
+  id             String          @id @default(cuid())
+  code           String          @unique // 兑换码，格式 HP-XXXX-XXXX
+  batchId        String?         // 批次号
   usedByDeviceId String?
-  usedAt         DateTime?
-  sessionId      String?    // 关联的测评session
-  createdAt      DateTime   @default(now())
-  expiresAt      DateTime?  // 过期时间
+  firstUsedAt    DateTime?       // 首次使用时间
+  createdAt      DateTime        @default(now())
+  expiresAt      DateTime?       // 过期时间
+  disabled       Boolean         @default(false)
+
+  usages         RedeemCodeUsage[]
+}
+
+model RedeemCodeUsage {
+  id           String     @id @default(cuid())
+  redeemCodeId String
+  redeemCode   RedeemCode @relation(fields: [redeemCodeId], references: [id])
+  stage        Stage      // UNIVERSAL / AMBIGUOUS / ROMANCE / STABLE
+  sessionId    String?
+  usedAt       DateTime   @default(now())
+
+  @@unique([redeemCodeId, stage]) // 同一个码同一个阶段只能用一次
 }
 
 enum TestMode {
@@ -153,11 +165,4 @@ enum OrderStatus {
 enum PaymentMethod {
   WECHAT
   ALIPAY
-}
-
-enum CodeStatus {
-  UNUSED
-  USED
-  EXPIRED
-  DISABLED
 }

@@ -26,6 +26,7 @@ interface StagedQuizUIProps {
 
 export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
   const lastAnswersRef = useRef<{ questionId: number; answer: string }[] | null>(null);
+  const isSubmitting = useRef(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const questions = React.useMemo(() => getQuestionsByStage(stageKey), [stageKey]);
@@ -54,22 +55,27 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
     isComplete,
     currentQuestion,
     total,
+    transitioning,
   } = useQuiz({
     questions,
     sessionId,
     onComplete: (ans) => {
+      if (isSubmitting.current) return;
+      isSubmitting.current = true;
       lastAnswersRef.current = ans;
       setSubmitError(null);
       submitAnswers(ans)
         .then(() => {
           if (typeof window !== "undefined") {
             sessionStorage.removeItem(`quiz_${sessionId}`);
-            window.location.assign(`${window.location.origin}/result/${sessionId}`);
+            const targetPath = `/result/${sessionId}`;
+            window.location.assign(`${window.location.origin}${targetPath}`);
           }
         })
-        .catch((err) =>
-          setSubmitError(err instanceof Error ? err.message : "提交失败，请重试")
-        );
+        .catch((err) => {
+          setSubmitError(err instanceof Error ? err.message : "提交失败，请重试");
+          isSubmitting.current = false;
+        });
     },
   });
 
@@ -86,6 +92,8 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
   const handleRetry = () => {
     const ans = lastAnswersRef.current;
     if (!ans) return;
+    if (isSubmitting.current) return;
+    isSubmitting.current = true;
     setSubmitError(null);
     submitAnswers(ans)
       .then(() => {
@@ -94,9 +102,10 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
           window.location.assign(`${window.location.origin}/result/${sessionId}`);
         }
       })
-      .catch((err) =>
-        setSubmitError(err instanceof Error ? err.message : "提交失败，请重试")
-      );
+      .catch((err) => {
+        setSubmitError(err instanceof Error ? err.message : "提交失败，请重试");
+        isSubmitting.current = false;
+      });
   };
 
   const handlePrev = () => {
@@ -142,9 +151,9 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
                 <Loader2 className="w-8 h-8 text-pink-500 animate-spin" />
               </motion.div>
               <p className="text-lg font-medium text-gray-800 mb-1">
-                正在生成你们的专属报告...
+                正在提交...
               </p>
-              <p className="text-sm text-gray-500 mb-5">答案已提交，马上就好</p>
+              <p className="text-sm text-gray-500 mb-5">提交成功后即将跳转</p>
               <motion.div className="flex justify-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
                 {[0, 1, 2].map((i) => (
                   <motion.span
@@ -230,7 +239,9 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
                   {currentQuestion.text}
                 </h2>
               </div>
-              <div className="flex flex-col gap-3">
+              <div
+                className={`flex flex-col gap-3 ${transitioning ? "pointer-events-none" : ""}`}
+              >
                 {currentQuestion.options.map((option) => {
                   const isSelected = getAnswerFor(currentQuestion.id) === option.key;
                   return (

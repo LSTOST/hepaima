@@ -33,8 +33,10 @@ export function UniversalQuiz({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<UniversalAnswerItem[]>([]);
   const [direction, setDirection] = useState(1);
+  const [transitioning, setTransitioning] = useState(false);
   const hasSubmittedRef = useRef(false);
   const hasRestoredRef = useRef(false);
+  const isTransitioning = useRef(false);
 
   const questions = universalQuestions;
   const total = questions.length;
@@ -81,7 +83,10 @@ export function UniversalQuiz({
   const selectValue = useCallback(
     (questionId: number, value: number) => {
       if (!currentQuestion || currentQuestion.id !== questionId) return;
+      if (isTransitioning.current) return;
       if (hasSubmittedRef.current) return;
+
+      isTransitioning.current = true;
 
       const existingIdx = answers.findIndex((a) => a.questionId === questionId);
       const newAnswers =
@@ -93,10 +98,16 @@ export function UniversalQuiz({
       if (isLastQuestion) {
         hasSubmittedRef.current = true;
         onComplete(newAnswers);
-      } else {
-        setDirection(1);
-        setTimeout(() => setCurrentIndex((i) => i + 1), AUTO_NEXT_DELAY_MS);
+        return;
       }
+
+      setDirection(1);
+      setTransitioning(true);
+      setTimeout(() => {
+        setCurrentIndex((i) => i + 1);
+        setTransitioning(false);
+        isTransitioning.current = false;
+      }, AUTO_NEXT_DELAY_MS);
     },
     [currentQuestion, isLastQuestion, answers, onComplete]
   );
@@ -110,7 +121,8 @@ export function UniversalQuiz({
 
   const handleNext = useCallback(() => {
     if (isLastQuestion && currentAnswer !== undefined) {
-      if (hasSubmittedRef.current) return;
+      if (isTransitioning.current || hasSubmittedRef.current) return;
+      isTransitioning.current = true;
       hasSubmittedRef.current = true;
       const finalAnswers = answers.find((a) => a.questionId === currentQuestion?.id)
         ? answers
@@ -160,9 +172,9 @@ export function UniversalQuiz({
                 <Loader2 className="w-8 h-8 text-pink-500 animate-spin" />
               </motion.div>
               <p className="text-lg font-medium text-gray-800 mb-1">
-                正在生成你们的专属报告...
+                正在提交...
               </p>
-              <p className="text-sm text-gray-500 mb-5">答案已提交，马上就好</p>
+              <p className="text-sm text-gray-500 mb-5">提交成功后即将跳转</p>
               <motion.div className="flex justify-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
                 {[0, 1, 2].map((i) => (
                   <motion.span
@@ -251,7 +263,9 @@ export function UniversalQuiz({
               </div>
 
               <div className="w-full">
-                <div className="flex items-center justify-between gap-2 sm:gap-3 mb-3">
+                <div
+                  className={`flex items-center justify-between gap-2 sm:gap-3 mb-3 ${transitioning ? "pointer-events-none" : ""}`}
+                >
                   {[1, 2, 3, 4, 5, 6, 7].map((value) => {
                     const isSelected = currentAnswer === value;
                     return (

@@ -19,18 +19,40 @@ function getDeviceId(): string {
 
 type Status = "idle" | "loading" | "error";
 
+export interface RedeemVerifySuccess {
+  codeId: string;
+  usageId: string;
+  remainingStages: string[];
+}
+
+export interface RedeemStatusSuccess {
+  code: string;
+  usages: { stage: string; usedAt: string }[];
+  remainingStages: string[];
+  totalStages: number;
+  usedCount: number;
+}
+
 export interface RedeemCodeInputProps {
-  onSuccess: (codeId: string) => void;
+  /** 测评阶段。不传则走「仅查状态」流程，传则走「验证核销」流程 */
+  stage?: string;
+  /** 验证核销成功（传了 stage 时使用） */
+  onSuccess?: (data: RedeemVerifySuccess) => void;
+  /** 仅查状态成功（未传 stage 时使用），remainingStages 为空表示已用完 */
+  onStatusSuccess?: (data: RedeemStatusSuccess) => void;
   xiaohongshuUrl?: string;
   /** 提供时显示「上一步」按钮，用于嵌入多步流程 */
   onBack?: () => void;
 }
 
 export default function RedeemCodeInput({
+  stage,
   onSuccess,
+  onStatusSuccess,
   xiaohongshuUrl = "https://www.xiaohongshu.com",
   onBack,
 }: RedeemCodeInputProps) {
+  const isStatusOnly = stage == null && onStatusSuccess != null;
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -54,14 +76,54 @@ export default function RedeemCodeInput({
     setStatus("loading");
     setErrorMsg("");
 
-    const deviceId = getDeviceId();
-    const body = { code: code.replace(/\s/g, "").toUpperCase(), deviceId };
+    const normalizedCode = code.replace(/\s/g, "").toUpperCase();
 
+    if (isStatusOnly) {
+      try {
+        const res = await fetch("/api/v1/redeem/status", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: normalizedCode }),
+        });
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          setStatus("error");
+          setErrorMsg(data?.message ?? "查询失败，请稍后再试");
+          return;
+        }
+
+        const remainingStages = data.remainingStages ?? [];
+        if (remainingStages.length === 0) {
+          setStatus("error");
+          setErrorMsg("该兑换码已完成全部测评");
+          return;
+        }
+
+        onStatusSuccess?.({
+          code: data.code ?? normalizedCode,
+          usages: data.usages ?? [],
+          remainingStages,
+          totalStages: data.totalStages ?? 4,
+          usedCount: data.usedCount ?? 0,
+        });
+      } catch {
+        setStatus("error");
+        setErrorMsg("网络异常，请稍后再试");
+      }
+      return;
+    }
+
+    const deviceId = getDeviceId();
     try {
       const res = await fetch("/api/v1/redeem/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          code: normalizedCode,
+          deviceId,
+          stage,
+        }),
       });
       const data = await res.json().catch(() => ({}));
 
@@ -71,8 +133,12 @@ export default function RedeemCodeInput({
         return;
       }
 
-      if (data.valid && data.codeId) {
-        onSuccess(data.codeId);
+      if (data.valid && data.codeId && data.usageId) {
+        onSuccess?.({
+          codeId: data.codeId,
+          usageId: data.usageId,
+          remainingStages: data.remainingStages ?? [],
+        });
         return;
       }
 
@@ -205,8 +271,10 @@ export default function RedeemCodeInput({
                 {status === "loading" ? (
                   <>
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                    验证中...
+                    {isStatusOnly ? "查询中..." : "验证中..."}
                   </>
+                ) : isStatusOnly ? (
+                  "查询使用情况"
                 ) : (
                   "验证并开始"
                 )}

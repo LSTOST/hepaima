@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getAdminPasswordFromRequest } from "@/lib/admin-auth";
 
 const CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const MAX_COUNT = 1000;
@@ -37,8 +38,12 @@ export async function POST(req: NextRequest) {
         ? body.expiresInDays
         : null;
 
+    const adminPwd = process.env.ADMIN_PASSWORD;
     const secret = process.env.ADMIN_SECRET_KEY;
-    if (!secret || adminKey !== secret) {
+    const headerPwd = getAdminPasswordFromRequest(req);
+    const validByPwd = adminPwd && headerPwd && headerPwd === adminPwd;
+    const validByKey = secret && adminKey === secret;
+    if (!validByPwd && !validByKey) {
       return NextResponse.json({ message: "无权限" }, { status: 403 });
     }
 
@@ -69,7 +74,6 @@ export async function POST(req: NextRequest) {
       data: codes.map((code) => ({
         code,
         batchId,
-        status: "UNUSED",
         expiresAt,
       })),
     });

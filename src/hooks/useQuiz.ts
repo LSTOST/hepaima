@@ -19,7 +19,9 @@ export function useQuiz({ questions, onComplete, sessionId }: UseQuizOptions) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [answers, setAnswers] = useState<AnswerItem[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [transitioning, setTransitioning] = useState(false);
   const hasRestoredRef = useRef(false);
+  const isTransitioning = useRef(false);
 
   const total = questions.length;
   const currentQuestion = total > 0 ? questions[currentIndex] : null;
@@ -67,7 +69,10 @@ export function useQuiz({ questions, onComplete, sessionId }: UseQuizOptions) {
   const selectAnswer = useCallback(
     (questionId: number, answer: string) => {
       if (!currentQuestion || currentQuestion.id !== questionId) return;
+      if (isTransitioning.current) return;
       if (isSubmitting) return;
+
+      isTransitioning.current = true;
 
       const existingIdx = answers.findIndex((a) => a.questionId === questionId);
       const newAnswers =
@@ -83,11 +88,15 @@ export function useQuiz({ questions, onComplete, sessionId }: UseQuizOptions) {
       if (isLastQuestion) {
         setIsSubmitting(true);
         onComplete?.(newAnswers);
-      } else {
-        setTimeout(() => {
-          setCurrentIndex((i) => i + 1);
-        }, AUTO_NEXT_DELAY_MS);
+        return;
       }
+
+      setTransitioning(true);
+      setTimeout(() => {
+        setCurrentIndex((i) => i + 1);
+        setTransitioning(false);
+        isTransitioning.current = false;
+      }, AUTO_NEXT_DELAY_MS);
     },
     [currentQuestion, currentIndex, total, answers, onComplete, isSubmitting]
   );
@@ -108,5 +117,6 @@ export function useQuiz({ questions, onComplete, sessionId }: UseQuizOptions) {
     isComplete,
     currentQuestion,
     total,
+    transitioning,
   };
 }

@@ -25,6 +25,7 @@ function QuizContent() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const lastUniversalAnswersRef = useRef<UniversalAnswerItem[] | null>(null);
+  const isSubmittingRef = useRef(false);
 
   const submitUniversalAnswers = useCallback(
     async (answers: UniversalAnswerItem[]) => {
@@ -43,6 +44,8 @@ function QuizContent() {
 
   const handleUniversalComplete = useCallback(
     (answers: UniversalAnswerItem[]) => {
+      if (isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
       lastUniversalAnswersRef.current = answers;
       setSubmitError(null);
       setSubmitting(true);
@@ -50,12 +53,14 @@ function QuizContent() {
         .then(() => {
           if (typeof window !== "undefined") {
             sessionStorage.removeItem(`quiz_universal_${sessionId}`);
-            window.location.assign(`${window.location.origin}/result/${sessionId}`);
+            const targetPath = `/result/${sessionId}`;
+            window.location.assign(`${window.location.origin}${targetPath}`);
           }
         })
         .catch((err) => {
           setSubmitError(err instanceof Error ? err.message : "提交失败，请重试");
           setSubmitting(false);
+          isSubmittingRef.current = false;
         });
     },
     [sessionId, submitUniversalAnswers]
@@ -64,18 +69,21 @@ function QuizContent() {
   const handleUniversalRetry = useCallback(() => {
     const ans = lastUniversalAnswersRef.current;
     if (!ans) return;
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setSubmitError(null);
     setSubmitting(true);
-      submitUniversalAnswers(ans)
-        .then(() => {
-          if (typeof window !== "undefined") {
-            sessionStorage.removeItem(`quiz_universal_${sessionId}`);
-            window.location.assign(`${window.location.origin}/result/${sessionId}`);
-          }
-        })
+    submitUniversalAnswers(ans)
+      .then(() => {
+        if (typeof window !== "undefined") {
+          sessionStorage.removeItem(`quiz_universal_${sessionId}`);
+          window.location.assign(`${window.location.origin}/result/${sessionId}`);
+        }
+      })
       .catch((err) => {
         setSubmitError(err instanceof Error ? err.message : "提交失败，请重试");
         setSubmitting(false);
+        isSubmittingRef.current = false;
       });
   }, [sessionId, submitUniversalAnswers]);
 

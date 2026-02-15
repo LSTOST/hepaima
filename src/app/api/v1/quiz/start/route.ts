@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
     const mode = (body?.mode as ModeValue | undefined) ?? "STAGED";
     const stageRaw = body?.stage as string | undefined;
     const nickname = body?.nickname as string | undefined;
-    const redeemCodeId = body?.redeemCodeId as string | undefined;
+    const usageId = body?.usageId as string | undefined;
 
     if (!deviceId || !nickname) {
       return NextResponse.json(
@@ -35,7 +35,8 @@ export async function POST(req: NextRequest) {
     const stage: StageValue =
       mode === "UNIVERSAL"
         ? "UNIVERSAL"
-        : VALID_STAGES.includes(stageRaw as StageValue) && stageRaw !== "UNIVERSAL"
+        : VALID_STAGES.includes(stageRaw as StageValue) &&
+            stageRaw !== "UNIVERSAL"
           ? (stageRaw as StageValue)
           : "ROMANCE";
 
@@ -69,9 +70,9 @@ export async function POST(req: NextRequest) {
       },
     });
 
-    if (redeemCodeId) {
-      await prisma.redeemCode.updateMany({
-        where: { id: redeemCodeId },
+    if (usageId) {
+      await prisma.redeemCodeUsage.updateMany({
+        where: { id: usageId },
         data: { sessionId: session.id },
       });
     }
@@ -92,4 +93,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ message }, { status: 500 });
   }
 }
-
