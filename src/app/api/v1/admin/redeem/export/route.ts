@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-auth";
 
 const now = () => new Date();
 
-function statusWhere(
-  status: string,
-): Parameters<typeof prisma.redeemCode.findMany>[0]["where"] {
+function statusWhere(status: string): Prisma.RedeemCodeWhereInput {
   if (status === "all") return {};
   if (status === "UNUSED") {
     return {
@@ -34,7 +33,7 @@ export async function GET(req: NextRequest) {
     const status = searchParams.get("status") ?? "all";
     const batch = searchParams.get("batch") ?? "all";
 
-    const where: Parameters<typeof prisma.redeemCode.findMany>[0]["where"] = {
+    const where: Prisma.RedeemCodeWhereInput = {
       ...statusWhere(status),
     };
     if (batch !== "all" && batch) {

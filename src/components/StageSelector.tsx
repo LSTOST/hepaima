@@ -14,6 +14,7 @@ const STAGES = [
     questions: 38,
     time: "约8分钟",
     color: "#8B5CF6",
+    popular: false,
   },
   {
     key: "AMBIGUOUS",
@@ -23,6 +24,7 @@ const STAGES = [
     questions: 25,
     time: "约5分钟",
     color: "#EC4899",
+    popular: false,
   },
   {
     key: "ROMANCE",
@@ -42,6 +44,7 @@ const STAGES = [
     questions: 40,
     time: "约10分钟",
     color: "#10B981",
+    popular: false,
   },
 ] as const;
 

@@ -54,7 +54,7 @@ function QuizStartContent() {
   const usedStages = STAGE_KEYS.filter((k) => !remainingStages.includes(k));
 
   const stageLabel =
-    stage === "UNIVERSAL" || mode === "UNIVERSAL"
+    mode === "UNIVERSAL"
       ? STAGE_CONFIG.UNIVERSAL.label
       : STAGE_CONFIG[stage]?.label ?? "热恋期";
 
