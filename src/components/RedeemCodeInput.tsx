@@ -49,7 +49,7 @@ export default function RedeemCodeInput({
   stage,
   onSuccess,
   onStatusSuccess,
-  xiaohongshuUrl = "https://www.xiaohongshu.com",
+  xiaohongshuUrl = "https://www.xiaohongshu.com/goods-detail/6995ab8e7db7d200012530d4?t=1771416590342&xsec_token=ABwwyZOlFkou3Zm5Q0du1Novp3gpnIO_hdYZgVbUpA_dg%3D&xsec_source=pc_arkselfshare",
   onBack,
 }: RedeemCodeInputProps) {
   const isStatusOnly = stage == null && onStatusSuccess != null;

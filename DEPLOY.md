@@ -58,11 +58,32 @@ NODE_OPTIONS=--max-old-space-size=4096 pnpm build
 
 ## 1.5 环境变量
 
-在项目根目录创建 `.env`（或上传本地已有的 .env，并确认 `DATABASE_URL` 指向服务器可访问的数据库）：
+在项目根目录创建 `.env`（或把本地的 .env 上传到服务器），并确认 `DATABASE_URL` 指向该服务器可访问的数据库。**阿里云部署需要配置的变量如下：**
+
+| 变量名 | 必填 | 说明 | 示例 |
+|--------|------|------|------|
+| `DATABASE_URL` | 是 | PostgreSQL 连接串 | `postgresql://用户名:密码@127.0.0.1:5432/数据库名` |
+| `OPENROUTER_API_KEY` | 是 | OpenRouter API 密钥（报告生成） | 你的密钥 |
+| `ADMIN_PASSWORD` | 是 | 兑换码管理后台登录密码 | 自定义密码 |
+| `PORT` | 否 | 服务端口，默认 3000 | `3000` |
+| `NEXT_PUBLIC_APP_URL` | 否 | 站点对外地址（支付回调等），不填则用默认 | `https://hepaima.kyx123.com` |
+| `ADMIN_SECRET_KEY` | 否 | 生成兑换码时的密钥方式鉴权，可选 | 与后台「密钥」一致 |
+| `ALIPAY_APP_ID` | 支付启用时 | 支付宝应用 App ID | - |
+| `ALIPAY_PRIVATE_KEY` | 支付启用时 | 支付宝应用私钥 | - |
+| `ALIPAY_ALIPAY_PUBLIC_KEY` | 支付启用时 | 支付宝公钥 | - |
+| `ALIPAY_GATEWAY` | 否 | 支付宝网关，默认正式环境 | `https://openapi.alipay.com/gateway.do` |
+| `ALIPAY_KEY_TYPE` | 否 | 私钥格式 PKCS8 / PKCS1 | `PKCS8` |
+| `WECHAT_PAY_MCH_ID` | 支付启用时 | 微信支付商户号 | - |
+| `WECHAT_PAY_APP_ID` | 支付启用时 | 微信支付 App ID | - |
+| `WECHAT_PAY_API_V3_KEY` | 支付启用时 | 微信支付 API v3 密钥 | - |
+| `WECHAT_PAY_CERT_DIR` | 否 | 微信证书目录，默认 `certs/wechat` | - |
+
+**最小可运行示例（仅测评 + 兑换码后台）：**
 
 ```env
 DATABASE_URL="postgresql://用户名:密码@127.0.0.1:5432/数据库名"
 OPENROUTER_API_KEY="你的OpenRouter密钥"
+ADMIN_PASSWORD="你的管理后台密码"
 PORT=3000
 ```
 
@@ -86,16 +107,24 @@ pm2 startup
 - 添加反向代理：目标 URL 填 `http://127.0.0.1:3000`，发送域名 `$host`
 - 可选：SSL → Let's Encrypt 申请证书并强制 HTTPS
 
-## 1.9 后续更新
+## 1.9 后续更新（把当前改动部署到阿里云）
+
+**若服务器上已是旧版，用 Git 更新并重新构建：**
 
 ```bash
-cd /www/wwwroot/hepaima.kyx123.com
+cd /www/wwwroot/hepaima.kyx123.com   # 换成你的站点目录
 git pull
 pnpm install --frozen-lockfile
 pnpm build
 pnpm prisma migrate deploy
 pm2 restart hepaima
 ```
+
+**若首次部署或没有 Git：**
+
+1. 在服务器创建站点目录，用 **Git 拉取** 或 **本地上传压缩包**（见 1.3）。
+2. 在项目根目录创建或上传 **`.env`**，填好 1.5 中的变量（至少 `DATABASE_URL`、`OPENROUTER_API_KEY`、`ADMIN_PASSWORD`）。
+3. 执行 1.4 安装依赖与构建，再执行 1.6 数据库迁移，最后 1.7 用 PM2 启动，1.8 配置 Nginx 反向代理。
 
 ---
 
