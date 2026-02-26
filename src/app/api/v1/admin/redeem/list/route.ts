@@ -104,7 +104,21 @@ export async function GET(req: NextRequest) {
       totalPages: Math.ceil(total / pageSize),
     });
   } catch (e) {
-    console.error("GET /api/v1/admin/redeem/list error:", e);
-    return NextResponse.json({ message: "获取列表失败" }, { status: 500 });
+    const err = e instanceof Error ? e : new Error(String(e));
+    console.error("GET /api/v1/admin/redeem/list error:", err.message, err);
+    const isDbError =
+      err.message.includes("P1001") ||
+      err.message.includes("P2021") ||
+      err.message.includes("does not exist") ||
+      err.message.includes("prisma");
+    return NextResponse.json(
+      {
+        message: "获取列表失败",
+        ...(isDbError && {
+          hint: "请检查 DATABASE_URL 与是否已执行 pnpm prisma migrate deploy",
+        }),
+      },
+      { status: 500 },
+    );
   }
 }

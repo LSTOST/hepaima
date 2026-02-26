@@ -118,11 +118,14 @@ export default function AdminRedeemPage() {
       const res = await fetch("/api/v1/admin/redeem/stats", {
         headers: authHeaders(password),
       });
-      if (!res.ok) throw new Error("获取统计失败");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data.hint ? `${data.message}（${data.hint}）` : data.message ?? "获取统计失败";
+        throw new Error(msg);
+      }
       setStats(data);
-    } catch {
-      showToast("获取统计失败", "error");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "获取统计失败", "error");
     } finally {
       setLoading(false);
     }
@@ -142,13 +145,16 @@ export default function AdminRedeemPage() {
       const res = await fetch(`/api/v1/admin/redeem/list?${params}`, {
         headers: authHeaders(password),
       });
-      if (!res.ok) throw new Error("获取列表失败");
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const msg = data.hint ? `${data.message}（${data.hint}）` : data.message ?? "获取列表失败";
+        throw new Error(msg);
+      }
       setList(data.list);
       setTotal(data.total);
       setTotalPages(data.totalPages ?? Math.ceil(data.total / PAGE_SIZE));
-    } catch {
-      showToast("获取列表失败", "error");
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "获取列表失败", "error");
     } finally {
       setListLoading(false);
     }

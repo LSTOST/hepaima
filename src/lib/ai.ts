@@ -257,6 +257,7 @@ const FALLBACK_PREMIUM_REPORT: GeneratedPremiumReport = {
 
 export function parseReportJson(raw: string): GeneratedReport {
   let cleaned = raw.trim();
+  if (/^json\s+/i.test(cleaned)) cleaned = cleaned.replace(/^json\s+/i, "");
 
   const jsonBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (jsonBlockMatch) {
@@ -663,6 +664,7 @@ export async function generateReportStream(
 
 function parsePremiumReportJson(raw: string): GeneratedPremiumReport {
   let cleaned = raw.trim();
+  if (/^json\s+/i.test(cleaned)) cleaned = cleaned.replace(/^json\s+/i, "");
   const jsonBlockMatch = cleaned.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (jsonBlockMatch) {
     cleaned = jsonBlockMatch[1].trim();
