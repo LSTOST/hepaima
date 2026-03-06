@@ -2197,7 +2197,7 @@ function ReadyReport({
                 loadingMethod={payLoadingMethod}
                 price={19.9}
                 originalPrice={29.9}
-                orderId={payResult.orderId ?? resultData.id}
+                orderId={payResult.orderId ?? resultData.id ?? ""}
                 onRefresh={async () => {
                   await onRefetchResult?.();
                 }}
