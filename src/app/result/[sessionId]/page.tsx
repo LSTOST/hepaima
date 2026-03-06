@@ -1149,22 +1149,14 @@ function ReadyReport({
         paymentMethod: data.paymentMethod,
       });
       if (data.h5_url) {
-        setPayStep("redirect");
         window.location.href = data.h5_url;
         return;
       }
       if (data.pay_url) {
-        setPayStep("redirect");
         window.location.href = data.pay_url;
         return;
       }
-      if (data.form_html) {
-        setPayStep("form");
-        return;
-      }
-      if (data.code_url) {
-        setPayStep("qrcode");
-      }
+      // form_html 和 code_url 场景由下方弹窗组件根据 payResult 自行处理
     } catch (e) {
       setPayError(e instanceof Error ? e.message : "网络错误，请重试");
     } finally {
