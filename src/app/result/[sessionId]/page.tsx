@@ -519,7 +519,7 @@ function ResultPageContent() {
   const fetchResultWithRetry = useCallback(
     async (retries = 3): Promise<{ status: string; result?: unknown } | null> => {
       for (let i = 0; i < retries; i++) {
-        const res = await fetch(`/api/v1/result/${sessionId}`);
+        const res = await fetch(`/api/v1/result/${sessionId}`, { cache: "no-store" });
         const data = await res.json();
         if (res.ok) return data;
         if (res.status === 500 && i < retries - 1) {
@@ -1055,7 +1055,7 @@ function ReadyReport({
     if (!payDialogOpen || !sessionId) return;
     const checkPaid = async () => {
       try {
-        const res = await fetch(`/api/v1/result/${sessionId}`);
+        const res = await fetch(`/api/v1/result/${sessionId}`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok || data?.result?.purchasedTier !== "PREMIUM") return;
         await onRefetchResult?.();
@@ -1684,9 +1684,12 @@ function ReadyReport({
                       </li>
                     ))}
                   </ul>
-                  <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
+                  <div className="flex flex-wrap items-baseline justify-center gap-2 mb-3">
+                    <span className="text-sm text-gray-500">
+                      原价：<span className="line-through">¥29.90</span>
+                    </span>
                     <span className="text-xl font-semibold" style={{ color: "#EC4899" }}>
-                      ¥19.9
+                      限时：¥19.90
                     </span>
                   </div>
                   <Button
@@ -2250,6 +2253,7 @@ function PaymentPanel({
   onRefresh,
 }: PaymentPanelProps) {
   const [timeLeft, setTimeLeft] = useState(15 * 60);
+  const [refreshLoading, setRefreshLoading] = useState(false);
 
   useEffect(() => {
     if (timeLeft <= 0) return;
@@ -2272,21 +2276,13 @@ function PaymentPanel({
       color: "#07C160",
       bgLight: "#F0FDF4",
       name: "微信支付",
-      icon: (
-        <svg viewBox="0 0 24 24" className="w-6 h-6" fill="#07C160" aria-hidden="true">
-          <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05a6.42 6.42 0 0 1-.235-1.69c0-3.66 3.571-6.627 7.977-6.627.191 0 .383.006.57.018C16.186 4.276 12.79 2.188 8.69 2.188zm-2.79 4.401c.548 0 .994.445.994.994s-.446.994-.994.994a.994.994 0 1 1 0-1.988zm5.18 0c.549 0 .994.445.994.994s-.445.994-.994.994-.994-.446-.994-.994.446-.994.994-.994zm5.163 3.172c-3.863 0-6.996 2.644-6.996 5.908 0 3.263 3.133 5.907 6.996 5.907.67 0 1.314-.08 1.924-.224a.615.615 0 0 1 .514.07l1.367.802a.235.235 0 0 0 .12.04.21.21 0 0 0 .208-.21c0-.052-.02-.103-.034-.153l-.28-1.062a.424.424 0 0 1 .153-.476c1.319-.968 2.159-2.406 2.159-4.027 0-3.264-3.132-5.907-6.996-5.907l-.135.332zm-2.143 3.08c.395 0 .714.32.714.714a.714.714 0 1 1-.714-.714zm4.287 0c.395 0 .714.32.714.714a.714.714 0 1 1-.714-.714z" />
-        </svg>
-      ),
+      iconSrc: "/icons/wechat.svg",
     },
     ALIPAY: {
       color: "#1677FF",
       bgLight: "#EFF6FF",
       name: "支付宝",
-      icon: (
-        <svg viewBox="0 0 24 24" className="w-6 h-6" fill="#1677FF" aria-hidden="true">
-          <path d="M21.422 15.358c-3.192-1.044-5.348-1.92-6.4-2.736 1.2-1.8 2.16-3.888 2.736-6.096h-4.464V4.806h5.52v-1.44h-5.52V.766h-2.16c-.24 0-.432.192-.432.432v2.16H5.198v1.44h5.52v1.728H6.478v1.44h9.168c-.48 1.536-1.2 3.024-2.112 4.32-1.968-1.44-4.08-2.64-6.096-3.264l-.672 1.392c2.016.672 4.128 1.872 6.048 3.36-1.872 1.968-4.128 3.6-6.576 4.752l.864 1.44c2.592-1.248 4.944-3.024 6.912-5.136 1.392 1.2 2.64 2.64 3.552 4.224 4.08 1.632 5.856 2.352 6.192 2.496.336.144 1.008.432 1.2.528.48.24 1.056-.048 1.296-.48l1.488-3.024c.144-.336.144-.816-.192-1.056-.192-.096-.816-.336-1.296-.528z" />
-        </svg>
-      ),
+      iconSrc: "/icons/alipay.svg",
     },
   } as const;
 
@@ -2347,7 +2343,7 @@ function PaymentPanel({
                     borderBottomColor: isActive ? config.color : "transparent",
                   }}
                 >
-                  {config.icon}
+                  <Image src={config.iconSrc} alt="" width={24} height={24} className="w-6 h-6 shrink-0" />
                   <span
                     className={`text-sm font-medium ${isActive ? "" : "text-gray-500"}`}
                     style={{ color: isActive ? config.color : undefined }}
@@ -2381,7 +2377,7 @@ function PaymentPanel({
                     <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 rounded-bl-xl" style={{ borderColor: current.color }} />
                     <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 rounded-br-xl" style={{ borderColor: current.color }} />
 
-                    <div className="w-52 h-52 rounded-lg flex items-center justify-center bg-white overflow-hidden relative">
+                    <div className="w-52 h-52 rounded-lg flex items-center justify-center bg-white overflow-hidden">
                       {payResult.code_url && (
                         <img
                           src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
@@ -2393,19 +2389,13 @@ function PaymentPanel({
                           className="block"
                         />
                       )}
-                      <div
-                        className="absolute w-12 h-12 rounded-lg flex items-center justify-center bg-white shadow-sm z-10"
-                        style={{ border: `2px solid ${current.color}` }}
-                      >
-                        {current.icon}
-                      </div>
                     </div>
                   </div>
 
                   <p className="text-sm text-gray-600 mb-1">
-                    请使用{" "}
+                    请打开{" "}
                     <span style={{ color: current.color }} className="font-medium">
-                      {current.name}
+                      {paymentMethod === "WECHAT" ? "微信" : "支付宝"}
                     </span>{" "}
                     扫码支付
                   </p>
@@ -2419,35 +2409,24 @@ function PaymentPanel({
                   </div>
                 </div>
 
-                <div className="flex items-center gap-3 my-6">
-                  <div className="flex-1 h-px bg-gray-100" />
-                  <span className="text-xs text-gray-300">或</span>
-                  <div className="flex-1 h-px bg-gray-100" />
-                </div>
-
                 <button
                   type="button"
-                  onClick={() => {
-                    // 给用户一个心理暗示，实际上扫码即可完成
-                    // 这里不需要真正唤起 App
-                    // eslint-disable-next-line no-console
-                    console.log("Open app to pay:", paymentMethod);
+                  disabled={refreshLoading}
+                  onClick={async () => {
+                    setRefreshLoading(true);
+                    try {
+                      await onRefresh();
+                    } finally {
+                      setRefreshLoading(false);
+                    }
                   }}
-                  className="w-full py-3 rounded-lg text-sm font-medium text-white transition-colors"
-                  style={{ backgroundColor: current.color }}
+                  className="mt-5 w-full text-xs font-medium text-pink-500 hover:text-pink-600 underline text-center disabled:opacity-60"
                 >
-                  打开{current.name}App支付
+                  {refreshLoading ? "正在查询..." : "支付已完成？点击刷新解锁"}
                 </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    void onRefresh();
-                  }}
-                  className="mt-3 w-full text-xs font-medium text-pink-500 hover:text-pink-600 underline text-center"
-                >
-                  支付已完成？点击刷新解锁
-                </button>
+                <p className="mt-2 text-xs text-gray-400 text-center">
+                  若已支付成功但未自动解锁，请<button type="button" onClick={() => window.location.reload()} className="underline text-pink-500 hover:text-pink-600">刷新页面</button>
+                </p>
               </motion.div>
             )}
 
@@ -2481,7 +2460,7 @@ function PaymentPanel({
 
         <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-gray-400">
           <Shield className="w-3.5 h-3.5" />
-          <span>安全支付由微信/支付宝官方提供保障</span>
+          <span>安全支付 · 微信/支付宝官方提供保障</span>
         </div>
       </main>
     </div>
