@@ -1,10 +1,19 @@
 /**
  * 报告档位对应金额（单位：分，用于微信支付）
- * 可根据 PRD 按通用版/阶段版细分，此处先统一
+ * 本地测试可设 PAYMENT_TEST_AMOUNT_CENTS=100 改为 1 元
  */
-export const TIER_AMOUNT_CENTS: Record<string, number> = {
+const REAL_AMOUNTS: Record<string, number> = {
   STANDARD: 1290, // 12.9 元
-  PREMIUM: 2990,  // 29.9 元
+  PREMIUM: 1990,  // 19.9 元
+};
+
+const testCents = process.env.PAYMENT_TEST_AMOUNT_CENTS
+  ? parseInt(process.env.PAYMENT_TEST_AMOUNT_CENTS, 10)
+  : null;
+
+export const TIER_AMOUNT_CENTS: Record<string, number> = {
+  STANDARD: testCents ?? REAL_AMOUNTS.STANDARD,
+  PREMIUM: testCents ?? REAL_AMOUNTS.PREMIUM,
 };
 
 /** 档位对应金额（元，字符串，用于支付宝） */

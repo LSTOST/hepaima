@@ -41,6 +41,26 @@ export function getWxPay(): InstanceType<typeof WxPay> {
   return wxPayInstance;
 }
 
+/** 从微信 API 响应或异常中提取错误文案，便于排查 */
+function getWechatErrorDetail(result: Record<string, unknown> | null, fallback = ""): string {
+  if (!result || typeof result !== "object") return fallback;
+  const data = (result.data as Record<string, unknown>) || result;
+  const parts = [
+    (data.errcode as string) || (result.errcode as string),
+    (data.errmsg as string) || (result.errmsg as string),
+    (data.message as string) || (result.message as string),
+    (data.code as string) ? `${data.code}: ${(data.message as string) || ""}`.trim() : null,
+  ].filter(Boolean);
+  if (parts.length) return parts.join(" ");
+  try {
+    const raw = JSON.stringify(data);
+    if (raw && raw !== "{}") return raw;
+  } catch {
+    // ignore
+  }
+  return fallback;
+}
+
 /** 创建 Native 支付订单（PC 扫码），返回 code_url */
 export async function createWechatNativeOrder(params: {
   outTradeNo: string;
@@ -48,23 +68,29 @@ export async function createWechatNativeOrder(params: {
   amountCents: number;
 }): Promise<{ code_url: string }> {
   const pay = getWxPay();
-  let result: { status?: number; code_url?: string; errcode?: string; errmsg?: string; message?: string };
+  let result: Record<string, unknown> & { status?: number; code_url?: string };
   try {
-    result = await pay.transactions_native({
+    result = (await pay.transactions_native({
       description: params.description,
       out_trade_no: params.outTradeNo,
       notify_url: `${BASE_URL}/api/v1/payment/wechat/notify`,
       amount: { total: params.amountCents, currency: "CNY" },
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`微信 Native 下单异常: ${msg}`);
+    })) as typeof result;
+  } catch (e: unknown) {
+    const err = e as { message?: string; response?: { data?: Record<string, unknown> } };
+    const msg = err?.message ?? String(e);
+    const apiDetail = err?.response?.data ? getWechatErrorDetail(err.response.data, "") : "";
+    const fullMsg = apiDetail ? `微信 Native 下单异常: ${apiDetail}` : `微信 Native 下单异常: ${msg}`;
+    console.error("[WeChat Native] 请求异常:", fullMsg, "原始 error:", err?.response?.data ?? msg);
+    throw new Error(fullMsg);
   }
-  if (result.status !== 200 || !result.code_url) {
-    const detail = [result.errcode, result.errmsg, result.message].filter(Boolean).join(" ");
-    throw new Error(detail ? `微信 Native 下单失败: ${detail}` : "微信 Native 下单失败");
+  const codeUrl = (result.data as { code_url?: string } | undefined)?.code_url ?? result.code_url;
+  if (result.status !== 200 || !codeUrl) {
+    const detail = getWechatErrorDetail(result, "");
+    console.error("[WeChat Native] 非 200 或缺少 code_url, 完整响应:", JSON.stringify(result));
+    throw new Error(detail ? `微信 Native 下单失败: ${detail}` : `微信 Native 下单失败(无详情)，status=${result.status}`);
   }
-  return { code_url: result.code_url };
+  return { code_url: codeUrl };
 }
 
 /** 创建 H5 支付订单（手机浏览器），返回 h5_url */
@@ -75,9 +101,9 @@ export async function createWechatH5Order(params: {
   clientIp?: string;
 }): Promise<{ h5_url: string }> {
   const pay = getWxPay();
-  let result: { status?: number; h5_url?: string; errcode?: string; errmsg?: string; message?: string };
+  let result: Record<string, unknown> & { status?: number; h5_url?: string };
   try {
-    result = await pay.transactions_h5({
+    result = (await pay.transactions_h5({
       description: params.description,
       out_trade_no: params.outTradeNo,
       notify_url: `${BASE_URL}/api/v1/payment/wechat/notify`,
@@ -90,16 +116,22 @@ export async function createWechatH5Order(params: {
           app_url: BASE_URL,
         },
       },
-    });
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`微信 H5 下单异常: ${msg}`);
+    })) as typeof result;
+  } catch (e: unknown) {
+    const err = e as { message?: string; response?: { data?: Record<string, unknown> } };
+    const msg = err?.message ?? String(e);
+    const apiDetail = err?.response?.data ? getWechatErrorDetail(err.response.data, "") : "";
+    const fullMsg = apiDetail ? `微信 H5 下单异常: ${apiDetail}` : `微信 H5 下单异常: ${msg}`;
+    console.error("[WeChat H5] 请求异常:", fullMsg, "原始 error:", err?.response?.data ?? msg);
+    throw new Error(fullMsg);
   }
-  if (result.status !== 200 || !result.h5_url) {
-    const detail = [result.errcode, result.errmsg, result.message].filter(Boolean).join(" ");
-    throw new Error(detail ? `微信 H5 下单失败: ${detail}` : "微信 H5 下单失败");
+  const h5Url = (result.data as { h5_url?: string } | undefined)?.h5_url ?? result.h5_url;
+  if (result.status !== 200 || !h5Url) {
+    const detail = getWechatErrorDetail(result, "");
+    console.error("[WeChat H5] 非 200 或缺少 h5_url, 完整响应:", JSON.stringify(result));
+    throw new Error(detail ? `微信 H5 下单失败: ${detail}` : `微信 H5 下单失败(无详情)，status=${result.status}`);
   }
-  return { h5_url: result.h5_url };
+  return { h5_url: h5Url };
 }
 
 /** 验签：请求头 + 原始 body 字符串 */

@@ -4,8 +4,8 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { createWechatNativeOrder, createWechatH5Order } from "@/lib/payment/wechat";
-import { createAlipayPagePay, createAlipayWapPay, getTierAmountYuan } from "@/lib/payment/alipay";
+import { createWechatNativeOrder } from "@/lib/payment/wechat";
+import { createAlipayPrecreate, createAlipayWapPay, getTierAmountYuan } from "@/lib/payment/alipay";
 import { TIER_AMOUNT_CENTS } from "@/lib/payment/constants";
 
 const VALID_TIERS = ["STANDARD", "PREMIUM"] as const;
@@ -72,35 +72,22 @@ export async function POST(req: NextRequest) {
     const amountYuan = getTierAmountYuan(tier);
     const userAgent = req.headers.get("user-agent") ?? "";
 
+    // 微信：统一使用 Native（扫码）支付，PC 和移动端都展示二维码
     if (paymentMethod === "WECHAT") {
-      const mobile = isMobile(userAgent);
-      if (mobile) {
-        const { h5_url } = await createWechatH5Order({
-          outTradeNo,
-          description,
-          amountCents: amount,
-        });
-        return NextResponse.json({
-          orderId: order.id,
-          paymentMethod: "WECHAT",
-          type: "h5",
-          h5_url,
-        });
-      } else {
-        const { code_url } = await createWechatNativeOrder({
-          outTradeNo,
-          description,
-          amountCents: amount,
-        });
-        return NextResponse.json({
-          orderId: order.id,
-          paymentMethod: "WECHAT",
-          type: "native",
-          code_url: code_url,
-        });
-      }
+      const { code_url } = await createWechatNativeOrder({
+        outTradeNo,
+        description,
+        amountCents: amount,
+      });
+      return NextResponse.json({
+        orderId: order.id,
+        paymentMethod: "WECHAT",
+        type: "native",
+        code_url,
+      });
     }
 
+    // 支付宝：PC 用「当面付」预创建二维码，手机用「手机网站支付」
     if (paymentMethod === "ALIPAY") {
       const mobile = isMobile(userAgent);
       if (mobile) {
@@ -116,7 +103,7 @@ export async function POST(req: NextRequest) {
           pay_url: payUrl,
         });
       } else {
-        const formHtml = createAlipayPagePay({
+        const { qr_code } = await createAlipayPrecreate({
           outTradeNo,
           subject: description,
           totalAmountYuan: amountYuan,
@@ -124,8 +111,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({
           orderId: order.id,
           paymentMethod: "ALIPAY",
-          type: "page",
-          form_html: formHtml,
+          type: "native",
+          code_url: qr_code,
         });
       }
     }

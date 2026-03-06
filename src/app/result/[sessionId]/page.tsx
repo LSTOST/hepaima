@@ -33,6 +33,8 @@ import {
   Sprout,
   Zap,
   ShieldAlert,
+  Shield,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -531,6 +533,11 @@ function ResultPageContent() {
     [sessionId]
   );
 
+  const refetchResultCb = useCallback(async () => {
+    const json = await fetchResultWithRetry();
+    if (json?.status === "ready" && json.result) setResultData(json.result as ResultData);
+  }, [fetchResultWithRetry]);
+
   // Initial fetch and polling logic
   useEffect(() => {
     if (!sessionId) return;
@@ -987,6 +994,7 @@ function ResultPageContent() {
         resultData={resultData}
         sessionData={sessionData}
         reportPollTimeout={reportPollTimeout}
+        onRefetchResult={refetchResultCb}
       />
     );
   }
@@ -1007,11 +1015,13 @@ function ReadyReport({
   resultData,
   sessionData,
   reportPollTimeout = false,
+  onRefetchResult,
 }: {
   sessionId: string;
   resultData: ResultData;
   sessionData: SessionStatus;
   reportPollTimeout?: boolean;
+  onRefetchResult?: () => void | Promise<void>;
 }) {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [unlocked, setUnlocked] = useState(resultData.purchasedTier === "PREMIUM");
@@ -1019,39 +1029,44 @@ function ReadyReport({
 
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payLoading, setPayLoading] = useState(false);
-  const [payStep, setPayStep] = useState<"choose" | "qrcode" | "redirect" | "form">("choose");
+  const [payLoadingMethod, setPayLoadingMethod] = useState<"WECHAT" | "ALIPAY" | null>(null);
+  const [paymentMethod, setPaymentMethod] = useState<"WECHAT" | "ALIPAY">("WECHAT");
   const [payResult, setPayResult] = useState<{
     type: string;
+    orderId?: string;
     code_url?: string;
     h5_url?: string;
     form_html?: string;
     pay_url?: string;
+    paymentMethod?: string;
   } | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (resultData.purchasedTier === "PREMIUM") setUnlocked(true);
+    if (resultData.purchasedTier === "PREMIUM") {
+      setUnlocked(true);
+      setPayDialogOpen(false);
+      setPayResult(null);
+    }
   }, [resultData.purchasedTier]);
 
-  // 支付弹窗打开时轮询结果，支付成功后更新解锁状态
+  // 支付弹窗打开时轮询结果，支付成功后刷新父级 resultData（父级更新后 resultData.purchasedTier 会变 PREMIUM，上面 useEffect 会关弹窗并解锁）
   useEffect(() => {
     if (!payDialogOpen || !sessionId) return;
-    const t = setInterval(async () => {
+    const checkPaid = async () => {
       try {
         const res = await fetch(`/api/v1/result/${sessionId}`);
         const data = await res.json();
-        if (res.ok && data?.result?.purchasedTier === "PREMIUM") {
-          setUnlocked(true);
-          setPayDialogOpen(false);
-          setPayStep("choose");
-          setPayResult(null);
-        }
+        if (!res.ok || data?.result?.purchasedTier !== "PREMIUM") return;
+        await onRefetchResult?.();
       } catch {
         // ignore
       }
-    }, 3000);
+    };
+    checkPaid(); // 立即查一次，不等待首个 interval
+    const t = setInterval(checkPaid, 1500);
     return () => clearInterval(t);
-  }, [payDialogOpen, sessionId]);
+  }, [payDialogOpen, sessionId, onRefetchResult]);
 
   const [premiumTipIndex, setPremiumTipIndex] = useState(0);
   const [basicReportTipIndex, setBasicReportTipIndex] = useState(0);
@@ -1071,6 +1086,7 @@ function ReadyReport({
   ];
 
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
+
 
   const handleUnlockPremium = async () => {
     setUnlocking(true);
@@ -1102,7 +1118,9 @@ function ReadyReport({
       setPayError("无法识别设备，请刷新页面重试");
       return;
     }
+    setPaymentMethod(paymentMethod);
     setPayError(null);
+    setPayLoadingMethod(paymentMethod);
     setPayLoading(true);
     try {
       const res = await fetch("/api/v1/orders", {
@@ -1123,10 +1141,12 @@ function ReadyReport({
       }
       setPayResult({
         type: data.type,
+        orderId: data.orderId,
         code_url: data.code_url,
         h5_url: data.h5_url,
         form_html: data.form_html,
         pay_url: data.pay_url,
+        paymentMethod: data.paymentMethod,
       });
       if (data.h5_url) {
         setPayStep("redirect");
@@ -1149,6 +1169,7 @@ function ReadyReport({
       setPayError(e instanceof Error ? e.message : "网络错误，请重试");
     } finally {
       setPayLoading(false);
+      setPayLoadingMethod(null);
     }
   };
 
@@ -1665,23 +1686,21 @@ function ReadyReport({
                   </ul>
                   <div className="flex flex-wrap items-center justify-center gap-2 mb-3">
                     <span className="text-xl font-semibold" style={{ color: "#EC4899" }}>
-                      ¥29.9
+                      ¥19.9
                     </span>
                   </div>
                   <Button
-                    onClick={() => { setPayDialogOpen(true); setPayStep("choose"); setPayResult(null); setPayError(null); }}
+                    onClick={() => {
+                      setPayDialogOpen(true);
+                      setPayResult(null);
+                      setPayError(null);
+                      setPaymentMethod("WECHAT");
+                      void handlePay("WECHAT");
+                    }}
                     className="w-full max-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white text-base font-semibold shadow-lg shadow-pink-500/10 transition-transform duration-200 hover:scale-[1.02] mx-auto"
                   >
-                    微信 / 支付宝 解锁
+                    点击解锁
                   </Button>
-                  <button
-                    type="button"
-                    onClick={handleUnlockPremium}
-                    disabled={unlocking}
-                    className="mt-2 text-xs text-gray-500 hover:text-gray-700 underline"
-                  >
-                    {unlocking ? "解锁中..." : "限时免费解锁"}
-                  </button>
                 </div>
               </ScrollCard>
             </div>
@@ -2171,53 +2190,302 @@ function ReadyReport({
         </Dialog>
 
         <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
-          <DialogContent className="sm:max-w-sm">
+          <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
             <DialogTitle className="sr-only">支付解锁</DialogTitle>
-            {payStep === "choose" && (
-              <>
-                <h3 className="text-lg font-semibold text-gray-800 text-center">选择支付方式</h3>
-                {payError && (
-                  <p className="text-sm text-red-600 text-center">{payError}</p>
-                )}
-                <div className="grid grid-cols-2 gap-3 mt-4">
-                  <Button
-                    onClick={() => handlePay("WECHAT")}
-                    disabled={payLoading}
-                    className="h-12 rounded-xl bg-[#07C160] hover:bg-[#06AD56] text-white"
-                  >
-                    {payLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "微信支付"}
-                  </Button>
-                  <Button
-                    onClick={() => handlePay("ALIPAY")}
-                    disabled={payLoading}
-                    className="h-12 rounded-xl bg-[#1677FF] hover:bg-[#4096FF] text-white"
-                  >
-                    {payLoading ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "支付宝"}
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500 text-center mt-2">支付成功后将自动解锁深度报告</p>
-              </>
+            {payResult?.code_url && (
+              <PaymentPanel
+                paymentMethod={paymentMethod}
+                onSelectMethod={(m) => {
+                  void handlePay(m);
+                }}
+                payResult={payResult}
+                loadingMethod={payLoadingMethod}
+                price={19.9}
+                originalPrice={29.9}
+                orderId={payResult.orderId ?? resultData.id}
+                onRefresh={async () => {
+                  await onRefetchResult?.();
+                }}
+              />
             )}
-            {payStep === "qrcode" && payResult?.code_url && (
-              <div className="text-center py-2">
-                <p className="text-sm text-gray-700 mb-3">请使用微信扫码支付</p>
-                <img
-                  src={`https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=${encodeURIComponent(payResult.code_url)}`}
-                  alt="微信支付二维码"
-                  width={220}
-                  height={220}
-                  className="mx-auto rounded-lg border border-gray-200"
-                />
-                <p className="text-xs text-gray-500 mt-2">支付完成后将自动刷新</p>
+            {!payResult?.code_url && (
+              <div className="px-6 py-10 flex flex-col items-center">
+                <Loader2 className="w-6 h-6 text-pink-500 animate-spin mb-3" />
+                <p className="text-sm text-gray-600">正在为你生成支付二维码...</p>
               </div>
             )}
-            {payStep === "form" && payResult?.form_html && (
+            {payResult?.form_html && (
               <AlipayFormInjector html={payResult.form_html} />
             )}
           </DialogContent>
         </Dialog>
       </div>
     );
+}
+
+interface PaymentPanelProps {
+  paymentMethod: "WECHAT" | "ALIPAY";
+  onSelectMethod: (m: "WECHAT" | "ALIPAY") => void;
+  payResult: {
+    type: string;
+    orderId?: string;
+    code_url?: string;
+    paymentMethod?: string;
+  };
+  loadingMethod: "WECHAT" | "ALIPAY" | null;
+  price: number;
+  originalPrice?: number;
+  orderId: string;
+  onRefresh: () => void | Promise<void>;
+}
+
+function PaymentPanel({
+  paymentMethod,
+  onSelectMethod,
+  payResult,
+  loadingMethod,
+  price,
+  originalPrice,
+  orderId,
+  onRefresh,
+}: PaymentPanelProps) {
+  const [timeLeft, setTimeLeft] = useState(15 * 60);
+
+  useEffect(() => {
+    if (timeLeft <= 0) return;
+    const timer = setInterval(() => {
+      setTimeLeft((t) => (t > 0 ? t - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
+  };
+
+  const isExpired = timeLeft <= 0;
+
+  const methodConfig = {
+    WECHAT: {
+      color: "#07C160",
+      bgLight: "#F0FDF4",
+      name: "微信支付",
+      icon: (
+        <svg viewBox="0 0 24 24" className="w-6 h-6" fill="#07C160" aria-hidden="true">
+          <path d="M8.691 2.188C3.891 2.188 0 5.476 0 9.53c0 2.212 1.17 4.203 3.002 5.55a.59.59 0 0 1 .213.665l-.39 1.48c-.019.07-.048.141-.048.213 0 .163.13.295.29.295a.326.326 0 0 0 .167-.054l1.903-1.114a.864.864 0 0 1 .717-.098 10.16 10.16 0 0 0 2.837.403c.276 0 .543-.027.811-.05a6.42 6.42 0 0 1-.235-1.69c0-3.66 3.571-6.627 7.977-6.627.191 0 .383.006.57.018C16.186 4.276 12.79 2.188 8.69 2.188zm-2.79 4.401c.548 0 .994.445.994.994s-.446.994-.994.994a.994.994 0 1 1 0-1.988zm5.18 0c.549 0 .994.445.994.994s-.445.994-.994.994-.994-.446-.994-.994.446-.994.994-.994zm5.163 3.172c-3.863 0-6.996 2.644-6.996 5.908 0 3.263 3.133 5.907 6.996 5.907.67 0 1.314-.08 1.924-.224a.615.615 0 0 1 .514.07l1.367.802a.235.235 0 0 0 .12.04.21.21 0 0 0 .208-.21c0-.052-.02-.103-.034-.153l-.28-1.062a.424.424 0 0 1 .153-.476c1.319-.968 2.159-2.406 2.159-4.027 0-3.264-3.132-5.907-6.996-5.907l-.135.332zm-2.143 3.08c.395 0 .714.32.714.714a.714.714 0 1 1-.714-.714zm4.287 0c.395 0 .714.32.714.714a.714.714 0 1 1-.714-.714z" />
+        </svg>
+      ),
+    },
+    ALIPAY: {
+      color: "#1677FF",
+      bgLight: "#EFF6FF",
+      name: "支付宝",
+      icon: (
+        <svg viewBox="0 0 24 24" className="w-6 h-6" fill="#1677FF" aria-hidden="true">
+          <path d="M21.422 15.358c-3.192-1.044-5.348-1.92-6.4-2.736 1.2-1.8 2.16-3.888 2.736-6.096h-4.464V4.806h5.52v-1.44h-5.52V.766h-2.16c-.24 0-.432.192-.432.432v2.16H5.198v1.44h5.52v1.728H6.478v1.44h9.168c-.48 1.536-1.2 3.024-2.112 4.32-1.968-1.44-4.08-2.64-6.096-3.264l-.672 1.392c2.016.672 4.128 1.872 6.048 3.36-1.872 1.968-4.128 3.6-6.576 4.752l.864 1.44c2.592-1.248 4.944-3.024 6.912-5.136 1.392 1.2 2.64 2.64 3.552 4.224 4.08 1.632 5.856 2.352 6.192 2.496.336.144 1.008.432 1.2.528.48.24 1.056-.048 1.296-.48l1.488-3.024c.144-.336.144-.816-.192-1.056-.192-.096-.816-.336-1.296-.528z" />
+        </svg>
+      ),
+    },
+  } as const;
+
+  const current = methodConfig[paymentMethod];
+
+  return (
+    <div className="bg-gray-50">
+      <main className="max-w-lg mx-auto px-4 py-5">
+        {/* Order Info Card */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+          <div className="px-4 py-4 border-b border-gray-50">
+            <div className="flex items-start justify-between">
+              <div className="flex-1 min-w-0">
+                <h2 className="text-sm font-medium text-gray-800 truncate">
+                  合拍吗 · 深度报告解锁
+                </h2>
+                <p className="text-xs text-gray-400 mt-0.5 truncate">订单号：{orderId}</p>
+              </div>
+            </div>
+          </div>
+          <div className="px-4 py-4 bg-gray-50/50">
+            <div className="flex items-baseline justify-between">
+              <span className="text-sm text-gray-500">支付金额</span>
+              <div className="flex items-baseline gap-2">
+                {originalPrice && originalPrice !== price && (
+                  <span className="text-sm text-gray-400 line-through">¥{originalPrice.toFixed(2)}</span>
+                )}
+                <span className="text-2xl font-semibold" style={{ color: current.color }}>
+                  <span className="text-base">¥</span>
+                  {price.toFixed(2)}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment Method Selector */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+          <div className="px-4 py-3 border-b border-gray-50">
+            <span className="text-sm text-gray-500">选择支付方式</span>
+          </div>
+          <div className="flex">
+            {(["WECHAT", "ALIPAY"] as const).map((method) => {
+              const config = methodConfig[method];
+              const isActive = paymentMethod === method;
+              return (
+                <button
+                  key={method}
+                  type="button"
+                  onClick={() => {
+                    if (loadingMethod) return;
+                    onSelectMethod(method);
+                  }}
+                  className={`flex-1 flex items-center justify-center gap-2 py-3 border-b-2 transition-colors ${
+                    isActive ? "bg-gray-50/50" : "border-transparent hover:bg-gray-50/30"
+                  }`}
+                  style={{
+                    borderBottomColor: isActive ? config.color : "transparent",
+                  }}
+                >
+                  {config.icon}
+                  <span
+                    className={`text-sm font-medium ${isActive ? "" : "text-gray-500"}`}
+                    style={{ color: isActive ? config.color : undefined }}
+                  >
+                    {config.name}
+                  </span>
+                  {loadingMethod === method && (
+                    <Loader2 className="w-4 h-4 text-gray-400 animate-spin" aria-hidden="true" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* QR Code Area */}
+        <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+          <AnimatePresence mode="wait">
+            {!isExpired && (
+              <motion.div
+                key="qr"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="px-6 py-6"
+              >
+                <div className="flex flex-col items-center">
+                  <div className="relative p-3 rounded-xl mb-4" style={{ backgroundColor: current.bgLight }}>
+                    <div className="absolute top-0 left-0 w-4 h-4 border-l-2 border-t-2 rounded-tl-xl" style={{ borderColor: current.color }} />
+                    <div className="absolute top-0 right-0 w-4 h-4 border-r-2 border-t-2 rounded-tr-xl" style={{ borderColor: current.color }} />
+                    <div className="absolute bottom-0 left-0 w-4 h-4 border-l-2 border-b-2 rounded-bl-xl" style={{ borderColor: current.color }} />
+                    <div className="absolute bottom-0 right-0 w-4 h-4 border-r-2 border-b-2 rounded-br-xl" style={{ borderColor: current.color }} />
+
+                    <div className="w-52 h-52 rounded-lg flex items-center justify-center bg-white overflow-hidden relative">
+                      {payResult.code_url && (
+                        <img
+                          src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
+                            payResult.code_url,
+                          )}`}
+                          alt={paymentMethod === "ALIPAY" ? "支付宝支付二维码" : "微信支付二维码"}
+                          width={240}
+                          height={240}
+                          className="block"
+                        />
+                      )}
+                      <div
+                        className="absolute w-12 h-12 rounded-lg flex items-center justify-center bg-white shadow-sm z-10"
+                        style={{ border: `2px solid ${current.color}` }}
+                      >
+                        {current.icon}
+                      </div>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-gray-600 mb-1">
+                    请使用{" "}
+                    <span style={{ color: current.color }} className="font-medium">
+                      {current.name}
+                    </span>{" "}
+                    扫码支付
+                  </p>
+
+                  <div className="flex items-center gap-1.5 text-xs text-gray-400 mt-1">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>
+                      支付剩余时间：
+                      <span className={timeLeft <= 60 ? "text-red-500 font-medium" : ""}>{formatTime(timeLeft)}</span>
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 my-6">
+                  <div className="flex-1 h-px bg-gray-100" />
+                  <span className="text-xs text-gray-300">或</span>
+                  <div className="flex-1 h-px bg-gray-100" />
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    // 给用户一个心理暗示，实际上扫码即可完成
+                    // 这里不需要真正唤起 App
+                    // eslint-disable-next-line no-console
+                    console.log("Open app to pay:", paymentMethod);
+                  }}
+                  className="w-full py-3 rounded-lg text-sm font-medium text-white transition-colors"
+                  style={{ backgroundColor: current.color }}
+                >
+                  打开{current.name}App支付
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    void onRefresh();
+                  }}
+                  className="mt-3 w-full text-xs font-medium text-pink-500 hover:text-pink-600 underline text-center"
+                >
+                  支付已完成？点击刷新解锁
+                </button>
+              </motion.div>
+            )}
+
+            {isExpired && (
+              <motion.div
+                key="expired"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                className="px-6 py-10 flex flex-col items-center"
+              >
+                <div className="w-16 h-16 rounded-full bg-red-50 flex items-center justify-center mb-4">
+                  <AlertTriangle className="w-8 h-8 text-red-500" />
+                </div>
+                <p className="text-base font-medium text-gray-800 mb-1">二维码已过期</p>
+                <p className="text-sm text-gray-500 mb-4">请重新生成支付二维码</p>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    setTimeLeft(15 * 60);
+                    onSelectMethod(paymentMethod);
+                  }}
+                  className="px-6 py-2 rounded-lg text-sm font-medium text-white"
+                  style={{ backgroundColor: current.color }}
+                >
+                  重新生成二维码
+                </Button>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-gray-400">
+          <Shield className="w-3.5 h-3.5" />
+          <span>安全支付由微信/支付宝官方提供保障</span>
+        </div>
+      </main>
+    </div>
+  );
 }
 
 export default function ResultPage() {
