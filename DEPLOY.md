@@ -1,5 +1,21 @@
 # 阿里云服务器部署说明
 
+## 最快部署方式：本地一条命令
+
+在**本地**项目根目录执行一条命令即可完成「推送 + 服务器拉代码 + 安装 + 构建 + 重启」：
+
+```bash
+# 首次使用前配置一次（把 root@你的服务器IP 换成实际 SSH 地址）
+export DEPLOY_SSH="root@你的服务器IP"
+
+# 之后每次部署
+bash scripts/deploy-from-local.sh
+```
+
+脚本会先 `git push origin main`，再 SSH 到服务器执行 `scripts/deploy.sh`。若已配置 SSH 免密登录，全程无需再输入密码。
+
+---
+
 ## 为什么 pull + build + pm2 restart 后页面没更新？
 
 常见原因与对应处理如下。
@@ -66,3 +82,55 @@ bash scripts/deploy-check.sh
 ```
 
 根据脚本输出的 Git 最新提交、`.next` 时间、PM2 的 cwd 和命令逐项核对。
+
+---
+
+## 部署时命令「卡住」怎么办？
+
+通常卡在 **`pnpm install`** 或 **`pnpm build`**，看起来像没反应。
+
+### 先确认卡在哪一步
+
+建议**一条条单独执行**，看停在哪条：
+
+```bash
+cd /www/wwwroot/hepaima.kyx123.com
+echo ">>> 1. git fetch"
+git fetch origin
+echo ">>> 2. git reset"
+git reset --hard origin/main
+echo ">>> 3. pnpm install（国内可能较慢，请耐心等 1～3 分钟）"
+pnpm install --frozen-lockfile
+echo ">>> 4. rm .next"
+rm -rf .next
+echo ">>> 5. pnpm build（构建可能要 2～5 分钟）"
+pnpm build
+echo ">>> 6. pm2 restart"
+pm2 restart hepaima
+```
+
+### 若卡在 `pnpm install`
+
+- **国内服务器**：多半是访问 npm 官方源慢。可改用国内镜像再装：
+  ```bash
+  pnpm config set registry https://registry.npmmirror.com
+  pnpm install --frozen-lockfile
+  ```
+- 安装时会有很多日志；若长时间**完全无新输出**（超过 3～5 分钟），再考虑网络/防火墙问题。
+
+### 若卡在 `pnpm build`
+
+- Next 构建本身要几分钟，且默认输出可能不频繁，**看起来像卡住**。
+- 可加环境变量让输出更频繁，便于确认在跑：
+  ```bash
+  NODE_OPTIONS='--max-old-space-size=2048' pnpm build
+  ```
+- 若服务器内存很小（如 1GB），可能因内存不足卡死，可先 `free -m` 看内存，必要时加 swap 或升配。
+
+### 一键部署脚本（带进度提示）
+
+在项目根目录执行，每步都会打印进度，便于判断卡在哪：
+
+```bash
+bash scripts/deploy.sh
+```

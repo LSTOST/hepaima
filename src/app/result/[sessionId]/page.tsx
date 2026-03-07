@@ -580,13 +580,13 @@ function ResultPageContent() {
     fetchStatus();
   }, [sessionId, fetchResultWithRetry]);
 
-  // Poll status when waiting (every 10s)
+  // Poll status when waiting（立即查一次 + 每 3s 轮询，减少双方完成后的卡顿感）
   useEffect(() => {
     if (pageState !== "waiting" || !sessionId) return;
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/v1/quiz/status/${sessionId}`);
+        const res = await fetch(`/api/v1/quiz/status/${sessionId}`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok) return;
         setSessionData(data);
@@ -606,11 +606,12 @@ function ResultPageContent() {
       }
     };
 
-    const timer = setInterval(poll, 10000);
+    poll(); // 进入等待页先立即查一次
+    const timer = setInterval(poll, 3000);
     return () => clearInterval(timer);
   }, [pageState, sessionId, fetchResultWithRetry]);
 
-  // Poll result when generating (every 3s)
+  // Poll result when generating（立即查一次 + 每 3s 轮询）
   useEffect(() => {
     if (pageState !== "generating" || !sessionId) return;
 
@@ -626,6 +627,7 @@ function ResultPageContent() {
       }
     };
 
+    poll();
     const timer = setInterval(poll, 3000);
     return () => clearInterval(timer);
   }, [pageState, sessionId, fetchResultWithRetry]);
@@ -1122,6 +1124,8 @@ function ReadyReport({
     setPayError(null);
     setPayLoadingMethod(paymentMethod);
     setPayLoading(true);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 秒超时
     try {
       const res = await fetch("/api/v1/orders", {
         method: "POST",
@@ -1133,6 +1137,7 @@ function ReadyReport({
           paymentMethod,
           deviceId,
         }),
+        signal: controller.signal,
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -1158,8 +1163,13 @@ function ReadyReport({
       }
       // form_html 和 code_url 场景由下方弹窗组件根据 payResult 自行处理
     } catch (e) {
-      setPayError(e instanceof Error ? e.message : "网络错误，请重试");
+      if (e instanceof Error && e.name === "AbortError") {
+        setPayError("请求超时，请检查网络或稍后重试");
+      } else {
+        setPayError(e instanceof Error ? e.message : "网络错误，请重试");
+      }
     } finally {
+      clearTimeout(timeoutId);
       setPayLoading(false);
       setPayLoadingMethod(null);
     }
@@ -2203,10 +2213,26 @@ function ReadyReport({
                 }}
               />
             )}
-            {!payResult?.code_url && (
+            {!payResult?.code_url && !payError && (
               <div className="px-6 py-10 flex flex-col items-center">
                 <Loader2 className="w-6 h-6 text-pink-500 animate-spin mb-3" />
                 <p className="text-sm text-gray-600">正在为你生成支付二维码...</p>
+              </div>
+            )}
+            {payError && (
+              <div className="px-6 py-10 flex flex-col items-center">
+                <p className="text-sm text-red-500 text-center mb-4">{payError}</p>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="rounded-xl"
+                  onClick={() => {
+                    setPayError(null);
+                    void handlePay(paymentMethod);
+                  }}
+                >
+                  重试
+                </Button>
               </div>
             )}
             {payResult?.form_html && (
