@@ -1,9 +1,10 @@
 "use client";
 
 import React, { useState, Suspense } from "react";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
-import { Heart, Sparkles, Loader2, Clock } from "lucide-react";
+import { Heart, Sparkles, Loader2, Clock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDeviceId } from "@/lib/device";
 
@@ -86,7 +87,15 @@ function QuizStartContent() {
         <div className="absolute bottom-1/4 right-1/3 w-[400px] h-[400px] bg-violet-100/40 rounded-full blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex-1 flex items-center justify-center px-4 sm:px-6 pb-20">
+      <div className="relative z-10 flex-1 flex flex-col">
+        <Link
+          href="/"
+          className="absolute top-4 left-4 flex items-center gap-1.5 text-gray-600 hover:text-gray-800 text-sm font-medium"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          首页
+        </Link>
+        <div className="flex-1 flex items-center justify-center px-4 sm:px-6 pb-20 pt-14">
         <div className="w-full max-w-md">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
