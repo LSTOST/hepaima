@@ -206,6 +206,7 @@ function QuizStartContent() {
             </span>
           </motion.div>
         </div>
+        </div>
       </div>
     </div>
   );
