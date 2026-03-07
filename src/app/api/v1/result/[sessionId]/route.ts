@@ -37,8 +37,8 @@ export async function GET(
 
     const r = session.result;
 
-    return NextResponse.json({
-      status: "ready",
+    const body = {
+      status: "ready" as const,
       result: {
         id: r.id,
         overallScore: r.overallScore,
@@ -59,6 +59,12 @@ export async function GET(
           basic: r.reportBasic ? "ready" : "generating",
           premium: r.reportPremium ? "ready" : "generating",
         },
+      },
+    };
+    return NextResponse.json(body, {
+      headers: {
+        "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
+        Pragma: "no-cache",
       },
     });
   } catch (error) {

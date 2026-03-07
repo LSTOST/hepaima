@@ -2,17 +2,27 @@
 
 ## 最快部署方式：本地一条命令
 
-在**本地**项目根目录执行一条命令即可完成「推送 + 服务器拉代码 + 安装 + 构建 + 重启」：
+### 方案一：服务器上构建（需服务器内存 ≥ 4G 较稳）
+
+在**本地**执行，会 push 代码并在**服务器上**执行拉取、安装、构建、重启：
 
 ```bash
-# 首次使用前配置一次（把 root@你的服务器IP 换成实际 SSH 地址）
 export DEPLOY_SSH="root@你的服务器IP"
-
-# 之后每次部署
 bash scripts/deploy-from-local.sh
 ```
 
-脚本会先 `git push origin main`，再 SSH 到服务器执行 `scripts/deploy.sh`。若已配置 SSH 免密登录，全程无需再输入密码。
+### 方案二：本地构建 + 上传（推荐 2 核 2G 等小内存服务器）
+
+构建在你本机完成，服务器只接收已构建好的 `.next` 和必要文件，不再在服务器跑 `pnpm build`，避免卡死或 OOM：
+
+```bash
+export DEPLOY_SSH="root@你的服务器IP"
+bash scripts/build-and-deploy.sh
+```
+
+流程：本地 `pnpm build` → rsync/scp 上传 `.next`、`public`、`prisma`、`package.json` 等 → 服务器执行 `pnpm install --frozen-lockfile` 和 `pm2 restart hepaima`。
+
+若已配置 SSH 免密登录，两种方式均可一条命令完成。
 
 ---
 

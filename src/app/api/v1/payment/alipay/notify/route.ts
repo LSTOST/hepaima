@@ -16,6 +16,7 @@ function parseFormBody(body: string): Record<string, string> {
 }
 
 export async function POST(req: NextRequest) {
+  console.log("[alipay notify] 收到回调");
   const contentType = req.headers.get("content-type") ?? "";
   let postData: Record<string, string>;
 
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
 
     const ok = verifyAlipayNotifySign(postData);
     if (!ok) {
+      console.error("[alipay notify] 验签失败");
       return new NextResponse("fail", {
         status: 400,
         headers: { "Content-Type": "text/plain; charset=utf-8" },
@@ -92,12 +94,13 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
+    console.log("[alipay notify] 成功，订单已更新:", outTradeNo);
     return new NextResponse("success", {
       status: 200,
       headers: { "Content-Type": "text/plain; charset=utf-8" },
     });
   } catch (error) {
-    console.error("alipay notify error:", error);
+    console.error("[alipay notify] error:", error);
     return new NextResponse("fail", {
       status: 500,
       headers: { "Content-Type": "text/plain; charset=utf-8" },

@@ -11,6 +11,7 @@ import {
 } from "@/lib/payment/wechat";
 
 export async function POST(req: NextRequest) {
+  console.log("[wechat notify] 收到回调");
   const rawBody = await req.text();
   const headers: Record<string, string | undefined> = {};
   req.headers.forEach((v, k) => {
@@ -20,6 +21,7 @@ export async function POST(req: NextRequest) {
   try {
     const ok = await verifyWechatNotifySign(headers, rawBody);
     if (!ok) {
+      console.error("[wechat notify] 验签失败");
       return NextResponse.json(
         { code: "FAIL", message: "验签失败" },
         { status: 401 }
@@ -75,9 +77,10 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
+    console.log("[wechat notify] 成功，订单已更新:", outTradeNo);
     return NextResponse.json({ code: "SUCCESS", message: "成功" });
   } catch (error) {
-    console.error("wechat notify error:", error);
+    console.error("[wechat notify] error:", error);
     return NextResponse.json(
       { code: "FAIL", message: "处理异常" },
       { status: 500 }
