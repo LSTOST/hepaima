@@ -4,9 +4,8 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { History, Ticket } from "lucide-react";
-import logoNavbar from "@/assets/logo_navbar.png";
+import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -45,7 +44,7 @@ export function Navbar() {
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center">
-          <Image src={logoNavbar} alt="合拍吗" width={240} height={60} priority className="h-12 w-auto" />
+          <Logo size="md" />
         </Link>
         <div className="flex items-center gap-2 sm:gap-3">
           <Link href="/history">

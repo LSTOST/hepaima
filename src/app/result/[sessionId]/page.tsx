@@ -1261,14 +1261,14 @@ function ReadyReport({
       <div className="min-h-screen bg-[#FAFAFA]">
         <nav className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 border-b border-white/20">
           <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-            <div className="flex flex-col items-start">
+            <Link href="/" className="flex flex-col items-start hover:opacity-90 transition-opacity">
               <span className="font-[family-name:var(--font-brand)] text-xl font-bold bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] bg-clip-text text-transparent leading-tight tracking-widest">
                 合拍吗
               </span>
-              <span className="font-[family-name:var(--font-brand)] text-[10px] text-gray-400 tracking-widest w-full text-center">
+              <span className="font-[family-name:var(--font-brand)] text-[10px] text-gray-400 tracking-widest">
                 hepaima.com
               </span>
-            </div>
+            </Link>
             <Button
               variant="ghost"
               onClick={handleOpenShareDialog}

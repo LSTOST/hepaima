@@ -18,9 +18,10 @@ export default function TermsPage() {
               返回首页
             </Button>
           </Link>
-          <span className="font-[family-name:var(--font-brand)] text-lg font-bold bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent tracking-widest">
-            合拍吗
-          </span>
+          <Link href="/" className="hover:opacity-90 transition-opacity flex flex-col items-start leading-tight">
+            <span className="font-[family-name:var(--font-brand)] text-lg font-bold bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] bg-clip-text text-transparent tracking-widest">合拍吗</span>
+            <span className="font-[family-name:var(--font-brand)] text-[10px] text-gray-400 tracking-widest">hepaima.com</span>
+          </Link>
         </div>
       </header>
 
