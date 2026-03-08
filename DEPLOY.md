@@ -95,6 +95,46 @@ bash scripts/deploy-check.sh
 
 ---
 
+## 支付回调：必须配置 APP_URL
+
+微信/支付宝的 **notify_url** 在代码里用 **运行时** 环境变量 `APP_URL` 拼出来。若未配置，会 fallback 到 `NEXT_PUBLIC_APP_URL`（本地 build 时可能被内联成 `http://localhost:3000`），导致支付完成后回调发到错误地址、无法解锁。
+
+**在服务器项目目录的 `.env` 中增加：**
+
+```bash
+APP_URL=https://hepaima.kyx123.com
+```
+
+改完后执行 `pm2 restart hepaima`。确认支付流程时，可在 PM2 日志中看到 `[WeChat Native] 下单 notify_url: https://hepaima.kyx123.com/...` 和 `[wechat notify] 收到回调 bodyLen=...`。
+
+---
+
+## 微信回调验签：拉取平台证书失败
+
+若日志里已出现 `[wechat notify] 进入回调`、`bodyLen=...`，但接着报 **验签异常: 拉取平台证书失败**，说明回调能收到，但验签时向微信请求「平台证书」失败（SDK 会请求 `https://api.mch.weixin.qq.com/v3/certificates`）。
+
+### 可能原因与处理
+
+1. **服务器访问不了微信接口**  
+   在服务器上执行：`curl -I https://api.mch.weixin.qq.com`  
+   若超时或不通，检查安全组/防火墙是否放行**出站** HTTPS（一般默认放行）。
+
+2. **证书路径不对**  
+   进程的当前工作目录（PM2 的 cwd）下要有 `certs/wechat/apiclient_cert.pem` 和 `apiclient_key.pem`。  
+   在服务器项目目录执行：`ls -la certs/wechat/` 确认两个文件存在。  
+   若证书放在别的目录，在 `.env` 里设置：`WECHAT_PAY_CERT_DIR=/绝对路径/到证书目录`，然后 `pm2 restart hepaima`。
+
+3. **商户号 / 证书 / APIv3 密钥错误**  
+   确认 `.env` 里 `WECHAT_PAY_MCH_ID`、`WECHAT_PAY_APP_ID`、`WECHAT_PAY_API_V3_KEY` 与微信商户平台一致；证书是否为该商户的「API 证书」（不是「平台证书」）。
+
+4. **看微信返回的真实错误**  
+   在服务器 `.env` 里临时加一行：`ENABLE_DEBUG_ROUTES=true`，执行 `pm2 restart hepaima`。  
+   在服务器上执行：`curl -s https://hepaima.kyx123.com/api/v1/debug/wechat-certificates`（或浏览器打开该 URL）。  
+   返回里的 `status`、`body` 即微信接口的真实状态和错误信息（如 401 及 code/message）。  
+   排查完后删除 `ENABLE_DEBUG_ROUTES` 或设为 `false`，再次 `pm2 restart hepaima`。
+
+---
+
 ## 部署时命令「卡住」怎么办？
 
 通常卡在 **`pnpm install`** 或 **`pnpm build`**，看起来像没反应。

@@ -1686,25 +1686,11 @@ function ReadyReport({
                       </li>
                     ))}
                   </ul>
-                  <div className="flex flex-wrap items-baseline justify-center gap-2 mb-3">
-                    <span className="text-sm text-gray-500">
-                      原价：<span className="line-through">¥29.90</span>
-                    </span>
-                    <span className="text-xl font-semibold" style={{ color: "#EC4899" }}>
-                      限时：¥19.90
-                    </span>
-                  </div>
                   <Button
-                    onClick={() => {
-                      setPayDialogOpen(true);
-                      setPayResult(null);
-                      setPayError(null);
-                      setPaymentMethod("WECHAT");
-                      void handlePay("WECHAT");
-                    }}
+                    onClick={() => void handleUnlockPremium()}
                     className="w-full max-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white text-base font-semibold shadow-lg shadow-pink-500/10 transition-transform duration-200 hover:scale-[1.02] mx-auto"
                   >
-                    点击解锁
+                    限时免费
                   </Button>
                 </div>
               </ScrollCard>

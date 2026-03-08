@@ -11,8 +11,9 @@ import {
 } from "@/lib/payment/wechat";
 
 export async function POST(req: NextRequest) {
-  console.log("[wechat notify] 收到回调");
+  console.error("[wechat notify] 进入回调");
   const rawBody = await req.text();
+  console.error("[wechat notify] bodyLen=" + rawBody.length);
   const headers: Record<string, string | undefined> = {};
   req.headers.forEach((v, k) => {
     headers[k.toLowerCase()] = v;

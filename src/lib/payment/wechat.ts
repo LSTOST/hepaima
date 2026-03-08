@@ -10,7 +10,8 @@ import { TIER_AMOUNT_CENTS } from "./constants";
 const MCH_ID = process.env.WECHAT_PAY_MCH_ID;
 const APP_ID = process.env.WECHAT_PAY_APP_ID;
 const API_V3_KEY = process.env.WECHAT_PAY_API_V3_KEY;
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://hepaima.kyx123.com";
+// 回调地址必须用运行时环境变量：NEXT_PUBLIC_* 会在本地 build 时被内联成 localhost，导致微信回调发错地址
+const BASE_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://hepaima.kyx123.com";
 
 function getCertPath(filename: string): string {
   const dir = process.env.WECHAT_PAY_CERT_DIR || path.join(process.cwd(), "certs", "wechat");
@@ -70,7 +71,7 @@ export async function createWechatNativeOrder(params: {
   const pay = getWxPay();
   let result: Record<string, unknown> & { status?: number; code_url?: string };
   const notifyUrl = `${BASE_URL}/api/v1/payment/wechat/notify`;
-  console.log("[WeChat Native] 下单 notify_url:", notifyUrl, "| NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL ?? "(未设置)");
+  console.log("[WeChat Native] 下单 notify_url:", notifyUrl, "| APP_URL:", process.env.APP_URL ?? "(未设置)");
   try {
     result = (await pay.transactions_native({
       description: params.description,

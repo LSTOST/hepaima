@@ -9,7 +9,8 @@ const APP_ID = process.env.ALIPAY_APP_ID;
 const PRIVATE_KEY = process.env.ALIPAY_PRIVATE_KEY;
 const ALIPAY_PUBLIC_KEY = process.env.ALIPAY_ALIPAY_PUBLIC_KEY;
 const GATEWAY = process.env.ALIPAY_GATEWAY || "https://openapi.alipay.com/gateway.do";
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL || "https://hepaima.kyx123.com";
+// 回调地址必须用运行时环境变量，避免 build 时被内联成 localhost
+const BASE_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://hepaima.kyx123.com";
 
 function normalizePrivateKey(key: string): string {
   let k = key.trim().replace(/\\n/g, "\n");
