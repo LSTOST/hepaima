@@ -14,7 +14,7 @@ export async function GET() {
   }
   try {
     const pay = getWxPay();
-    const auth = (pay as { buildAuthorization(method: string, url: string, params?: unknown): string }).buildAuthorization(
+    const auth = (pay as unknown as { buildAuthorization(method: string, url: string, params?: unknown): string }).buildAuthorization(
       "GET",
       WX_CERT_URL
     );
