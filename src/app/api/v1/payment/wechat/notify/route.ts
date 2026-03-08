@@ -19,9 +19,18 @@ export async function POST(req: NextRequest) {
   });
 
   try {
-    const ok = await verifyWechatNotifySign(headers, rawBody);
+    let ok = false;
+    try {
+      ok = await verifyWechatNotifySign(headers, rawBody);
+    } catch (verifyErr) {
+      console.error("[wechat notify] 验签异常:", verifyErr instanceof Error ? verifyErr.message : String(verifyErr));
+      return NextResponse.json(
+        { code: "FAIL", message: "验签异常" },
+        { status: 401 }
+      );
+    }
     if (!ok) {
-      console.error("[wechat notify] 验签失败");
+      console.error("[wechat notify] 验签失败（签名不匹配，请确认服务器 WECHAT_PAY_API_V3_KEY 正确且 Nginx 未修改 POST body）");
       return NextResponse.json(
         { code: "FAIL", message: "验签失败" },
         { status: 401 }

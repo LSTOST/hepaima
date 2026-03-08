@@ -69,11 +69,13 @@ export async function createWechatNativeOrder(params: {
 }): Promise<{ code_url: string }> {
   const pay = getWxPay();
   let result: Record<string, unknown> & { status?: number; code_url?: string };
+  const notifyUrl = `${BASE_URL}/api/v1/payment/wechat/notify`;
+  console.log("[WeChat Native] 下单 notify_url:", notifyUrl, "| NEXT_PUBLIC_APP_URL:", process.env.NEXT_PUBLIC_APP_URL ?? "(未设置)");
   try {
     result = (await pay.transactions_native({
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: `${BASE_URL}/api/v1/payment/wechat/notify`,
+      notify_url: notifyUrl,
       amount: { total: params.amountCents, currency: "CNY" },
     })) as typeof result;
   } catch (e: unknown) {
@@ -134,7 +136,7 @@ export async function createWechatH5Order(params: {
   return { h5_url: h5Url };
 }
 
-/** 验签：请求头 + 原始 body 字符串 */
+/** 验签：请求头 + 原始 body 字符串（需用平台证书，SDK 会按需拉取） */
 export async function verifyWechatNotifySign(
   headers: Record<string, string | undefined>,
   bodyRaw: string
@@ -151,6 +153,7 @@ export async function verifyWechatNotifySign(
     serial,
     nonce,
     timestamp,
+    apiSecret: process.env.WECHAT_PAY_API_V3_KEY ?? undefined,
   });
   return !!ret;
 }

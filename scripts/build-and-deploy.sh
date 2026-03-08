@@ -27,9 +27,13 @@ fi
 
 echo ">>> 2. 上传构建结果与必要文件到服务器..."
 ssh "$DEPLOY_SSH" "mkdir -p $REMOTE_DIR"
-# 用 tar 打包 .next 上传后解压；COPYFILE_DISABLE=1 避免 Mac 写入扩展属性，服务器解压时不会刷屏警告
+# 先本地打 tar 包再 scp，避免管道传输时 SSH 断开导致 Broken pipe
+TARBALL=".deploy-next.tar.gz"
+trap "rm -f $TARBALL" EXIT
+COPYFILE_DISABLE=1 tar -czf "$TARBALL" -C . .next
 ssh "$DEPLOY_SSH" "rm -rf $REMOTE_DIR/.next"
-COPYFILE_DISABLE=1 tar -czf - -C . .next | ssh "$DEPLOY_SSH" "mkdir -p $REMOTE_DIR && cd $REMOTE_DIR && tar -xzf -"
+scp -q "$TARBALL" "$DEPLOY_SSH:$REMOTE_DIR/"
+ssh "$DEPLOY_SSH" "cd $REMOTE_DIR && tar -xzf $(basename $TARBALL) && rm -f $(basename $TARBALL)"
 # 上传其余目录和文件
 scp -r -q public "$DEPLOY_SSH:$REMOTE_DIR/"
 scp -r -q prisma "$DEPLOY_SSH:$REMOTE_DIR/"
