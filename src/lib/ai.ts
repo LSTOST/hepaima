@@ -4,7 +4,9 @@
  */
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
-const MODEL = "deepseek/deepseek-chat-v3-0324";
+/** 报告生成模型：可选 OPENROUTER_REPORT_MODEL，默认用 deepseek-chat 以兼顾速度与质量 */
+const REPORT_MODEL =
+  process.env.OPENROUTER_REPORT_MODEL || "deepseek/deepseek-chat-v3-0324";
 
 export interface ReportAttachmentAnalysis {
   title: string;
@@ -370,7 +372,7 @@ export async function generateReport(data: {
 
   const apiKey = process.env.OPENROUTER_API_KEY;
   console.log("请求参数:", JSON.stringify({
-    model: MODEL,
+    model: REPORT_MODEL,
     url: OPENROUTER_URL,
     hasApiKey: !!apiKey,
   }));
@@ -444,7 +446,7 @@ overallAnalysis 是一个对象，包含：
 
   const maxRetries = 1;
   const retryDelay = 2000;
-  console.log("generateReport 使用模型:", MODEL);
+  console.log("generateReport 使用模型:", REPORT_MODEL);
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -461,12 +463,13 @@ overallAnalysis 是一个对象，包含：
           "X-Title": "hepaima",
         },
         body: JSON.stringify({
-          model: MODEL,
+          model: REPORT_MODEL,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.7,
+          temperature: 0.5,
+          max_tokens: 2048,
         }),
         signal: controller.signal,
       });
@@ -522,50 +525,32 @@ export type ReportStreamPayload = {
 
 function buildReportPrompts(data: ReportStreamPayload) {
   const stageLabel = getStageLabel(data.stage);
-  const systemPrompt = `你是一位专业的关系心理咨询师，拥有丰富的依恋理论和爱的语言领域经验。
-请根据情侣测试数据，生成一份专业、温暖、有洞察力的关系分析报告。
-语气要亲切自然，像朋友一样给出建议，避免过于学术化。
-所有内容用中文。
-overallAnalysis 是一个对象，包含：
-- summary：一段整体总结（60-80字），概括整体契合度和最大亮点。
-- highlights：数组，必须恰好 4 条，每条包含 emoji、title、detail。四条分别涵盖：①依恋匹配 ②爱的语言 ③一个优势维度（如沟通/价值观/生活习惯等） ④一个需关注维度（相对弱项或成长空间）。emoji 要贴切不幼稚，如 🛡️ 🗣️ 💡 🌱 等；title 4-8 字；detail 40-60 字，一两句话说清楚。
-- advice：一句温暖的总结建议（20-30字）。
-请严格按照 JSON 格式输出，不要包含 markdown 代码块标记。`;
+  const systemPrompt = `你是关系心理咨询师，根据情侣测试数据生成温暖、有洞察力的关系分析报告。用中文、亲切语气。overallAnalysis 为对象：summary(60-80字)、highlights(恰好4条: emoji+title+detail)、advice(20-30字)。只输出 JSON，无 markdown 标记。`;
   const userPrompt = `## 测试数据
 - 关系阶段：${stageLabel}
-- ${data.initiatorName}：依恋类型 ${data.initiatorAttachment}，爱的语言 ${data.initiatorLoveLanguage}
-- ${data.partnerName}：依恋类型 ${data.partnerAttachment}，爱的语言 ${data.partnerLoveLanguage}
-- 总体契合度：${data.overallScore}%
-- 各维度得分：${JSON.stringify(data.dimensions)}
+- ${data.initiatorName}：依恋 ${data.initiatorAttachment}，爱的语言 ${data.initiatorLoveLanguage}
+- ${data.partnerName}：依恋 ${data.partnerAttachment}，爱的语言 ${data.partnerLoveLanguage}
+- 契合度：${data.overallScore}%，维度：${JSON.stringify(data.dimensions)}
 
-请输出以下 JSON。overallAnalysis 必须是对象（见下方结构），包含 summary、highlights（恰好4条）、advice。
-
+请输出以下 JSON，overallAnalysis 为对象含 summary、highlights(4条)、advice：
 {
   "summary": "一句话总结（15-20字）",
   "overallAnalysis": {
-    "summary": "整体总结（60-80字，概括契合度与最大亮点）",
+    "summary": "整体总结（60-80字）",
     "highlights": [
-      { "emoji": "🛡️", "title": "依恋匹配相关（4-8字）", "detail": "具体分析（40-60字）" },
-      { "emoji": "🗣️", "title": "爱的语言相关（4-8字）", "detail": "具体分析（40-60字）" },
-      { "emoji": "💡", "title": "一个优势维度（4-8字）", "detail": "具体分析（40-60字）" },
-      { "emoji": "🌱", "title": "需关注/成长维度（4-8字）", "detail": "具体分析（40-60字）" }
+      { "emoji": "🛡️", "title": "依恋（4-8字）", "detail": "40-60字" },
+      { "emoji": "🗣️", "title": "爱的语言（4-8字）", "detail": "40-60字" },
+      { "emoji": "💡", "title": "优势维度（4-8字）", "detail": "40-60字" },
+      { "emoji": "🌱", "title": "成长维度（4-8字）", "detail": "40-60字" }
     ],
-    "advice": "一句温暖建议（20-30字）"
+    "advice": "温暖建议（20-30字）"
   },
-  "attachmentAnalysis": {
-    "title": "依恋配对名称（3-5字，如：温暖港湾）",
-    "description": "依恋类型配对详细分析（180-250字，分析双方互动模式、优势和可能的摩擦点）",
-    "tips": ["具体可执行的建议1（20-40字）", "建议2", "建议3"]
-  },
-  "loveLanguageAnalysis": {
-    "title": "爱的语言配对名称（3-5字）",
-    "description": "爱的语言匹配分析（150-200字，说明双方表达和接收爱的方式差异）",
-    "tips": ["建议1", "建议2", "建议3"]
-  },
-  "strengths": ["你们的优势1（15-30字）", "优势2", "优势3"],
-  "challenges": ["可能的挑战1（15-30字）", "挑战2"],
+  "attachmentAnalysis": { "title": "3-5字", "description": "180-250字", "tips": ["建议1", "建议2", "建议3"] },
+  "loveLanguageAnalysis": { "title": "3-5字", "description": "150-200字", "tips": ["建议1", "建议2", "建议3"] },
+  "strengths": ["优势1", "优势2", "优势3"],
+  "challenges": ["挑战1", "挑战2"],
   "actionItems": [
-    { "title": "任务标题（5-10字）", "description": "具体做法（30-50字）" },
+    { "title": "任务1（5-10字）", "description": "做法（30-50字）" },
     { "title": "任务2", "description": "做法2" },
     { "title": "任务3", "description": "做法3" }
   ]
@@ -595,12 +580,13 @@ export async function generateReportStream(
         "X-Title": "hepaima",
       },
       body: JSON.stringify({
-        model: MODEL,
+        model: REPORT_MODEL,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.7,
+        temperature: 0.5,
+        max_tokens: 2048,
         stream: true,
       }),
       signal: controller.signal,
@@ -851,12 +837,13 @@ export async function generatePremiumReport(data: {
           "X-Title": "hepaima",
         },
         body: JSON.stringify({
-          model: MODEL,
+          model: REPORT_MODEL,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.7,
+          temperature: 0.5,
+          max_tokens: 4096,
         }),
         signal: controller.signal,
       });

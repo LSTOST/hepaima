@@ -177,6 +177,13 @@ pm2 restart hepaima
   ```
 - 若服务器内存很小（如 1GB），可能因内存不足卡死，可先 `free -m` 看内存，必要时加 swap 或升配。
 
+### AI 报告生成速度优化
+
+若用户反馈报告生成慢，可做以下调整：
+
+- **换更快的模型**：在服务器 `.env` 中设置 `OPENROUTER_REPORT_MODEL`。默认使用 `deepseek/deepseek-chat-v3-0324`；可改为 OpenRouter 上更快的模型（如 `deepseek/deepseek-chat` 等，以 OpenRouter 文档为准）。改完后 `pm2 restart hepaima`。
+- 代码侧已做：流式输出、`max_tokens` 限制、略降 `temperature`、精简 system prompt；前端会尽量在收到部分内容后先展示，再在流结束时更新为完整报告。
+
 ### 一键部署脚本（带进度提示）
 
 在项目根目录执行，每步都会打印进度，便于判断卡在哪：

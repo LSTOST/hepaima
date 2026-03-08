@@ -661,6 +661,25 @@ function ResultPageContent() {
     if (!streamFetchStartedRef.current) {
       streamFetchStartedRef.current = true;
       let cancelled = false;
+      let partialShown = false;
+      const tryParsePartial = (raw: string): ReportData | null => {
+        const cleaned = raw.trim().replace(/^json\s+/i, "");
+        const noMarkdown = cleaned.replace(/```(?:json)?\s*([\s\S]*?)```/, "$1").trim();
+        for (const s of [noMarkdown, cleaned]) {
+          for (let n = 0; n <= 10; n++) {
+            const tryRaw = s + "}".repeat(n);
+            try {
+              const o = JSON.parse(tryRaw) as Record<string, unknown>;
+              if (o && (typeof o.summary === "string" || (o.overallAnalysis && typeof o.overallAnalysis === "object"))) {
+                return o as ReportData;
+              }
+            } catch {
+              /* continue */
+            }
+          }
+        }
+        return null;
+      };
       (async () => {
         try {
           const res = await fetch(`/api/v1/result/${sessionId}/report/stream`);
@@ -675,21 +694,40 @@ function ResultPageContent() {
           if (!res.ok) return;
           const reader = res.body?.getReader();
           if (!reader) return;
-          const chunks: Uint8Array[] = [];
+          const decoder = new TextDecoder();
+          let buffer = "";
           for (;;) {
             const { done, value } = await reader.read();
             if (cancelled) return;
+            if (value) {
+              buffer += decoder.decode(value, { stream: true });
+              if (!partialShown && buffer.length > 400) {
+                const partial = tryParsePartial(buffer);
+                if (partial) {
+                  partialShown = true;
+                  setResultData((prev) =>
+                    prev
+                      ? {
+                          ...prev,
+                          report: partial,
+                          reportBasic: partial,
+                          reportStatus: {
+                            ...prev.reportStatus,
+                            basic: "ready",
+                          } as { basic: "ready" | "generating"; premium: "ready" | "generating" },
+                        }
+                      : prev
+                  );
+                }
+              }
+            }
             if (done) break;
-            if (value) chunks.push(value);
           }
-          const full = chunks
-            .map((c) => new TextDecoder().decode(c))
-            .join("");
           let parsed: ReportData;
           try {
-            parsed = JSON.parse(full) as ReportData;
+            parsed = JSON.parse(buffer) as ReportData;
           } catch {
-            const jsonMatch = full.match(/\{[\s\S]*\}/);
+            const jsonMatch = buffer.match(/\{[\s\S]*\}/);
             parsed = jsonMatch ? (JSON.parse(jsonMatch[0]) as ReportData) : ({} as ReportData);
           }
           setResultData((prev) =>
@@ -1428,13 +1466,41 @@ function ReadyReport({
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
+              {/* 契合解读版块：报告标题样式 */}
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{
+                  background: "linear-gradient(160deg, rgba(253,242,248,0.9) 0%, rgba(250,250,250,0.6) 100%)",
+                  border: "1px solid rgba(236,72,153,0.18)",
+                  boxShadow: "0 1px 3px rgba(236,72,153,0.06)",
+                }}
+              >
+                <div className="flex flex-col items-center text-center px-6 py-8 sm:py-10">
+                  <div
+                    className="flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-sm"
+                    style={{
+                      background: "linear-gradient(145deg, #FDF2F8 0%, #FCE7F3 100%)",
+                      border: "1px solid rgba(236,72,153,0.2)",
+                      boxShadow: "0 2px 8px rgba(236,72,153,0.12)",
+                    }}
+                  >
+                    <Sparkles className="w-7 h-7 text-[#EC4899]" strokeWidth={2} />
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">契合解读</h2>
+                  <p className="text-sm text-gray-500 mt-2 max-w-[240px] leading-relaxed">基于契合度的简明分析</p>
+                  <div
+                    className="mt-5 h-0.5 rounded-full opacity-80"
+                    style={{ width: 48, background: "linear-gradient(90deg, transparent, #EC4899, #8B5CF6, transparent)" }}
+                  />
+                </div>
+                <div className="flex flex-col gap-4 p-4 pt-3 sm:p-5 sm:pt-4">
               <ScrollCard delay={0.05}>
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm" style={{ padding: "20px 24px" }}>
+                <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm" style={{ padding: "20px 24px" }}>
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
                       <Sparkles className="w-4.5 h-4.5 text-[#EC4899]" />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">AI 深度解读</h2>
+                    <h2 className="text-lg font-bold text-gray-800">整体分析</h2>
                   </div>
                   <div
                     className="rounded-full mb-5"
@@ -1496,7 +1562,7 @@ function ReadyReport({
 
               {report?.strengths && report.strengths.length > 0 && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                  <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm p-5 sm:p-6">
                     <div className="flex items-center gap-2 mb-5">
                       <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -1520,7 +1586,7 @@ function ReadyReport({
 
               {report?.challenges && report.challenges.length > 0 && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                  <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm p-5 sm:p-6">
                     <div className="flex items-center gap-2 mb-5">
                       <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -1547,7 +1613,7 @@ function ReadyReport({
 
               {report?.actionItems && report.actionItems.length > 0 && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                  <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm p-5 sm:p-6">
                     <div className="flex items-center gap-2 mb-5">
                       <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -1584,16 +1650,44 @@ function ReadyReport({
                   </div>
                 </ScrollCard>
               )}
+                </div>
+              </div>
             </motion.div>
           ) : (
-            <div className="flex flex-col gap-4">
+            <div
+              className="rounded-2xl overflow-hidden"
+              style={{
+                background: "linear-gradient(160deg, rgba(253,242,248,0.9) 0%, rgba(250,250,250,0.6) 100%)",
+                border: "1px solid rgba(236,72,153,0.18)",
+                boxShadow: "0 1px 3px rgba(236,72,153,0.06)",
+              }}
+            >
+              <div className="flex flex-col items-center text-center px-6 py-8 sm:py-10">
+                <div
+                  className="flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-sm"
+                  style={{
+                    background: "linear-gradient(145deg, #FDF2F8 0%, #FCE7F3 100%)",
+                    border: "1px solid rgba(236,72,153,0.2)",
+                    boxShadow: "0 2px 8px rgba(236,72,153,0.12)",
+                  }}
+                >
+                  <Sparkles className="w-7 h-7 text-[#EC4899]" strokeWidth={2} />
+                </div>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">契合解读</h2>
+                <p className="text-sm text-gray-500 mt-2 max-w-[240px] leading-relaxed">基于契合度的简明分析</p>
+                <div
+                  className="mt-5 h-0.5 rounded-full opacity-80"
+                  style={{ width: 48, background: "linear-gradient(90deg, transparent, #EC4899, #8B5CF6, transparent)" }}
+                />
+              </div>
+              <div className="flex flex-col gap-4 p-4 pt-3 sm:p-5 sm:pt-4">
               <ScrollCard delay={0.05}>
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm" style={{ padding: "20px 24px" }}>
+                <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm" style={{ padding: "20px 24px" }}>
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
                       <Sparkles className="w-4.5 h-4.5 text-[#EC4899]" />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">AI 深度解读</h2>
+                    <h2 className="text-lg font-bold text-gray-800">整体分析</h2>
                   </div>
                   <motion.div
                     className="rounded-full mb-5"
@@ -1643,6 +1737,7 @@ function ReadyReport({
                   <ReportCardSkeleton />
                 </>
               )}
+              </div>
             </div>
           )}
 
@@ -1652,7 +1747,7 @@ function ReadyReport({
                 <div className="absolute inset-0 flex items-center justify-center z-10">
                   <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/90 shadow-sm border border-gray-100">
                     <Lock className="w-4 h-4 flex-shrink-0" style={{ color: "#EC4899" }} />
-                    <span className="text-sm font-medium text-gray-700">深度报告内容预览 · 解锁后可查看</span>
+                    <span className="text-sm font-medium text-gray-700">深度解读内容预览 · 解锁后可查看</span>
                   </div>
                 </div>
                 <div className="select-none pointer-events-none opacity-60" style={{ filter: "blur(6px)", padding: "14px 16px" }}>
@@ -1675,7 +1770,7 @@ function ReadyReport({
                   <p className="text-sm mb-5" style={{ color: "#888888" }}>更深入的分析，更具体的建议</p>
                   <ul className="space-y-3 mb-5 text-left inline-block">
                     {[
-                      "深度关系解读（300+字专业分析）",
+                      "深度解读（300+字专业分析）",
                       "爱的语言日常场景模拟",
                       "4周情侣成长任务",
                       "专属沟通指南与冲突处理锦囊",
@@ -1734,13 +1829,49 @@ function ReadyReport({
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
+              {/* 深度解读版块：报告标题样式 */}
+              <div
+                className="rounded-2xl overflow-hidden relative"
+                style={{
+                  background: "linear-gradient(160deg, rgba(245,243,255,0.95) 0%, rgba(238,242,255,0.5) 100%)",
+                  border: "1px solid rgba(139,92,246,0.25)",
+                  boxShadow: "0 2px 8px rgba(139,92,246,0.08)",
+                }}
+              >
+                <div className="flex flex-col items-center text-center px-6 py-8 sm:py-10">
+                  <div
+                    className="flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-sm"
+                    style={{
+                      background: "linear-gradient(145deg, #F5F3FF 0%, #EDE9FE 100%)",
+                      border: "1px solid rgba(139,92,246,0.25)",
+                      boxShadow: "0 2px 8px rgba(139,92,246,0.15)",
+                    }}
+                  >
+                    <Brain className="w-7 h-7 text-[#8B5CF6]" strokeWidth={2} />
+                  </div>
+                  <div className="flex items-center justify-center gap-2 flex-wrap">
+                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">深度解读</h2>
+                    <span
+                      className="text-[10px] font-medium px-2 py-0.5 rounded-md"
+                      style={{ background: "rgba(139,92,246,0.12)", color: "#7C3AED", letterSpacing: "0.05em" }}
+                    >
+                      专业
+                    </span>
+                  </div>
+                  <p className="text-sm text-gray-500 mt-2 max-w-[260px] leading-relaxed">更深入的专业分析与建议</p>
+                  <div
+                    className="mt-5 h-0.5 rounded-full opacity-80"
+                    style={{ width: 48, background: "linear-gradient(90deg, transparent, #8B5CF6, #EC4899, transparent)" }}
+                  />
+                </div>
+                <div className="flex flex-col gap-4 p-4 pt-3 sm:p-5 sm:pt-4">
               <ScrollCard delay={0.05}>
-                <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
                   <div className="flex items-center gap-2 mb-5">
                     <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#F5F3FF" }}>
                       <Brain className="w-4.5 h-4.5" style={{ color: "#8B5CF6" }} />
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">深度关系解读</h2>
+                    <h2 className="text-lg font-bold text-gray-800">深度解读</h2>
                   </div>
                   {typeof premiumReport.deepAnalysis === "object" && premiumReport.deepAnalysis !== null && "summary" in premiumReport.deepAnalysis ? (
                     <>
@@ -1771,7 +1902,7 @@ function ReadyReport({
 
               {premiumReport.attachmentDeep && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
                     <div className="flex items-center gap-2 mb-5">
                       <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
                         <Heart className="w-4.5 h-4.5 text-[#EC4899]" />
@@ -1824,7 +1955,7 @@ function ReadyReport({
 
               {premiumReport.loveLanguageDeep && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
                     <div className="flex items-center gap-2 mb-5">
                       <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
                         <MessageCircleHeart className="w-4.5 h-4.5 text-[#EC4899]" />
@@ -1857,7 +1988,7 @@ function ReadyReport({
 
               {premiumReport.relationshipForecast && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
                     <div className="flex items-center gap-2 mb-5">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#F5F3FF" }}>
                         <TrendingUp className="w-4.5 h-4.5" style={{ color: "#8B5CF6" }} />
@@ -1908,7 +2039,7 @@ function ReadyReport({
 
               {premiumReport.couplesTasks && premiumReport.couplesTasks.length > 0 && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
                     <div className="flex items-center gap-2 mb-5">
                       <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
                         <Calendar className="w-4.5 h-4.5 text-[#EC4899]" />
@@ -1952,7 +2083,7 @@ function ReadyReport({
 
               {premiumReport.communicationGuide && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
                     <div className="flex items-center gap-2 mb-5">
                       <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#F5F3FF" }}>
                         <MessagesSquare className="w-4.5 h-4.5" style={{ color: "#8B5CF6" }} />
@@ -2059,6 +2190,8 @@ function ReadyReport({
                   </div>
                 </ScrollCard>
               )}
+                </div>
+              </div>
             </motion.div>
           )}
 
@@ -2138,7 +2271,7 @@ function ReadyReport({
                     <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px]">
                       <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
                         <Brain className="w-3.5 h-3.5 text-amber-100" />
-                        <span>深度关系解读</span>
+                        <span>深度解读</span>
                       </span>
                       <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
                         <TrendingUp className="w-3.5 h-3.5 text-amber-100" />

@@ -40,7 +40,7 @@ export function ReportPreview() {
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">
             专业详细的分析报告
           </h2>
-          <p className="text-gray-500">深度解读，助你们更好地成长</p>
+          <p className="text-gray-500">契合解读 + 深度报告，助你们更好地成长</p>
         </motion.div>
 
         <motion.div

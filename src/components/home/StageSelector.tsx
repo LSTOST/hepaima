@@ -94,7 +94,7 @@ export function StageSelector() {
           <StageCard
             title="热恋期"
             subtitle="确定关系中"
-            badge="36题 · 约8分钟"
+            badge="35题 · 约8分钟"
             color="violet"
             stageKey="ROMANCE"
             isPopular

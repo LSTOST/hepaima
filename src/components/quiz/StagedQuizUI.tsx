@@ -14,7 +14,7 @@ import { getDeviceId } from "@/lib/device";
 
 const STAGE_CONFIG: Record<string, { label: string; totalQuestions: number }> = {
   AMBIGUOUS: { label: "暧昧期", totalQuestions: 28 },
-  ROMANCE: { label: "热恋期", totalQuestions: 36 },
+  ROMANCE: { label: "热恋期", totalQuestions: 35 },
   STABLE: { label: "稳定期", totalQuestions: 40 },
 };
 
