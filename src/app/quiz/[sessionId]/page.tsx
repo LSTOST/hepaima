@@ -1,6 +1,6 @@
 "use client";
 
-import React, { Suspense, useCallback, useRef, useState } from "react";
+import React, { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useParams, useSearchParams } from "next/navigation";
 import { getDeviceId } from "@/lib/device";
 import type { Stage } from "@/lib/questions";
@@ -10,10 +10,28 @@ import { StagedQuizUI } from "@/components/quiz/StagedQuizUI";
 
 const VALID_STAGES: Stage[] = ["AMBIGUOUS", "ROMANCE", "STABLE"];
 
+function scrollToTop() {
+  if (typeof window === "undefined") return;
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
+
 function QuizContent() {
   const params = useParams();
   const searchParams = useSearchParams();
   const sessionId = params.sessionId as string;
+
+  // 移动端从昵称页跳转过来时，有时滚动位置未重置，导致顶部被遮挡；进入答题页时强制滚到顶部
+  useEffect(() => {
+    scrollToTop();
+    const raf = requestAnimationFrame(() => scrollToTop());
+    const timeout = setTimeout(scrollToTop, 150);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timeout);
+    };
+  }, []);
   const mode = (searchParams.get("mode") ?? "STAGED") as string;
   const stageFromUrl = searchParams.get("stage") ?? "ROMANCE";
   const stageKey = VALID_STAGES.includes(stageFromUrl as Stage)

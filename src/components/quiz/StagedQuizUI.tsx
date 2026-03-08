@@ -206,7 +206,7 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
           <Link href="/">
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 text-[#888888] hover:text-gray-600 transition-colors -ml-1.5 text-sm font-normal"
+              className="inline-flex items-center gap-1.5 text-gray-600 hover:text-gray-800 transition-colors -ml-1.5 text-sm font-medium"
             >
               <span aria-hidden>←</span>
               首页

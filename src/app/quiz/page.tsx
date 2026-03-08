@@ -1,12 +1,19 @@
 "use client";
 
-import React, { useState, Suspense } from "react";
+import React, { useState, Suspense, useEffect } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { motion } from "framer-motion";
 import { Heart, Sparkles, Loader2, Clock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDeviceId } from "@/lib/device";
+
+function scrollToTop() {
+  if (typeof window === "undefined") return;
+  window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+  document.documentElement.scrollTop = 0;
+  document.body.scrollTop = 0;
+}
 
 const STAGE_CONFIG: Record<
   string,
@@ -45,6 +52,17 @@ function QuizStartContent() {
     mode === "UNIVERSAL"
       ? STAGE_CONFIG.UNIVERSAL.label
       : STAGE_CONFIG[stage]?.label ?? "热恋期";
+
+  // 移动端从首页点「开始测试」进入时，页面顶部常被遮挡，进入时强制滚到顶部
+  useEffect(() => {
+    scrollToTop();
+    const raf = requestAnimationFrame(() => scrollToTop());
+    const timeout = setTimeout(scrollToTop, 150);
+    return () => {
+      cancelAnimationFrame(raf);
+      clearTimeout(timeout);
+    };
+  }, []);
 
   const handleSubmitNickname = async (e: React.FormEvent) => {
     e.preventDefault();
