@@ -6,11 +6,12 @@ import { motion } from "framer-motion";
 import { CreditCard, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ADMIN_PASSWORD_HEADER_KEY } from "@/lib/admin-auth";
-import type { PaymentProviderType } from "@prisma/client";
+
+type PaymentProviderKind = "WECHAT" | "ALIPAY";
 
 type ProviderConfig = {
   id: string;
-  type: PaymentProviderType;
+  type: PaymentProviderKind;
   appId: string | null;
   mchId: string | null;
   apiKey: string | null;
@@ -92,7 +93,7 @@ export default function AdminPaymentPage() {
     load();
   }, [authenticated, password]);
 
-  const upsertProviderLocal = (type: PaymentProviderType, patch: Partial<ProviderConfig>) => {
+  const upsertProviderLocal = (type: PaymentProviderKind, patch: Partial<ProviderConfig>) => {
     setProviders((prev) => {
       const existing = prev.find((p) => p.type === type);
       if (!existing) {
