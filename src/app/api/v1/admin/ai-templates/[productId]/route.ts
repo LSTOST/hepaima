@@ -23,11 +23,7 @@ async function getOrCreateTemplate(productId: string) {
   });
 }
 
-export async function GET(
-  req: NextRequest,
-  context: { params: { productId: string } },
-) {
-  const { params } = context;
+export async function GET(req: NextRequest, { params }: any) {
   const err = requireAdmin(req);
   if (err) return err;
 
@@ -44,11 +40,7 @@ export async function GET(
   }
 }
 
-export async function PUT(
-  req: NextRequest,
-  context: { params: { productId: string } },
-) {
-  const { params } = context;
+export async function PUT(req: NextRequest, { params }: any) {
   const err = requireAdmin(req);
   if (err) return err;
 
