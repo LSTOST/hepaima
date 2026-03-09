@@ -115,6 +115,213 @@ model RedeemCodeUsage {
   @@unique([redeemCodeId, stage]) // 同一个码同一个阶段只能用一次
 }
 
+/// 全局站点与品牌配置，通常只有一行（单租户场景）
+model SiteSettings {
+  id              String   @id @default(cuid())
+  siteName        String   @default("合拍吗")
+  siteSubtitle    String   @default("基于心理学的关系测评工具")
+  primaryColor    String   @default("#EC4899")
+  secondaryColor  String   @default("#8B5CF6")
+  logoUrl         String?  // 站点 Logo（相对路径或完整 URL）
+  faviconUrl      String?  // 浏览器图标
+
+  seoTitle        String?  // 全站默认 SEO 标题
+  seoDescription  String?  // 全站默认 SEO 描述
+  seoKeywords     String?  // 逗号分隔关键词
+  ogImageUrl      String?  // 社交分享图
+
+  icpRecord       String?  // 备案号
+  footerHtml      String?  // 页脚富文本（可选）
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+/// 测评产品基础配置，不同测评（情侣、亲子、职业性格等）都在这里建一条记录
+model Product {
+  id              String   @id @default(cuid())
+  slug            String   @unique // URL 标识，如 "couple-compatibility"
+  name            String           // 产品名称，如「情侣契合度测试」
+  shortDescription String?         // 简短一句话介绍
+
+  coverImageUrl   String?          // 落地页主视觉
+  icon            String?          // 可选：icon 名称或 URL
+
+  themeConfigJson Json?            // UI 主题配置（主色、渐变、插画风格等）
+
+  isActive        Boolean  @default(true)
+
+  // SEO
+  seoTitle        String?
+  seoDescription  String?
+  seoKeywords     String?
+
+  // 定价（单位：分）
+  priceCents      Int      @default(0)
+  allowRedeemCode Boolean  @default(true)
+
+  // 关联：一个产品可以有多套 AI 报告模板（不同语言/版本）
+  aiTemplates     ProductAiTemplate[]
+  questionnaires  Questionnaire[]
+  traits          QuizTrait[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+/// 每个产品对应的 AI 报告与模型配置
+model ProductAiTemplate {
+  id               String   @id @default(cuid())
+  productId        String
+  product          Product  @relation(fields: [productId], references: [id])
+
+  modelName        String   @default("deepseek-chat") // 使用的模型名
+  temperature      Float    @default(0.7)
+  maxTokens        Int      @default(2048)
+
+  systemPrompt     String   // 系统提示词
+  userPromptTemplate String // 用户提示词模板（可包含占位符）
+  sectionsJson     Json?    // 报告章节配置
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+}
+
+/// 测评问卷（可以按产品 + 阶段拆分）
+model Questionnaire {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+
+  title       String
+  stage       Stage?   // 对应 AMBIGUOUS / ROMANCE / STABLE / UNIVERSAL，可为空表示通用
+  version     String?  // 版本号，便于灰度
+  isActive    Boolean  @default(true)
+
+  questions   QuizQuestion[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 题目定义，支持单选题、多选题、量表题等，通过 scoringJson 存储计分规则
+model QuizQuestion {
+  id              String        @id @default(cuid())
+  questionnaireId String
+  questionnaire   Questionnaire @relation(fields: [questionnaireId], references: [id])
+
+  externalId      Int?          // 可选：对应现有代码中的题目 id
+  order           Int           // 在问卷中的排序
+  text            String        // 题干
+  category        String?       // 如 attachment / loveLanguage / values 等
+  type            QuestionType  // 题型
+  helpText        String?
+  required        Boolean       @default(true)
+
+  scoringJson     Json?         // 计分规则（与现有 questions / questions-universal 结构兼容的 JSON）
+
+  options         QuizQuestionOption[]
+
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model QuizQuestionOption {
+  id          String       @id @default(cuid())
+  questionId  String
+  question    QuizQuestion @relation(fields: [questionId], references: [id])
+
+  key         String       // 如 "A"、"B" 或 "1"..."7"
+  text        String
+  order       Int
+  scoringJson Json?        // 针对该选项的计分配置
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@unique([questionId, key])
+}
+
+/// 测评维度/特质，例如 attachment_secure、values_family 等
+model QuizTrait {
+  id          String   @id @default(cuid())
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+
+  key         String   // 维度 key，如 attachment_secure
+  name        String   // 展示名称，如「安全型依恋」
+  description String?
+  category    String?  // 可选：所属大类（attachment / values 等）
+  icon        String?
+  color       String?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([productId, key])
+}
+
+/// 支付渠道与参数配置（微信/支付宝等）
+model PaymentProviderConfig {
+  id          String   @id @default(cuid())
+  type        PaymentProviderType
+
+  appId       String?
+  mchId       String?
+  apiKey      String?
+  privateKey  String?
+  publicKey   String?
+  notifyUrl   String?
+
+  isEnabled   Boolean  @default(false)
+  isSandbox   Boolean  @default(false)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// 页面级 SEO 配置，可按路径单独覆盖
+model PageSeo {
+  id           String   @id @default(cuid())
+  path         String   @unique // 如 "/"、"/quiz"、"/result/[sessionId]"
+  title        String?
+  description  String?
+  keywords     String?
+  ogImageUrl   String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// 通用内容片段，如 Footer 关于文案等
+model ContentBlock {
+  id        String   @id @default(cuid())
+  key       String   @unique // 标识，如 "footer_about"、"homepage_trust_section"
+  type      ContentBlockType @default(RICH_TEXT)
+  locale    String?          // 预留多语言，如 "zh-CN"
+  content   String           // 文本或 JSON 字符串
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum PaymentProviderType {
+  WECHAT
+  ALIPAY
+}
+
+enum ContentBlockType {
+  PLAIN_TEXT
+  RICH_TEXT
+  JSON
+}
+
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTI_CHOICE
+  SCALE
+}
+
 enum TestMode {
   UNIVERSAL
   STAGED

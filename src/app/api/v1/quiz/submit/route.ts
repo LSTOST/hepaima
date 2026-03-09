@@ -7,7 +7,6 @@ import {
   calculateOverallScore,
 } from "@/lib/scoring";
 import type { AnswerItem, Dimensions } from "@/lib/scoring";
-import { getQuestionsByStage } from "@/lib/questions";
 import type { Stage } from "@/lib/questions";
 import { ATTACHMENT_LABELS, LOVE_LANGUAGE_LABELS } from "@/lib/resultGenerator";
 import { generatePremiumReport } from "@/lib/ai";
@@ -18,7 +17,7 @@ import {
   calculateUniversalCompatibility,
   calculateUniversalDimensions,
 } from "@/lib/scoring-universal";
-import { universalQuestions } from "@/lib/questions-universal";
+import { getUniversalQuestionsFromDb, getStagedQuestionsFromDb } from "@/lib/quiz-config";
 
 interface AnswerPayloadStaged {
   questionId: number;
@@ -131,6 +130,8 @@ export async function POST(req: NextRequest) {
         const initiatorAnswers = toUniversalAnswerItems(updated.initiatorAnswers);
         const partnerAnswers = toUniversalAnswerItems(updated.partnerAnswers);
 
+        const universalQuestions = await getUniversalQuestionsFromDb();
+
         const initiatorScores = calculateUniversalScores(
           initiatorAnswers,
           universalQuestions
@@ -196,7 +197,7 @@ export async function POST(req: NextRequest) {
         const initiatorAnswers = toAnswerItems(updated.initiatorAnswers);
         const partnerAnswers = toAnswerItems(updated.partnerAnswers);
         const stage = updated.stage as Stage;
-        const questions = getQuestionsByStage(stage);
+        const questions = await getStagedQuestionsFromDb(stage);
 
         const initiatorAttachment = calculateAttachmentType(
           initiatorAnswers,

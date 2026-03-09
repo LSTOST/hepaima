@@ -7,7 +7,7 @@ import { Logo } from "@/components/Logo";
 import { Heart, ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { universalQuestions } from "@/lib/questions-universal";
+import type { UniversalQuestion } from "@/lib/questions-universal";
 
 export type UniversalAnswerItem = { questionId: number; value: number };
 
@@ -36,8 +36,42 @@ export function UniversalQuiz({
   const hasSubmittedRef = useRef(false);
   const hasRestoredRef = useRef(false);
   const isTransitioning = useRef(false);
+  const [questions, setQuestions] = useState<UniversalQuestion[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const questions = universalQuestions;
+  useEffect(() => {
+    let cancelled = false;
+    const fetchQuestions = async () => {
+      setLoadingQuestions(true);
+      setLoadError(null);
+      try {
+        const res = await fetch("/api/v1/quiz/universal-questions");
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message ?? "获取题目失败");
+        }
+        if (!cancelled) {
+          setQuestions(Array.isArray(data.questions) ? data.questions : []);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(
+            e instanceof Error ? e.message : "获取题目失败，请稍后重试",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingQuestions(false);
+        }
+      }
+    };
+    fetchQuestions();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const total = questions.length;
   const currentQuestion = total > 0 ? questions[currentIndex] : null;
   const progress = total > 0 ? ((currentIndex + 1) / total) * 100 : 0;
@@ -49,7 +83,7 @@ export function UniversalQuiz({
 
   // 页面加载时从 sessionStorage 恢复进度
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined" || total === 0) return;
     try {
       const raw = sessionStorage.getItem(UNIVERSAL_STORAGE_KEY(sessionId));
       if (!raw) return;
@@ -191,7 +225,34 @@ export function UniversalQuiz({
     );
   }
 
-  if (!currentQuestion) return null;
+  if (loadingQuestions) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-pink-300 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError || !currentQuestion) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-4">
+        <p className="text-sm text-red-500 mb-4">
+          {loadError ?? "题目加载失败，请稍后重试"}
+        </p>
+        <Button
+          onClick={() => {
+            // 简单粗暴刷新页面重新拉题
+            if (typeof window !== "undefined") {
+              window.location.reload();
+            }
+          }}
+          className="rounded-full bg-gradient-to-r from-pink-500 to-violet-500 text-white"
+        >
+          重新加载
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col">
