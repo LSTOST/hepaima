@@ -1,14 +1,13 @@
 "use client";
 
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/Logo";
 import { Heart, ChevronLeft, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { getQuestionsByStage } from "@/lib/questions";
-import type { Stage } from "@/lib/questions";
+import type { Question, Stage } from "@/lib/questions";
 import { useQuiz } from "@/hooks/useQuiz";
 import { getDeviceId } from "@/lib/device";
 
@@ -28,7 +27,46 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
   const isSubmitting = useRef(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  const questions = React.useMemo(() => getQuestionsByStage(stageKey), [stageKey]);
+  const [questions, setQuestions] = useState<Question[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    const fetchQuestions = async () => {
+      setLoadingQuestions(true);
+      setLoadError(null);
+      try {
+        const res = await fetch(
+          `/api/v1/quiz/staged-questions?stage=${encodeURIComponent(stageKey)}`,
+        );
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          throw new Error(data.message ?? "获取题目失败");
+        }
+        if (!cancelled) {
+          const list: any[] = Array.isArray(data.questions) ? data.questions : [];
+          setQuestions(list as Question[]);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setLoadError(
+            e instanceof Error ? e.message : "获取题目失败，请稍后重试",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingQuestions(false);
+        }
+      }
+    };
+
+    fetchQuestions();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [stageKey]);
 
   const submitAnswers = useCallback(
     async (ans: { questionId: number; answer: string }[]) => {
@@ -170,7 +208,33 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
     );
   }
 
-  if (!currentQuestion) return null;
+  if (loadingQuestions) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-pink-300 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (loadError || !currentQuestion) {
+    return (
+      <div className="min-h-screen bg-[#FAFAFA] flex flex-col items-center justify-center px-4">
+        <p className="text-sm text-red-500 mb-4">
+          {loadError ?? "题目加载失败，请稍后重试"}
+        </p>
+        <Button
+          onClick={() => {
+            if (typeof window !== "undefined") {
+              window.location.reload();
+            }
+          }}
+          className="rounded-full bg-gradient-to-r from-pink-500 to-violet-500 text-white"
+        >
+          重新加载
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-[#FAFAFA] flex flex-col">
