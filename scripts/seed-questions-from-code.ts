@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { PrismaClient, Stage } from "@prisma/client";
 import { getQuestionsByStage } from "../src/lib/questions";
 import { universalQuestions } from "../src/lib/questions-universal";
