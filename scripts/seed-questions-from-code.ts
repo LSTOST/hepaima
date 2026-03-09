@@ -109,8 +109,8 @@ async function main() {
     console.log("Universal questions seeded:", universalQuestions.length);
   }
 
-  // 4. 分阶段题目（基于 getQuestionsByStage）
-  const stagedStages: Stage[] = ["AMBIGUOUS", "ROMANCE", "STABLE"];
+  // 4. 分阶段题目（基于 getQuestionsByStage，仅针对三阶段，不含 UNIVERSAL）
+  const stagedStages = ["AMBIGUOUS", "ROMANCE", "STABLE"] as const;
 
   for (const stage of stagedStages) {
     const questionnaireId = questionnaireByKey[stage];
