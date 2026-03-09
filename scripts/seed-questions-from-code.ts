@@ -1,4 +1,4 @@
-import { PrismaClient, QuestionType, Stage } from "@prisma/client";
+import { PrismaClient, Stage } from "@prisma/client";
 import { getQuestionsByStage } from "../src/lib/questions";
 import { universalQuestions } from "../src/lib/questions-universal";
 
@@ -88,7 +88,7 @@ async function main() {
           order: order++,
           text: q.text,
           category: q.category,
-          type: QuestionType.SCALE,
+          type: "SCALE" as any,
           required: true,
           scoringJson: q.scoring as unknown as object,
         },
@@ -133,7 +133,7 @@ async function main() {
           order: order++,
           text: q.text,
           category: q.category,
-          type: QuestionType.SINGLE_CHOICE,
+          type: "SINGLE_CHOICE" as any,
           required: true,
         },
       });
