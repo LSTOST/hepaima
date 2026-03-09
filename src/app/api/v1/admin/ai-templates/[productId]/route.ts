@@ -25,8 +25,9 @@ async function getOrCreateTemplate(productId: string) {
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { productId: string } },
+  context: { params: { productId: string } },
 ) {
+  const { params } = context;
   const err = requireAdmin(req);
   if (err) return err;
 
@@ -45,8 +46,9 @@ export async function GET(
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { productId: string } },
+  context: { params: { productId: string } },
 ) {
+  const { params } = context;
   const err = requireAdmin(req);
   if (err) return err;
 
