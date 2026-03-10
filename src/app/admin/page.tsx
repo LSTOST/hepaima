@@ -377,7 +377,7 @@ export default function AdminDashboardPage() {
             </div>
             <div>
               <div className="font-bold text-lg bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">
-                配置后台
+                后端配置
               </div>
               <div className="text-xs text-slate-400">
                 品牌、测评、AI、支付、兑换码一站管理
@@ -422,10 +422,19 @@ export default function AdminDashboardPage() {
                 兑换码
               </Button>
             </Link>
+            <Link href="/" target="_blank">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-lg text-xs bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200 px-3.5"
+              >
+                查看前端
+              </Button>
+            </Link>
             <Button
               variant="outline"
               size="sm"
-              className="rounded-lg text-xs text-slate-500 border-slate-200 flex items-center gap-1"
+              className="rounded-lg text-xs text-red-500 border-red-100 bg-red-50/70 hover:bg-red-100 flex items-center gap-1"
               onClick={logout}
             >
               <LogOut className="w-3.5 h-3.5" />
@@ -676,17 +685,6 @@ export default function AdminDashboardPage() {
                     <label className="flex items-center gap-2">
                       <input
                         type="checkbox"
-                        checked={siteSettings.enableUmami ?? false}
-                        onChange={(e) =>
-                          setSiteSettings({ ...siteSettings, enableUmami: e.target.checked })
-                        }
-                        className="rounded border-slate-300"
-                      />
-                      启用 Umami
-                    </label>
-                    <label className="flex items-center gap-2">
-                      <input
-                        type="checkbox"
                         checked={siteSettings.enableClarity ?? false}
                         onChange={(e) =>
                           setSiteSettings({ ...siteSettings, enableClarity: e.target.checked })
@@ -694,6 +692,17 @@ export default function AdminDashboardPage() {
                         className="rounded border-slate-300"
                       />
                       启用 Microsoft Clarity
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={siteSettings.enableUmami ?? false}
+                        onChange={(e) =>
+                          setSiteSettings({ ...siteSettings, enableUmami: e.target.checked })
+                        }
+                        className="rounded border-slate-300"
+                      />
+                      启用 Umami
                     </label>
                   </div>
                   <div>
@@ -705,6 +714,18 @@ export default function AdminDashboardPage() {
                         setSiteSettings({ ...siteSettings, ga4MeasurementId: e.target.value || undefined })
                       }
                       placeholder="G-XXXXXXXXXX"
+                      className="w-full max-w-xs px-3 py-2 rounded-lg border border-slate-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Clarity Project ID</label>
+                    <input
+                      type="text"
+                      value={siteSettings.clarityProjectId ?? ""}
+                      onChange={(e) =>
+                        setSiteSettings({ ...siteSettings, clarityProjectId: e.target.value || undefined })
+                      }
+                      placeholder="你的 Clarity 项目 ID"
                       className="w-full max-w-xs px-3 py-2 rounded-lg border border-slate-200"
                     />
                   </div>
@@ -730,18 +751,6 @@ export default function AdminDashboardPage() {
                       }
                       placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
                       className="w-full max-w-[520px] px-3 py-2 rounded-lg border border-slate-200"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-xs font-medium text-slate-500 mb-1">Clarity Project ID</label>
-                    <input
-                      type="text"
-                      value={siteSettings.clarityProjectId ?? ""}
-                      onChange={(e) =>
-                        setSiteSettings({ ...siteSettings, clarityProjectId: e.target.value || undefined })
-                      }
-                      placeholder="你的 Clarity 项目 ID"
-                      className="w-full max-w-xs px-3 py-2 rounded-lg border border-slate-200"
                     />
                   </div>
                   <Button
