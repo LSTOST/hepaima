@@ -145,6 +145,11 @@ model SiteSettings {
   clarityProjectId String?  // clarity 的项目 id
   enableClarity    Boolean  @default(false)
 
+  // 文档内容：可在后台自定义页面正文
+  privacyContent   String?  // 隐私政策自定义内容（为空时使用内置文案）
+  termsContent     String?  // 服务条款自定义内容
+  contactContent   String?  // 联系我们页面自定义内容
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }

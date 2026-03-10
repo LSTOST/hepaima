@@ -29,6 +29,9 @@ type SiteSettings = {
   enableUmami?: boolean;
   clarityProjectId?: string | null;
   enableClarity?: boolean;
+  privacyContent?: string | null;
+  termsContent?: string | null;
+  contactContent?: string | null;
 };
 
 type Product = {
@@ -1013,6 +1016,54 @@ export default function AdminDashboardPage() {
                       }
                       className="w-full px-3 py-2 rounded-lg border border-slate-200 min-h-[72px]"
                       placeholder="例如：© {year} 合拍吗 · 仅供娱乐参考，不构成专业诊断"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      隐私政策（自定义正文，可选）
+                    </label>
+                    <textarea
+                      value={siteSettings.privacyContent ?? ""}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          privacyContent: e.target.value || undefined,
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 min-h-[96px] text-xs sm:text-sm"
+                      placeholder="如需覆盖默认隐私政策，可在此粘贴完整正文；留空则使用内置文案。"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      服务条款（自定义正文，可选）
+                    </label>
+                    <textarea
+                      value={siteSettings.termsContent ?? ""}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          termsContent: e.target.value || undefined,
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 min-h-[96px] text-xs sm:text-sm"
+                      placeholder="如需覆盖默认服务条款，可在此粘贴完整正文；留空则使用内置文案。"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">
+                      联系我们（自定义正文，可选）
+                    </label>
+                    <textarea
+                      value={siteSettings.contactContent ?? ""}
+                      onChange={(e) =>
+                        setSiteSettings({
+                          ...siteSettings,
+                          contactContent: e.target.value || undefined,
+                        })
+                      }
+                      className="w-full px-3 py-2 rounded-lg border border-slate-200 min-h-[96px] text-xs sm:text-sm"
+                      placeholder="如需自定义联系我们页内容，可在此粘贴正文；留空则使用当前默认样式。"
                     />
                   </div>
                 </div>

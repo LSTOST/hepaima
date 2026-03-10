@@ -68,6 +68,9 @@ export async function PUT(req: NextRequest) {
         enableUmami: body.enableUmami !== undefined ? body.enableUmami : current.enableUmami,
         clarityProjectId: body.clarityProjectId !== undefined ? body.clarityProjectId : current.clarityProjectId,
         enableClarity: body.enableClarity !== undefined ? body.enableClarity : current.enableClarity,
+        privacyContent: body.privacyContent !== undefined ? body.privacyContent : current.privacyContent,
+        termsContent: body.termsContent !== undefined ? body.termsContent : current.termsContent,
+        contactContent: body.contactContent !== undefined ? body.contactContent : current.contactContent,
       },
     });
 

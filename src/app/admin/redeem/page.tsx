@@ -124,7 +124,7 @@ export default function AdminRedeemPage() {
     if (!password) return;
     setLoading(true);
     try {
-      const res = await fetch("/api/v1/admin/redeem/stats", {
+      const res = await fetch(`/api/v1/admin/redeem/stats?t=${Date.now()}`, {
         headers: authHeaders(password),
       });
       const data = await res.json().catch(() => ({}));
@@ -151,7 +151,7 @@ export default function AdminRedeemPage() {
         ...(filterStatus !== "all" && { status: filterStatus }),
         ...(filterBatch !== "all" && filterBatch && { batch: filterBatch }),
       });
-      const res = await fetch(`/api/v1/admin/redeem/list?${params}`, {
+      const res = await fetch(`/api/v1/admin/redeem/list?${params}&t=${Date.now()}`, {
         headers: authHeaders(password),
       });
       const data = await res.json().catch(() => ({}));
@@ -189,7 +189,7 @@ export default function AdminRedeemPage() {
       setDetailLoading(true);
       setDetailData(null);
       try {
-        const res = await fetch(`/api/v1/admin/redeem/${id}`, {
+        const res = await fetch(`/api/v1/admin/redeem/${id}?t=${Date.now()}`, {
           headers: authHeaders(password),
         });
         if (!res.ok) throw new Error("获取详情失败");
@@ -222,6 +222,12 @@ export default function AdminRedeemPage() {
         throw new Error(data.message ?? "操作失败");
       }
       showToast("已禁用");
+      // 乐观更新列表状态
+      setList((prev) =>
+        prev.map((row) =>
+          row.id === id ? { ...row, status: "DISABLED", disabled: true } : row,
+        ),
+      );
       fetchList();
       fetchStats();
       if (selectedCode?.id === id) {
@@ -245,10 +251,35 @@ export default function AdminRedeemPage() {
         throw new Error(data.message ?? "操作失败");
       }
       showToast("已启用");
+      // 乐观更新列表状态：根据过期与 usage 情况推算
+      setList((prev) =>
+        prev.map((row) => {
+          if (row.id !== id) return row;
+          const isExpired = row.expiresAt && new Date(row.expiresAt) < new Date();
+          const nextStatus = isExpired
+            ? "EXPIRED"
+            : (row.usagesCount ?? 0) > 0
+              ? "USED"
+              : "UNUSED";
+          return { ...row, status: nextStatus, disabled: false };
+        }),
+      );
       fetchList();
       fetchStats();
       if (selectedCode?.id === id) {
-        setDetailData((d) => (d?.id === id ? { ...d, status: "UNUSED" } : d));
+        setDetailData((d) =>
+          d?.id === id
+            ? {
+                ...d,
+                status:
+                  (d.usagesCount ?? 0) > 0
+                    ? "USED"
+                    : d.expiresAt && new Date(d.expiresAt) < new Date()
+                      ? "EXPIRED"
+                      : "UNUSED",
+              }
+            : d,
+        );
       }
     } catch (e) {
       showToast(e instanceof Error ? e.message : "操作失败", "error");
