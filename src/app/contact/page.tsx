@@ -55,10 +55,10 @@ export default async function ContactPage() {
                       一般咨询、反馈与商务合作，请发送邮件至：
                     </p>
                     <a
-                      href="mailto:hello@hepaima.com"
+                      href="mailto:lst007@protonmail.com"
                       className="text-[#EC4899] font-medium hover:underline"
                     >
-                      hello@hepaima.com
+                      lst007@protonmail.com
                     </a>
                   </div>
                 </div>
