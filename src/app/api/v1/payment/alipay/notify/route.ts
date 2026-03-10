@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    const ok = verifyAlipayNotifySign(postData);
+    const ok = await verifyAlipayNotifySign(postData);
     if (!ok) {
       console.error("[alipay notify] 验签失败");
       return new NextResponse("fail", {

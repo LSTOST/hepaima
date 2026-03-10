@@ -133,8 +133,32 @@ model SiteSettings {
   icpRecord       String?  // 备案号
   footerHtml      String?  // 页脚富文本（可选）
 
+  // 流量与埋点：第三方统计
+  ga4MeasurementId String?   // Google Analytics 4 测量 ID，如 G-XXXXXXXXXX
+  enableGa4       Boolean   @default(false)
+  // Umami
+  umamiScriptUrl  String?   // 如 https://umami.example.com/script.js
+  umamiWebsiteId  String?   // data-website-id
+  enableUmami     Boolean   @default(false)
+
+  // Microsoft Clarity
+  clarityProjectId String?  // clarity 的项目 id
+  enableClarity    Boolean  @default(false)
+
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+}
+
+/// 自建访问/埋点事件（用于后台流量概览，PV/UV、关键事件）
+model AnalyticsEvent {
+  id         String   @id @default(cuid())
+  eventType  String   // page_view | quiz_start | quiz_complete | result_view | pay_click 等
+  path       String?  // 页面路径
+  visitorId  String?  // 访客标识（用于 UV 去重）
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([eventType])
 }
 
 /// 测评产品基础配置，不同测评（情侣、亲子、职业性格等）都在这里建一条记录

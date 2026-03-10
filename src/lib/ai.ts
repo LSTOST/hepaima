@@ -1,7 +1,8 @@
 /**
  * DeepSeek AI 测试报告生成
- * 通过 OpenRouter API 调用
+ * 通过 OpenRouter API 调用；若后台配置了 ProductAiTemplate 则优先使用
  */
+import { getAiTemplateForReport } from "./ai-config";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 /** 报告生成模型：可选 OPENROUTER_REPORT_MODEL，默认用 deepseek-chat 以兼顾速度与质量 */
@@ -357,6 +358,27 @@ function getStageLabel(stage: string): string {
   return stage;
 }
 
+type PayloadData = {
+  stage: string;
+  initiatorName: string;
+  partnerName: string;
+  initiatorAttachment: string;
+  partnerAttachment: string;
+  initiatorLoveLanguage: string;
+  partnerLoveLanguage: string;
+  overallScore: number;
+  dimensions: Record<string, number>;
+};
+
+function buildPayloadStr(data: PayloadData): string {
+  const stageLabel = getStageLabel(data.stage);
+  return `- 关系阶段：${stageLabel}
+- ${data.initiatorName}：依恋类型 ${data.initiatorAttachment}，爱的语言 ${data.initiatorLoveLanguage}
+- ${data.partnerName}：依恋类型 ${data.partnerAttachment}，爱的语言 ${data.partnerLoveLanguage}
+- 总体契合度：${data.overallScore}%
+- 各维度得分：${JSON.stringify(data.dimensions)}`;
+}
+
 export async function generateReport(data: {
   stage: string;
   initiatorName: string;
@@ -371,21 +393,29 @@ export async function generateReport(data: {
   console.log("===== 开始调用 AI =====");
 
   const apiKey = process.env.OPENROUTER_API_KEY;
-  console.log("请求参数:", JSON.stringify({
-    model: REPORT_MODEL,
-    url: OPENROUTER_URL,
-    hasApiKey: !!apiKey,
-  }));
-
   if (!apiKey) {
     console.log("===== 使用兜底报告 =====");
     console.warn("OPENROUTER_API_KEY not set, using fallback report");
     return FALLBACK_REPORT;
   }
 
-  const stageLabel = getStageLabel(data.stage);
+  const tpl = await getAiTemplateForReport();
+  let systemPrompt: string;
+  let userPrompt: string;
+  let model = REPORT_MODEL;
+  let temperature = 0.5;
+  let maxTokens = 2048;
 
-  const systemPrompt = `你是一位专业的关系心理咨询师，拥有丰富的依恋理论和爱的语言领域经验。
+  if (tpl && tpl.systemPrompt && tpl.userPromptTemplate) {
+    const payloadStr = buildPayloadStr(data);
+    systemPrompt = tpl.systemPrompt;
+    userPrompt = tpl.userPromptTemplate.replace(/\{\{payload\}\}/g, payloadStr);
+    model = tpl.modelName;
+    temperature = tpl.temperature;
+    maxTokens = tpl.maxTokens;
+  } else {
+    const stageLabel = getStageLabel(data.stage);
+    systemPrompt = `你是一位专业的关系心理咨询师，拥有丰富的依恋理论和爱的语言领域经验。
 请根据情侣测试数据，生成一份专业、温暖、有洞察力的关系分析报告。
 语气要亲切自然，像朋友一样给出建议，避免过于学术化。
 所有内容用中文，不要在报告正文中出现英文单词或英文缩写（例如 attachment、secure、avoidant、gift、service 等），如需提及相关概念，请用自然的中文表述。
@@ -394,17 +424,7 @@ overallAnalysis 是一个对象，包含：
 - highlights：数组，必须恰好 4 条，每条包含 emoji、title、detail。四条分别涵盖：①依恋匹配 ②爱的语言 ③一个优势维度（如沟通/价值观/生活习惯等） ④一个需关注维度（相对弱项或成长空间）。emoji 要贴切不幼稚，如 🛡️ 🗣️ 💡 🌱 等；title 4-8 字；detail 40-60 字，一两句话说清楚。
 - advice：一句温暖的总结建议（20-30字）。
 请严格按照 JSON 格式输出，不要包含 markdown 代码块标记。`;
-
-  const dimDesc = [
-    `依恋匹配${(data.dimensions as Record<string, number>).attachment ?? 0}%`,
-    `爱的语言${(data.dimensions as Record<string, number>).loveLanguage ?? 0}%`,
-    `冲突处理${(data.dimensions as Record<string, number>).conflict ?? 0}%`,
-    `价值观${(data.dimensions as Record<string, number>).values ?? 0}%`,
-    `沟通方式${(data.dimensions as Record<string, number>).communication ?? 0}%`,
-    `生活习惯${(data.dimensions as Record<string, number>).lifestyle ?? 0}%`,
-  ].join("、");
-
-  const userPrompt = `## 测试数据
+    userPrompt = `## 测试数据
 - 关系阶段：${stageLabel}
 - ${data.initiatorName}：依恋类型 ${data.initiatorAttachment}，爱的语言 ${data.initiatorLoveLanguage}
 - ${data.partnerName}：依恋类型 ${data.partnerAttachment}，爱的语言 ${data.partnerLoveLanguage}
@@ -443,10 +463,11 @@ overallAnalysis 是一个对象，包含：
     { "title": "任务3", "description": "做法3" }
   ]
 }`;
+  }
 
   const maxRetries = 1;
   const retryDelay = 2000;
-  console.log("generateReport 使用模型:", REPORT_MODEL);
+  console.log("generateReport 使用模型:", model);
 
   for (let attempt = 1; attempt <= maxRetries; attempt++) {
     try {
@@ -463,13 +484,13 @@ overallAnalysis 是一个对象，包含：
           "X-Title": "hepaima",
         },
         body: JSON.stringify({
-          model: REPORT_MODEL,
+          model,
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt },
           ],
-          temperature: 0.5,
-          max_tokens: 2048,
+          temperature,
+          max_tokens: maxTokens,
         }),
         signal: controller.signal,
       });
@@ -567,7 +588,24 @@ export async function generateReportStream(
     console.warn("OPENROUTER_API_KEY not set, cannot stream report");
     return null;
   }
-  const { systemPrompt, userPrompt } = buildReportPrompts(data);
+  const tpl = await getAiTemplateForReport();
+  let systemPrompt: string;
+  let userPrompt: string;
+  let model = REPORT_MODEL;
+  let temperature = 0.5;
+  let maxTokens = 2048;
+  if (tpl && tpl.systemPrompt && tpl.userPromptTemplate) {
+    const payloadStr = buildPayloadStr(data);
+    systemPrompt = tpl.systemPrompt;
+    userPrompt = tpl.userPromptTemplate.replace(/\{\{payload\}\}/g, payloadStr);
+    model = tpl.modelName;
+    temperature = tpl.temperature;
+    maxTokens = tpl.maxTokens;
+  } else {
+    const built = buildReportPrompts(data);
+    systemPrompt = built.systemPrompt;
+    userPrompt = built.userPrompt;
+  }
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60000);
   try {
@@ -580,13 +618,13 @@ export async function generateReportStream(
         "X-Title": "hepaima",
       },
       body: JSON.stringify({
-        model: REPORT_MODEL,
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
-        temperature: 0.5,
-        max_tokens: 2048,
+        temperature,
+        max_tokens: maxTokens,
         stream: true,
       }),
       signal: controller.signal,

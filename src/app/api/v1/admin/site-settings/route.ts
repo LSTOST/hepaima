@@ -61,6 +61,13 @@ export async function PUT(req: NextRequest) {
         ogImageUrl: body.ogImageUrl ?? current.ogImageUrl,
         icpRecord: body.icpRecord ?? current.icpRecord,
         footerHtml: body.footerHtml ?? current.footerHtml,
+        ga4MeasurementId: body.ga4MeasurementId !== undefined ? body.ga4MeasurementId : current.ga4MeasurementId,
+        enableGa4: body.enableGa4 !== undefined ? body.enableGa4 : current.enableGa4,
+        umamiScriptUrl: body.umamiScriptUrl !== undefined ? body.umamiScriptUrl : current.umamiScriptUrl,
+        umamiWebsiteId: body.umamiWebsiteId !== undefined ? body.umamiWebsiteId : current.umamiWebsiteId,
+        enableUmami: body.enableUmami !== undefined ? body.enableUmami : current.enableUmami,
+        clarityProjectId: body.clarityProjectId !== undefined ? body.clarityProjectId : current.clarityProjectId,
+        enableClarity: body.enableClarity !== undefined ? body.enableClarity : current.enableClarity,
       },
     });
 

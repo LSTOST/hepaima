@@ -2,13 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-auth";
 
-export async function GET(req: NextRequest, { params }: any) {
+export async function GET(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
   const err = requireAdmin(req);
   if (err) return err;
 
   try {
+    const { id } = await ctx.params;
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
     if (!product) {
       return NextResponse.json({ message: "产品不存在" }, { status: 404 });
@@ -26,21 +30,25 @@ export async function GET(req: NextRequest, { params }: any) {
   }
 }
 
-export async function PUT(req: NextRequest, { params }: any) {
+export async function PUT(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
   const err = requireAdmin(req);
   if (err) return err;
 
   try {
+    const { id } = await ctx.params;
     const body = await req.json();
     const existing = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
     if (!existing) {
       return NextResponse.json({ message: "产品不存在" }, { status: 404 });
     }
 
     const updated = await prisma.product.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         slug: body.slug ?? existing.slug,
         name: body.name ?? existing.name,
@@ -72,6 +80,46 @@ export async function PUT(req: NextRequest, { params }: any) {
       {
         message: "更新产品失败",
       },
+      { status: 500 },
+    );
+  }
+}
+
+export async function DELETE(
+  _req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  const err = requireAdmin(_req);
+  if (err) return err;
+
+  try {
+    const { id } = await ctx.params;
+    const product = await prisma.product.findUnique({
+      where: { id },
+    });
+    if (!product) {
+      return NextResponse.json({ message: "产品不存在" }, { status: 404 });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await tx.quizQuestionOption.deleteMany({
+        where: { question: { questionnaire: { productId: id } } },
+      });
+      await tx.quizQuestion.deleteMany({
+        where: { questionnaire: { productId: id } },
+      });
+      await tx.questionnaire.deleteMany({ where: { productId: id } });
+      await tx.quizTrait.deleteMany({ where: { productId: id } });
+      await tx.productAiTemplate.deleteMany({ where: { productId: id } });
+      await tx.product.delete({ where: { id } });
+    });
+
+    return NextResponse.json({ ok: true });
+  } catch (e) {
+    const errObj = e instanceof Error ? e : new Error(String(e));
+    console.error("DELETE /api/v1/admin/products/[id] error:", errObj);
+    return NextResponse.json(
+      { message: "删除产品失败" },
       { status: 500 },
     );
   }

@@ -1,15 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-auth";
+import { ensurePresetQuestionsForProduct } from "@/lib/seed-preset-questions";
 
 export async function GET(req: NextRequest) {
   const err = requireAdmin(req);
   if (err) return err;
 
   try {
-    const list = await prisma.product.findMany({
+    let list = await prisma.product.findMany({
       orderBy: { createdAt: "desc" },
     });
+    if (list.length === 0) {
+      const defaultProduct = await prisma.product.create({
+        data: {
+          slug: "couple-compatibility",
+          name: "情侣契合度",
+          isActive: true,
+        },
+      });
+      await ensurePresetQuestionsForProduct(defaultProduct.id);
+      list = [defaultProduct];
+    }
     return NextResponse.json(list);
   } catch (e) {
     const errObj = e instanceof Error ? e : new Error(String(e));

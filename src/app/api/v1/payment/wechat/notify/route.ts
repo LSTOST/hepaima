@@ -50,7 +50,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ code: "SUCCESS", message: "忽略" });
     }
 
-    const decrypted = decryptWechatNotifyResource(body.resource);
+    const decrypted = await decryptWechatNotifyResource(body.resource);
     if (decrypted.trade_state !== "SUCCESS") {
       return NextResponse.json({ code: "SUCCESS", message: "未支付成功" });
     }

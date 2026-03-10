@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { prisma } from "@/lib/db";
+import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
 export async function generateMetadata(): Promise<Metadata> {
   try {
@@ -45,7 +46,7 @@ export default function RootLayout({
   return (
     <html lang="zh-CN">
       <body className="antialiased">
-        {children}
+        <AnalyticsProvider>{children}</AnalyticsProvider>
       </body>
     </html>
   );

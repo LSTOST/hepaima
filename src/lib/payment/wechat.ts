@@ -1,16 +1,16 @@
 /**
  * 微信支付 V3：Native（扫码）、H5、下单与回调验签/解密
- * 依赖 wechatpay-node-v3，证书与密钥通过环境变量配置
+ * 优先使用后台 PaymentProviderConfig 配置，否则使用环境变量
  */
 import fs from "node:fs";
 import path from "node:path";
 import WxPay from "wechatpay-node-v3";
 import { TIER_AMOUNT_CENTS } from "./constants";
+import { getPaymentProviderConfig } from "./config-db";
 
 const MCH_ID = process.env.WECHAT_PAY_MCH_ID;
 const APP_ID = process.env.WECHAT_PAY_APP_ID;
 const API_V3_KEY = process.env.WECHAT_PAY_API_V3_KEY;
-// 回调地址必须用运行时环境变量：NEXT_PUBLIC_* 会在本地 build 时被内联成 localhost，导致微信回调发错地址
 const BASE_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://hepaima.kyx123.com";
 
 function getCertPath(filename: string): string {
@@ -20,8 +20,26 @@ function getCertPath(filename: string): string {
 
 let wxPayInstance: InstanceType<typeof WxPay> | null = null;
 
-/** 获取微信支付实例（公钥=证书 pem，私钥=apiclient_key.pem） */
-export function getWxPay(): InstanceType<typeof WxPay> {
+export type WxPayWithKey = { pay: InstanceType<typeof WxPay>; apiKey: string };
+
+/** 获取微信支付实例与 API 密钥（优先数据库配置） */
+export async function getWxPay(): Promise<WxPayWithKey> {
+  const dbConfig = await getPaymentProviderConfig("WECHAT");
+  if (dbConfig?.appId && dbConfig?.mchId && dbConfig?.apiKey) {
+    const certPath = getCertPath("apiclient_cert.pem");
+    const keyPath = getCertPath("apiclient_key.pem");
+    if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+      throw new Error("微信支付证书文件不存在，请将 apiclient_cert.pem、apiclient_key.pem 放到 certs/wechat/ 或 WECHAT_PAY_CERT_DIR 指定目录");
+    }
+    const pay = new WxPay({
+      appid: dbConfig.appId,
+      mchid: dbConfig.mchId,
+      publicKey: fs.readFileSync(certPath),
+      privateKey: fs.readFileSync(keyPath),
+      key: dbConfig.apiKey,
+    });
+    return { pay, apiKey: dbConfig.apiKey };
+  }
   if (!MCH_ID || !APP_ID || !API_V3_KEY) {
     throw new Error("微信支付环境变量未配置：WECHAT_PAY_MCH_ID / WECHAT_PAY_APP_ID / WECHAT_PAY_API_V3_KEY");
   }
@@ -39,7 +57,7 @@ export function getWxPay(): InstanceType<typeof WxPay> {
       key: API_V3_KEY,
     });
   }
-  return wxPayInstance;
+  return { pay: wxPayInstance, apiKey: API_V3_KEY };
 }
 
 /** 从微信 API 响应或异常中提取错误文案，便于排查 */
@@ -68,10 +86,11 @@ export async function createWechatNativeOrder(params: {
   description: string;
   amountCents: number;
 }): Promise<{ code_url: string }> {
-  const pay = getWxPay();
-  let result: Record<string, unknown> & { status?: number; code_url?: string };
-  const notifyUrl = `${BASE_URL}/api/v1/payment/wechat/notify`;
+  const { pay } = await getWxPay();
+  const dbConfig = await getPaymentProviderConfig("WECHAT");
+  const notifyUrl = dbConfig?.notifyUrl || `${BASE_URL}/api/v1/payment/wechat/notify`;
   console.log("[WeChat Native] 下单 notify_url:", notifyUrl, "| APP_URL:", process.env.APP_URL ?? "(未设置)");
+  let result: Record<string, unknown> & { status?: number; code_url?: string };
   try {
     result = (await pay.transactions_native({
       description: params.description,
@@ -103,13 +122,15 @@ export async function createWechatH5Order(params: {
   amountCents: number;
   clientIp?: string;
 }): Promise<{ h5_url: string }> {
-  const pay = getWxPay();
+  const { pay } = await getWxPay();
+  const dbConfig = await getPaymentProviderConfig("WECHAT");
+  const notifyUrl = dbConfig?.notifyUrl || `${BASE_URL}/api/v1/payment/wechat/notify`;
   let result: Record<string, unknown> & { status?: number; h5_url?: string };
   try {
     result = (await pay.transactions_h5({
       description: params.description,
       out_trade_no: params.outTradeNo,
-      notify_url: `${BASE_URL}/api/v1/payment/wechat/notify`,
+      notify_url: notifyUrl,
       amount: { total: params.amountCents, currency: "CNY" },
       scene_info: {
         payer_client_ip: params.clientIp || "127.0.0.1",
@@ -142,7 +163,7 @@ export async function verifyWechatNotifySign(
   headers: Record<string, string | undefined>,
   bodyRaw: string
 ): Promise<boolean> {
-  const pay = getWxPay();
+  const { pay, apiKey } = await getWxPay();
   const signature = headers["wechatpay-signature"] ?? headers["Wechatpay-Signature"];
   const serial = headers["wechatpay-serial"] ?? headers["Wechatpay-Serial"];
   const nonce = headers["wechatpay-nonce"] ?? headers["Wechatpay-Nonce"];
@@ -154,28 +175,28 @@ export async function verifyWechatNotifySign(
     serial,
     nonce,
     timestamp,
-    apiSecret: process.env.WECHAT_PAY_API_V3_KEY ?? undefined,
+    apiSecret: apiKey,
   });
   return !!ret;
 }
 
 /** 解密回调 resource（AES-256-GCM） */
-export function decryptWechatNotifyResource(resource: {
+export async function decryptWechatNotifyResource(resource: {
   ciphertext: string;
   nonce: string;
   associated_data?: string;
-}): {
+}): Promise<{
   out_trade_no: string;
   trade_state: string;
   transaction_id?: string;
   amount?: { total: number };
-} {
-  const pay = getWxPay();
+}> {
+  const { pay, apiKey } = await getWxPay();
   const decrypted = pay.decipher_gcm(
     resource.ciphertext,
     resource.associated_data ?? "",
     resource.nonce,
-    API_V3_KEY!
+    apiKey
   );
   return decrypted as {
     out_trade_no: string;

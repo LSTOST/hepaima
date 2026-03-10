@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-auth";
+import { ensurePresetTraitsForProduct } from "@/lib/seed-preset-traits";
 
 export async function GET(req: NextRequest) {
   const err = requireAdmin(req);
@@ -12,10 +13,18 @@ export async function GET(req: NextRequest) {
 
     const where = productId ? { productId } : {};
 
-    const list = await prisma.quizTrait.findMany({
+    let list = await prisma.quizTrait.findMany({
       where,
       orderBy: { createdAt: "asc" },
     });
+
+    if (productId && list.length === 0) {
+      await ensurePresetTraitsForProduct(productId);
+      list = await prisma.quizTrait.findMany({
+        where: { productId },
+        orderBy: { createdAt: "asc" },
+      });
+    }
 
     return NextResponse.json(list);
   } catch (e) {

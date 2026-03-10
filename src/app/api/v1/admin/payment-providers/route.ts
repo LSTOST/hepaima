@@ -3,6 +3,69 @@ import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-auth";
 import { PaymentProviderType } from "@prisma/client";
 
+const BASE_URL = () =>
+  process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://hepaima.kyx123.com";
+
+type ProviderRow = {
+  id: string;
+  type: PaymentProviderType;
+  appId: string | null;
+  mchId: string | null;
+  apiKey: string | null;
+  privateKey: string | null;
+  publicKey: string | null;
+  notifyUrl: string | null;
+  isEnabled: boolean;
+  isSandbox: boolean;
+};
+
+/** 返回带环境变量预设的占位配置（仅非敏感字段用 env 填充） */
+function presetWechat(): ProviderRow {
+  return {
+    id: "preset-WECHAT",
+    type: "WECHAT",
+    appId: process.env.WECHAT_PAY_APP_ID ?? null,
+    mchId: process.env.WECHAT_PAY_MCH_ID ?? null,
+    apiKey: null,
+    privateKey: null,
+    publicKey: null,
+    notifyUrl: `${BASE_URL()}/api/v1/payment/wechat/notify`,
+    isEnabled: false,
+    isSandbox: false,
+  };
+}
+
+function presetAlipay(): ProviderRow {
+  return {
+    id: "preset-ALIPAY",
+    type: "ALIPAY",
+    appId: process.env.ALIPAY_APP_ID ?? null,
+    mchId: null,
+    apiKey: null,
+    privateKey: null,
+    publicKey: null,
+    notifyUrl: `${BASE_URL()}/api/v1/payment/alipay/notify`,
+    isEnabled: false,
+    isSandbox: false,
+  };
+}
+
+function toProviderRow(r: Awaited<ReturnType<typeof prisma.paymentProviderConfig.findFirst>>): ProviderRow {
+  if (!r) throw new Error("unexpected");
+  return {
+    id: r.id,
+    type: r.type,
+    appId: r.appId ?? null,
+    mchId: r.mchId ?? null,
+    apiKey: r.apiKey ?? null,
+    privateKey: r.privateKey ?? null,
+    publicKey: r.publicKey ?? null,
+    notifyUrl: r.notifyUrl ?? null,
+    isEnabled: r.isEnabled,
+    isSandbox: r.isSandbox,
+  };
+}
+
 export async function GET(req: NextRequest) {
   const err = requireAdmin(req);
   if (err) return err;
@@ -11,7 +74,30 @@ export async function GET(req: NextRequest) {
     const list = await prisma.paymentProviderConfig.findMany({
       orderBy: { type: "asc" },
     });
-    return NextResponse.json(list);
+    const wechat = list.find((r) => r.type === "WECHAT");
+    const alipay = list.find((r) => r.type === "ALIPAY");
+    const defaultWechatNotify = `${BASE_URL()}/api/v1/payment/wechat/notify`;
+    const defaultAlipayNotify = `${BASE_URL()}/api/v1/payment/alipay/notify`;
+    const rows: ProviderRow[] = [
+      wechat ? toProviderRow(wechat) : presetWechat(),
+      alipay ? toProviderRow(alipay) : presetAlipay(),
+    ];
+    const result = rows.map((r) => {
+      const defaultNotify = r.type === "WECHAT" ? defaultWechatNotify : defaultAlipayNotify;
+      return {
+        id: r.id,
+        type: r.type,
+        appId: r.appId ?? null,
+        mchId: r.mchId ?? null,
+        apiKey: r.apiKey ?? null,
+        privateKey: r.privateKey ?? null,
+        publicKey: r.publicKey ?? null,
+        notifyUrl: r.notifyUrl && r.notifyUrl.trim() ? r.notifyUrl : defaultNotify,
+        isEnabled: r.isEnabled,
+        isSandbox: r.isSandbox,
+      };
+    });
+    return NextResponse.json(result);
   } catch (e) {
     const error = e instanceof Error ? e : new Error(String(e));
     console.error("GET /api/v1/admin/payment-providers error:", error);

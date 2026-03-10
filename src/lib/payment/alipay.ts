@@ -1,15 +1,15 @@
 /**
  * 支付宝：电脑网站支付、手机网站支付、异步通知验签
- * 依赖 alipay-sdk，公钥模式（应用私钥 + 支付宝公钥）
+ * 优先使用后台 PaymentProviderConfig 配置，否则使用环境变量
  */
 import { AlipaySdk } from "alipay-sdk";
 import { getTierAmountYuan } from "./constants";
+import { getPaymentProviderConfig } from "./config-db";
 
 const APP_ID = process.env.ALIPAY_APP_ID;
 const PRIVATE_KEY = process.env.ALIPAY_PRIVATE_KEY;
 const ALIPAY_PUBLIC_KEY = process.env.ALIPAY_ALIPAY_PUBLIC_KEY;
 const GATEWAY = process.env.ALIPAY_GATEWAY || "https://openapi.alipay.com/gateway.do";
-// 回调地址必须用运行时环境变量，避免 build 时被内联成 localhost
 const BASE_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "https://hepaima.kyx123.com";
 
 function normalizePrivateKey(key: string): string {
@@ -63,8 +63,20 @@ function normalizePublicKey(key: string): string {
 
 let alipayInstance: AlipaySdk | null = null;
 
-/** 获取支付宝 SDK 实例（公钥模式） */
-export function getAlipaySdk(): AlipaySdk {
+/** 获取支付宝 SDK 实例（优先数据库配置） */
+export async function getAlipaySdk(): Promise<AlipaySdk> {
+  const dbConfig = await getPaymentProviderConfig("ALIPAY");
+  if (dbConfig?.appId && dbConfig?.privateKey && dbConfig?.publicKey) {
+    const privateKey = normalizePrivateKey(dbConfig.privateKey);
+    const keyType = getKeyType(privateKey);
+    return new AlipaySdk({
+      appId: dbConfig.appId,
+      privateKey,
+      alipayPublicKey: normalizePublicKey(dbConfig.publicKey),
+      gateway: GATEWAY,
+      keyType,
+    });
+  }
   if (!APP_ID || !PRIVATE_KEY || !ALIPAY_PUBLIC_KEY) {
     throw new Error("支付宝环境变量未配置：ALIPAY_APP_ID / ALIPAY_PRIVATE_KEY / ALIPAY_ALIPAY_PUBLIC_KEY");
   }
@@ -83,13 +95,16 @@ export function getAlipaySdk(): AlipaySdk {
 }
 
 /** 电脑网站支付：返回 POST 表单 HTML，前端提交后跳转支付宝收银台 */
-export function createAlipayPagePay(params: {
+export async function createAlipayPagePay(params: {
   outTradeNo: string;
   subject: string;
   totalAmountYuan: string;
   body?: string;
-}): string {
-  const sdk = getAlipaySdk();
+}): Promise<string> {
+  const sdk = await getAlipaySdk();
+  const dbConfig = await getPaymentProviderConfig("ALIPAY");
+  const notifyUrl = dbConfig?.notifyUrl || `${BASE_URL}/api/v1/payment/alipay/notify`;
+  const returnUrl = `${BASE_URL}/result/return`;
   const html = sdk.pageExecute(
     "alipay.trade.page.pay",
     "POST",
@@ -101,8 +116,8 @@ export function createAlipayPagePay(params: {
         body: params.body ?? "合拍吗报告解锁",
         total_amount: params.totalAmountYuan,
       },
-      returnUrl: `${BASE_URL}/result/return`,
-      notifyUrl: `${BASE_URL}/api/v1/payment/alipay/notify`,
+      returnUrl,
+      notifyUrl,
     } as Parameters<AlipaySdk["pageExecute"]>[2]
   );
   return html;
@@ -115,11 +130,13 @@ export async function createAlipayPrecreate(params: {
   totalAmountYuan: string;
   body?: string;
 }): Promise<{ qr_code: string }> {
-  const sdk = getAlipaySdk();
+  const sdk = await getAlipaySdk();
+  const dbConfig = await getPaymentProviderConfig("ALIPAY");
+  const notifyUrl = dbConfig?.notifyUrl || `${BASE_URL}/api/v1/payment/alipay/notify`;
   const res = await (sdk as {
     exec: (method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>;
   }).exec("alipay.trade.precreate", {
-    notify_url: `${BASE_URL}/api/v1/payment/alipay/notify`,
+    notify_url: notifyUrl,
     bizContent: {
       out_trade_no: params.outTradeNo,
       total_amount: params.totalAmountYuan,
@@ -160,13 +177,16 @@ export async function createAlipayPrecreate(params: {
 }
 
 /** 手机网站支付：返回 GET 跳转 URL，前端 location.href 即可 */
-export function createAlipayWapPay(params: {
+export async function createAlipayWapPay(params: {
   outTradeNo: string;
   subject: string;
   totalAmountYuan: string;
   body?: string;
-}): string {
-  const sdk = getAlipaySdk();
+}): Promise<string> {
+  const sdk = await getAlipaySdk();
+  const dbConfig = await getPaymentProviderConfig("ALIPAY");
+  const notifyUrl = dbConfig?.notifyUrl || `${BASE_URL}/api/v1/payment/alipay/notify`;
+  const returnUrl = `${BASE_URL}/result/return`;
   const url = sdk.pageExecute(
     "alipay.trade.wap.pay",
     "GET",
@@ -178,16 +198,16 @@ export function createAlipayWapPay(params: {
         body: params.body ?? "合拍吗报告解锁",
         total_amount: params.totalAmountYuan,
       },
-      returnUrl: `${BASE_URL}/result/return`,
-      notifyUrl: `${BASE_URL}/api/v1/payment/alipay/notify`,
+      returnUrl,
+      notifyUrl,
     } as Parameters<AlipaySdk["pageExecute"]>[2]
   );
   return url;
 }
 
 /** 异步通知验签（POST body 为 form 键值对） */
-export function verifyAlipayNotifySign(postData: Record<string, string>): boolean {
-  const sdk = getAlipaySdk();
+export async function verifyAlipayNotifySign(postData: Record<string, string>): Promise<boolean> {
+  const sdk = await getAlipaySdk();
   return sdk.checkNotifySignV2(postData);
 }
 

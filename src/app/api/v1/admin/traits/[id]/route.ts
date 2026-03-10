@@ -2,21 +2,25 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { requireAdmin } from "@/lib/admin-auth";
 
-export async function PUT(req: NextRequest, { params }: any) {
+export async function PUT(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
   const err = requireAdmin(req);
   if (err) return err;
 
   try {
+    const { id } = await ctx.params;
     const body = await req.json();
     const existing = await prisma.quizTrait.findUnique({
-      where: { id: params.id },
+      where: { id },
     });
     if (!existing) {
       return NextResponse.json({ message: "维度不存在" }, { status: 404 });
     }
 
     const updated = await prisma.quizTrait.update({
-      where: { id: params.id },
+      where: { id },
       data: {
         key: body.key ?? existing.key,
         name: body.name ?? existing.name,
@@ -38,13 +42,17 @@ export async function PUT(req: NextRequest, { params }: any) {
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: any) {
+export async function DELETE(
+  req: NextRequest,
+  ctx: { params: Promise<{ id: string }> },
+) {
   const err = requireAdmin(req);
   if (err) return err;
 
   try {
+    const { id } = await ctx.params;
     await prisma.quizTrait.delete({
-      where: { id: params.id },
+      where: { id },
     });
     return NextResponse.json({ ok: true });
   } catch (e) {

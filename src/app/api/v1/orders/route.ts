@@ -91,7 +91,7 @@ export async function POST(req: NextRequest) {
     if (paymentMethod === "ALIPAY") {
       const mobile = isMobile(userAgent);
       if (mobile) {
-        const payUrl = createAlipayWapPay({
+        const payUrl = await createAlipayWapPay({
           outTradeNo,
           subject: description,
           totalAmountYuan: amountYuan,
