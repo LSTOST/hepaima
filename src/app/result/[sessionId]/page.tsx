@@ -1092,6 +1092,7 @@ function ReadyReport({
     paymentMethod?: string;
   } | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
+  const [wechatCopied, setWechatCopied] = useState(false);
 
   useEffect(() => {
     if (resultData.purchasedTier === "PREMIUM") {
@@ -2217,7 +2218,7 @@ function ReadyReport({
           )}
 
           <ScrollCard delay={0.05}>
-            <div className="flex flex-col sm:flex-row gap-3 pt-2 pb-8 mt-4">
+            <div className="flex flex-col sm:flex-row gap-3 pt-2 pb-4 mt-4">
               <Link href="/" className="flex-1">
                 <Button
                   variant="outline"
@@ -2236,6 +2237,34 @@ function ReadyReport({
               </Button>
             </div>
           </ScrollCard>
+
+          <p className="mt-1 mb-6 text-center text-xs text-gray-400">
+            对本次报告有疑问或建议？欢迎添加微信：
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+                  navigator.clipboard
+                    .writeText("SentioLab")
+                    .then(() => {
+                      setWechatCopied(true);
+                      setTimeout(() => setWechatCopied(false), 2000);
+                    })
+                    .catch(() => {
+                      /* ignore */
+                    });
+                }
+              }}
+              className="inline-flex items-center text-pink-500 underline underline-offset-2 cursor-pointer hover:text-pink-600 active:opacity-80"
+            >
+              SentioLab
+            </button>{" "}
+            <span className="text-[8px] text-gray-400 align-baseline">(点击复制)</span>
+            {wechatCopied && (
+              <span className="ml-1 text-[10px] text-emerald-500 align-baseline">已复制到粘贴板</span>
+            )}{" "}
+            进行反馈
+          </p>
         </main>
 
         <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
