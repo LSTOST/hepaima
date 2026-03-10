@@ -49,13 +49,13 @@ export function StageSelector() {
               不确定关系阶段? 没关系!
             </p>
             <p className="text-gray-800 mb-6 leading-relaxed">
-              38题全面测试，适合任何阶段的情侣
+              30题全面测试，适合任何阶段
             </p>
 
             <div className="flex flex-wrap items-center gap-3 mb-6 text-sm text-gray-800">
               <div className="flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-gray-500" />
-                <span>约8分钟</span>
+                <span>约6分钟</span>
               </div>
               <span
                 className="inline-block px-2.5 py-0.5 rounded text-[13px] font-medium"

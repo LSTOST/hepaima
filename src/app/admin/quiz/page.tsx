@@ -51,7 +51,7 @@ type Questionnaire = {
 
 const STAGE_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "不分阶段" },
-  { value: "UNIVERSAL", label: "通用版（38题量表）" },
+  { value: "UNIVERSAL", label: "通用版（30题量表）" },
   { value: "AMBIGUOUS", label: "暧昧期" },
   { value: "ROMANCE", label: "热恋期" },
   { value: "STABLE", label: "稳定期" },
@@ -976,7 +976,7 @@ export default function AdminQuizConfigPage() {
                         ))}
                       </select>
                       <span className="text-slate-500">
-                        一般直接选「不分阶段」即可；「通用版（38题量表）」由系统自动生成/维护，不建议手动新建。
+                        一般直接选「不分阶段」即可；「通用版（30题量表）」由系统自动生成/维护，不建议手动新建。
                       </span>
                       <Button size="sm" className="rounded-lg h-7" onClick={handleCreateQuestionnaire} disabled={creatingQuestionnaire || !newQuestionnaireTitle.trim()}>
                         {creatingQuestionnaire ? "创建中..." : "创建问卷"}

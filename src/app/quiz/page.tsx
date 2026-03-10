@@ -19,7 +19,7 @@ const STAGE_CONFIG: Record<
   string,
   { label: string; totalQuestions: number; minutes: number }
 > = {
-  UNIVERSAL: { label: "通用版", totalQuestions: 38, minutes: 8 },
+  UNIVERSAL: { label: "通用版", totalQuestions: 30, minutes: 6 },
   AMBIGUOUS: { label: "暧昧期", totalQuestions: 28, minutes: 5 },
   ROMANCE: { label: "热恋期", totalQuestions: 35, minutes: 8 },
   STABLE: { label: "稳定期", totalQuestions: 40, minutes: 10 },
