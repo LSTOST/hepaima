@@ -203,7 +203,10 @@ export default function AdminAiPage() {
       <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6">
         <header className="flex items-center justify-between gap-3 mb-6 flex-wrap">
           <div className="flex items-center gap-3">
-            <Link href="/admin" className="inline-flex items-center text-xs text-slate-400 hover:text-slate-600">
+            <Link
+              href="/admin"
+              className="inline-flex items-center text-xs text-slate-400 hover:text-slate-700 hover:font-semibold"
+            >
               <ArrowLeft className="w-3 h-3 mr-1" />
               返回总览
             </Link>
@@ -354,7 +357,7 @@ export default function AdminAiPage() {
                             systemPrompt: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 rounded-lg border border-slate-200 min-h-[80px]"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 min-h-[180px] text-xs sm:text-sm"
                         placeholder="例如：你是一名专业的亲密关系咨询师..."
                       />
                     </div>
@@ -370,7 +373,7 @@ export default function AdminAiPage() {
                             userPromptTemplate: e.target.value,
                           })
                         }
-                        className="w-full px-3 py-2 rounded-lg border border-slate-200 min-h-[100px]"
+                        className="w-full px-3 py-2 rounded-lg border border-slate-200 min-h-[220px] text-xs sm:text-sm"
                         placeholder='例如：以下是情侣双方的测评结果，请用通俗易懂的中文生成报告...\n{{payload}}'
                       />
                     </div>

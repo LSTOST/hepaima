@@ -409,7 +409,7 @@ export default function AdminRedeemPage() {
           <div className="flex items-center gap-3">
             <Link
               href="/admin"
-              className="inline-flex items-center text-xs text-slate-400 hover:text-slate-600 mr-2"
+              className="inline-flex items-center text-xs text-slate-400 hover:text-slate-700 hover:font-semibold mr-2"
             >
               <ChevronLeft className="w-3 h-3 mr-1" />
               返回总览

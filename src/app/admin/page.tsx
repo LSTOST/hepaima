@@ -439,7 +439,7 @@ export default function AdminDashboardPage() {
             { key: "overview", label: "总览", icon: LayoutDashboard },
             { key: "site", label: "站点设置", icon: Settings2 },
             { key: "products", label: "测评产品", icon: BookOpen },
-            { key: "analytics", label: "运营与统计", icon: TrendingUp },
+            { key: "analytics", label: "流量埋点", icon: TrendingUp },
           ].map((item) => {
             const Icon = item.icon;
             return (
@@ -652,7 +652,7 @@ export default function AdminDashboardPage() {
             <div className="rounded-xl bg-white border border-slate-200 p-5">
               <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-3">
                 <TrendingUp className="w-4 h-4 text-violet-500" />
-                流量与埋点配置
+                流量统计设置
               </h2>
               <p className="text-xs text-slate-500 mb-4">
                 配置后，前端将自动注入对应统计脚本。自建埋点（PV/UV、关键事件）在「总览」页展示。

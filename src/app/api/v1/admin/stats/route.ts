@@ -8,9 +8,19 @@ export async function GET(req: NextRequest) {
 
   try {
     const now = new Date();
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-    sevenDaysAgo.setHours(0, 0, 0, 0);
+    // 使用本地日期，避免时区导致的日期偏移；含今天在内共 7 天
+    const sevenDaysAgo = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - 6,
+    );
+
+    const toDateKey = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
 
     const [
       sessionsTotal,
@@ -33,12 +43,22 @@ export async function GET(req: NextRequest) {
 
     const revenueCents = ordersPaid.reduce((sum, o) => sum + o.amount, 0);
 
-    const dayMap = new Map<string, { sessions: number; completed: number; paidOrders: number; revenue: number }>();
+    const dayMap = new Map<string, {
+      sessions: number;
+      completed: number;
+      paidOrders: number;
+      revenue: number;
+    }>();
     for (let i = 0; i < 7; i++) {
       const d = new Date(sevenDaysAgo);
       d.setDate(d.getDate() + i);
-      d.setHours(0, 0, 0, 0);
-      dayMap.set(d.toISOString().slice(0, 10), { sessions: 0, completed: 0, paidOrders: 0, revenue: 0 });
+      const key = toDateKey(d);
+      dayMap.set(key, {
+        sessions: 0,
+        completed: 0,
+        paidOrders: 0,
+        revenue: 0,
+      });
     }
 
     const sessionsInPeriod = await prisma.session.findMany({
@@ -46,7 +66,7 @@ export async function GET(req: NextRequest) {
       select: { createdAt: true, status: true },
     });
     for (const s of sessionsInPeriod) {
-      const key = s.createdAt.toISOString().slice(0, 10);
+      const key = toDateKey(new Date(s.createdAt));
       const row = dayMap.get(key);
       if (row) {
         row.sessions += 1;
@@ -57,7 +77,7 @@ export async function GET(req: NextRequest) {
     for (const o of ordersPaid) {
       const at = o.paidAt ?? o.createdAt;
       if (at >= sevenDaysAgo) {
-        const key = at.toISOString().slice(0, 10);
+        const key = toDateKey(new Date(at));
         const row = dayMap.get(key);
         if (row) {
           row.paidOrders += 1;
@@ -83,7 +103,11 @@ export async function GET(req: NextRequest) {
       eventCounts: Record<string, number>;
     } | null = null;
     try {
-      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayStart = new Date(
+        now.getFullYear(),
+        now.getMonth(),
+        now.getDate(),
+      );
       const [todayPv, todayUvRows, eventsLast7d, eventCountsByType] = await Promise.all([
         prisma.analyticsEvent.count({ where: { createdAt: { gte: todayStart } } }),
         prisma.analyticsEvent.findMany({
@@ -105,18 +129,18 @@ export async function GET(req: NextRequest) {
       for (let i = 0; i < 7; i++) {
         const d = new Date(sevenDaysAgo);
         d.setDate(d.getDate() + i);
-        d.setHours(0, 0, 0, 0);
-        trafficByDay.set(d.toISOString().slice(0, 10), { pv: 0, uv: 0 });
+        const key = toDateKey(d);
+        trafficByDay.set(key, { pv: 0, uv: 0 });
       }
       for (const e of eventsLast7d) {
-        const key = e.createdAt.toISOString().slice(0, 10);
+        const key = toDateKey(new Date(e.createdAt));
         const row = trafficByDay.get(key);
         if (row) row.pv += 1;
       }
       const uvByDay = new Map<string, Set<string>>();
       for (const e of eventsLast7d) {
         if (!e.visitorId) continue;
-        const key = e.createdAt.toISOString().slice(0, 10);
+        const key = toDateKey(new Date(e.createdAt));
         if (!uvByDay.has(key)) uvByDay.set(key, new Set());
         uvByDay.get(key)!.add(e.visitorId);
       }

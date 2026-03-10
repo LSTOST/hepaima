@@ -220,7 +220,10 @@ export default function AdminPaymentPage() {
       <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6">
         <header className="flex items-center justify-between gap-3 mb-6 flex-wrap">
           <div className="flex items-center gap-3">
-            <Link href="/admin" className="inline-flex items-center text-xs text-slate-400 hover:text-slate-600">
+            <Link
+              href="/admin"
+              className="inline-flex items-center text-xs text-slate-400 hover:text-slate-700 hover:font-semibold"
+            >
               <ArrowLeft className="w-3 h-3 mr-1" />
               返回总览
             </Link>

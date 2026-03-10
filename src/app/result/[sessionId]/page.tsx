@@ -51,6 +51,8 @@ interface SessionStatus {
   inviteCode?: string;
   initiatorName?: string;
   partnerName?: string;
+  initiatorCompleted?: boolean;
+  partnerCompleted?: boolean;
 }
 
 interface OverallAnalysisHighlight {
@@ -553,6 +555,8 @@ function ResultPageContent() {
         }
         setSessionData(data);
 
+        const bothCompleted = data.initiatorCompleted && data.partnerCompleted;
+
         if (data.status === "COMPLETED") {
           const resultJson = await fetchResultWithRetry();
           if (!resultJson) {
@@ -568,6 +572,9 @@ function ResultPageContent() {
           } else {
             setPageState("waiting");
           }
+        } else if (bothCompleted) {
+          // 双方都已完成，但会话状态尚未切到 COMPLETED：直接进入生成态，避免在邀请页多停留
+          setPageState("generating");
         } else {
           setPageState("waiting");
         }
@@ -590,6 +597,7 @@ function ResultPageContent() {
         const data = await res.json();
         if (!res.ok) return;
         setSessionData(data);
+        const bothCompleted = data.initiatorCompleted && data.partnerCompleted;
         if (data.status === "COMPLETED") {
           const resultJson = await fetchResultWithRetry();
           if (resultJson) {
@@ -600,6 +608,8 @@ function ResultPageContent() {
               setPageState("generating");
             }
           }
+        } else if (bothCompleted) {
+          setPageState("generating");
         }
       } catch {
         /* ignore */
@@ -860,7 +870,8 @@ function ResultPageContent() {
             <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
           </motion.div>
           <h1 className="text-xl font-bold text-gray-800 mb-2">正在生成你们的专属报告</h1>
-          <p className="text-gray-500 text-sm mb-4">AI 正在为你们分析契合度</p>
+          <p className="text-gray-500 text-sm mb-1">AI 正在为你们分析契合度</p>
+          <p className="text-gray-400 text-xs mb-4">会自动跳转，无需刷新</p>
           <div className="min-h-[28px] flex items-center justify-center">
             <AnimatePresence mode="wait">
               <motion.p
