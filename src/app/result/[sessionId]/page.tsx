@@ -1658,6 +1658,13 @@ function ReadyReport({
                         </div>
                       ))}
                     </div>
+                    <div className="mt-5 rounded-xl bg-amber-50 border border-amber-100 px-3.5 py-3 flex items-start gap-2">
+                      <ShieldAlert className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                      <p className="text-xs leading-relaxed text-amber-700">
+                        本报告基于问卷结果与 AI 分析生成，仅供自我觉察和关系参考，不构成专业心理咨询、医疗或法律建议。
+                        如你们正经历较严重的情绪困扰或关系危机，建议及时寻求具备资质的专业机构或咨询师帮助。
+                      </p>
+                    </div>
                   </div>
                 </ScrollCard>
               )}
@@ -1796,8 +1803,11 @@ function ReadyReport({
                     onClick={() => void handleUnlockPremium()}
                     className="w-full max-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white text-base font-semibold shadow-lg shadow-pink-500/10 transition-transform duration-200 hover:scale-[1.02] mx-auto"
                   >
-                    限时免费
+                    限时免费解锁深度报告
                   </Button>
+                  <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
+                    深度报告同样仅供自我觉察和关系参考，不替代专业心理咨询或医疗服务。
+                  </p>
                 </div>
               </ScrollCard>
             </div>
