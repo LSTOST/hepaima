@@ -19,9 +19,12 @@ import {
   ChevronRight,
   X,
   RefreshCw,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ADMIN_PASSWORD_HEADER_KEY } from "@/lib/admin-auth";
+import { useAdminAuth } from "@/hooks/useAdminAuth";
 
 const PAGE_SIZE = 10;
 const STATUS_OPTIONS = [
@@ -79,10 +82,15 @@ function statusStyle(status: string): { label: string; className: string } {
 }
 
 export default function AdminRedeemPage() {
-  const [password, setPassword] = useState("");
-  const [passwordInput, setPasswordInput] = useState("");
-  const [authError, setAuthError] = useState("");
-  const [authenticated, setAuthenticated] = useState(false);
+  const {
+    password,
+    passwordInput,
+    setPasswordInput,
+    authenticated,
+    authError,
+    handleLogin,
+  } = useAdminAuth();
+  const [showPassword, setShowPassword] = useState(false);
 
   const [stats, setStats] = useState<Stats | null>(null);
   const [list, setList] = useState<RedeemCodeRow[]>([]);
@@ -173,31 +181,6 @@ export default function AdminRedeemPage() {
       fetchList();
     }
   }, [authenticated, password, view, fetchList]);
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setAuthError("");
-    const pwd = passwordInput.trim();
-    if (!pwd) {
-      setAuthError("请输入密码");
-      return;
-    }
-    try {
-      const res = await fetch("/api/v1/admin/verify-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ password: pwd }),
-      });
-      if (!res.ok) {
-        setAuthError("密码错误");
-        return;
-      }
-      setPassword(pwd);
-      setAuthenticated(true);
-    } catch {
-      setAuthError("验证失败，请重试");
-    }
-  };
 
   const handleFetchDetail = useCallback(
     async (id: string) => {
@@ -380,14 +363,28 @@ export default function AdminRedeemPage() {
             请输入管理密码
           </p>
           <form onSubmit={handleLogin} className="space-y-4">
-            <input
-              type="password"
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              placeholder="密码"
-              className="w-full px-4 py-3 rounded-xl border border-slate-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none transition"
-              autoFocus
-            />
+            <div className="relative">
+              <input
+                type={showPassword ? "text" : "password"}
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder="密码"
+                className="w-full px-4 py-3 pr-10 rounded-xl border border-slate-200 focus:border-violet-400 focus:ring-2 focus:ring-violet-100 outline-none transition"
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600"
+                aria-label={showPassword ? "隐藏密码" : "显示密码"}
+              >
+                {showPassword ? (
+                  <EyeOff className="w-4 h-4" />
+                ) : (
+                  <Eye className="w-4 h-4" />
+                )}
+              </button>
+            </div>
             {authError && (
               <p className="text-sm text-red-500 text-center">{authError}</p>
             )}
