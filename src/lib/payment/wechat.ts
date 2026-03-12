@@ -307,10 +307,10 @@ export async function createWechatJsapiOrder(params: {
   const message = `${appId}\n${timeStamp}\n${nonceStr}\n${pkgStr}\n`;
   const keyPath = getCertPath("apiclient_key.pem");
   const privateKey = fs.readFileSync(keyPath, "utf-8");
-  const sign = crypto.createSign("RSA-SHA256");
-  sign.update(message);
-  const paySign = sign.sign(privateKey, "base64");
-  return { appId, timeStamp, nonceStr, package: pkgStr, signType: "RSA", paySign };
+  const signer = crypto.createSign("RSA-SHA256");
+  signer.update(message);
+  const manualPaySign = signer.sign(privateKey, "base64");
+  return { appId, timeStamp, nonceStr, package: pkgStr, signType: "RSA", paySign: manualPaySign };
 }
 
 export { TIER_AMOUNT_CENTS };
