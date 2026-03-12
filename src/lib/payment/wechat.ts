@@ -263,7 +263,7 @@ export async function createWechatJsapiOrder(params: {
       notify_url: notifyUrl,
       amount: { total: params.amountCents, currency: "CNY" },
       payer: { openid: params.openid },
-    })) as Record<string, unknown>;
+    })) as unknown as Record<string, unknown>;
   } catch (e: unknown) {
     const err = e as { message?: string; response?: { data?: Record<string, unknown> } };
     const apiDetail = err?.response?.data ? getWechatErrorDetail(err.response.data, "") : "";
