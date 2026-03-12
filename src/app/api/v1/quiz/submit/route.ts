@@ -9,7 +9,7 @@ import {
 import type { AnswerItem, Dimensions } from "@/lib/scoring";
 import type { Stage } from "@/lib/questions";
 import { ATTACHMENT_LABELS, LOVE_LANGUAGE_LABELS } from "@/lib/resultGenerator";
-import { generatePremiumReport } from "@/lib/ai";
+import { generateReport, generatePremiumReport } from "@/lib/ai";
 import {
   calculateUniversalScores,
   determineAttachmentType as determineUniversalAttachmentType,
@@ -286,10 +286,23 @@ export async function POST(req: NextRequest) {
         data: { status: "COMPLETED" },
       });
 
-      // 基础报告由前端通过 GET /api/v1/result/[sessionId]/report/stream 流式拉取
+      // 基础报告 + 深度报告都在服务端异步预生成
       if (reportPayload && createdResultId) {
         const payload = reportPayload;
         const resultId = createdResultId;
+
+        generateReport(payload)
+          .then(async (basicReport) => {
+            await prisma.result.update({
+              where: { id: resultId },
+              data: { reportBasic: JSON.parse(JSON.stringify(basicReport)) },
+            });
+            console.log("基础报告预生成完毕, resultId:", resultId);
+          })
+          .catch((err) => {
+            console.error("基础报告预生成失败（前端流式回退可用）:", err);
+          });
+
         generatePremiumReport(payload)
           .then(async (premiumReport) => {
             await prisma.result.update({

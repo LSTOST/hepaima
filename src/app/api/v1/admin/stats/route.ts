@@ -29,6 +29,7 @@ export async function GET(req: NextRequest) {
       ordersPaid,
       redeemTotal,
       redeemUsed,
+      recentOrders,
     ] = await Promise.all([
       prisma.session.count(),
       prisma.session.count({ where: { status: "COMPLETED" } }),
@@ -39,6 +40,21 @@ export async function GET(req: NextRequest) {
       }),
       prisma.redeemCode.count(),
       prisma.redeemCode.count({ where: { firstUsedAt: { not: null } } }),
+      prisma.order.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          resultId: true,
+          tier: true,
+          amount: true,
+          status: true,
+          paymentMethod: true,
+          paymentId: true,
+          paidAt: true,
+          createdAt: true,
+        },
+      }),
     ]);
 
     const revenueCents = ordersPaid.reduce((sum, o) => sum + o.amount, 0);
@@ -170,6 +186,7 @@ export async function GET(req: NextRequest) {
       redeemTotal,
       redeemUsed,
       daily,
+      recentOrders,
       ...(traffic ? { traffic } : {}),
     });
   } catch (e) {

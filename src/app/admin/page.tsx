@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Settings2, LayoutDashboard, BookOpen, Palette, Ticket, Eye, EyeOff, LogOut, BarChart3, Users, FileCheck, CreditCard, Gift, TrendingUp, Activity } from "lucide-react";
+import { Settings2, LayoutDashboard, BookOpen, Palette, Ticket, Eye, EyeOff, LogOut, BarChart3, Users, FileCheck, CreditCard, Gift, TrendingUp, Activity, ArrowLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ADMIN_PASSWORD_HEADER_KEY } from "@/lib/admin-auth";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -88,6 +88,17 @@ export default function AdminDashboardPage() {
     type: "success" | "error";
   } | null>(null);
 
+  type RecentOrder = {
+    id: string;
+    resultId: string;
+    tier: string;
+    amount: number;
+    status: string;
+    paymentMethod: string | null;
+    paymentId: string | null;
+    paidAt: string | null;
+    createdAt: string;
+  };
   type OverviewStats = {
     sessionsTotal: number;
     sessionsCompleted: number;
@@ -97,6 +108,7 @@ export default function AdminDashboardPage() {
     redeemTotal: number;
     redeemUsed: number;
     daily: { date: string; sessions: number; completed: number; paidOrders: number; revenue: number }[];
+    recentOrders?: RecentOrder[];
     traffic?: {
       todayPv: number;
       todayUv: number;
@@ -106,6 +118,8 @@ export default function AdminDashboardPage() {
   } | null;
   const [overviewStats, setOverviewStats] = useState<OverviewStats>(null);
   const [loadingStats, setLoadingStats] = useState(false);
+  type DetailView = "sessions" | "completed" | "orders" | "revenue" | null;
+  const [detailView, setDetailView] = useState<DetailView>(null);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -475,116 +489,517 @@ export default function AdminDashboardPage() {
         {tab === "overview" && (
           <div className="space-y-5">
             {/* 数据概览 */}
-            <div className="rounded-xl bg-white border border-slate-200 p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-4">
-                <BarChart3 className="w-4 h-4 text-violet-500" />
-                数据概览
-              </h2>
-              {loadingStats ? (
-                <div className="h-24 rounded-lg bg-slate-100 animate-pulse" />
-              ) : overviewStats ? (
-                <>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-5">
-                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-                      <div className="flex items-center gap-2 text-slate-500 text-xs mb-0.5">
-                        <Users className="w-3.5 h-3.5" />
-                        测评场次
-                      </div>
-                      <div className="text-lg font-semibold text-slate-800">{overviewStats.sessionsTotal}</div>
-                    </div>
-                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-                      <div className="flex items-center gap-2 text-slate-500 text-xs mb-0.5">
-                        <FileCheck className="w-3.5 h-3.5" />
-                        完成测评
-                      </div>
-                      <div className="text-lg font-semibold text-slate-800">{overviewStats.sessionsCompleted}</div>
-                    </div>
-                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-                      <div className="flex items-center gap-2 text-slate-500 text-xs mb-0.5">
-                        <CreditCard className="w-3.5 h-3.5" />
-                        付费订单
-                      </div>
-                      <div className="text-lg font-semibold text-slate-800">{overviewStats.ordersPaidCount}</div>
-                    </div>
-                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-                      <div className="flex items-center gap-2 text-slate-500 text-xs mb-0.5">收入</div>
-                      <div className="text-lg font-semibold text-slate-800">
-                        ¥{(overviewStats.revenueCents / 100).toFixed(2)}
-                      </div>
-                    </div>
-                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
-                      <div className="flex items-center gap-2 text-slate-500 text-xs mb-0.5">
-                        <Gift className="w-3.5 h-3.5" />
-                        兑换码
-                      </div>
-                      <div className="text-lg font-semibold text-slate-800">
-                        {overviewStats.redeemUsed} / {overviewStats.redeemTotal}
-                      </div>
-                    </div>
-                  </div>
-                  {overviewStats.daily && overviewStats.daily.length > 0 && (
-                    <div>
-                      <p className="text-xs text-slate-500 mb-2">近 7 日趋势（完成测评 / 付费订单）</p>
-                      <div className="flex items-end gap-1 h-20">
-                        {overviewStats.daily.map((d) => {
-                          const max = Math.max(1, ...overviewStats.daily!.map((x) => x.completed + x.paidOrders));
-                          const h = max ? ((d.completed + d.paidOrders) / max) * 100 : 0;
+            {loadingStats ? (
+              <div className="rounded-xl bg-white border border-slate-200 p-5">
+                <div className="h-48 rounded-lg bg-slate-100 animate-pulse" />
+              </div>
+            ) : overviewStats ? (
+              <>
+                {!detailView ? (
+                  <>
+                    {/* 概览卡片 - 可点击 */}
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                      {(() => {
+                        const daily = overviewStats.daily ?? [];
+                        const today = daily[daily.length - 1];
+                        const yesterday = daily.length >= 2 ? daily[daily.length - 2] : null;
+                        const cards: { id: DetailView; label: string; icon: React.ReactNode; value: string; todayVal: number; yesterdayVal: number; color: string; borderColor: string }[] = [
+                          {
+                            id: "sessions", label: "测评场次", icon: <Users className="w-4 h-4" />,
+                            value: String(overviewStats.sessionsTotal),
+                            todayVal: today?.sessions ?? 0, yesterdayVal: yesterday?.sessions ?? 0,
+                            color: "from-violet-500 to-violet-600", borderColor: "hover:border-violet-300",
+                          },
+                          {
+                            id: "completed", label: "完成测评", icon: <FileCheck className="w-4 h-4" />,
+                            value: String(overviewStats.sessionsCompleted),
+                            todayVal: today?.completed ?? 0, yesterdayVal: yesterday?.completed ?? 0,
+                            color: "from-blue-500 to-blue-600", borderColor: "hover:border-blue-300",
+                          },
+                          {
+                            id: "orders", label: "付费订单", icon: <CreditCard className="w-4 h-4" />,
+                            value: String(overviewStats.ordersPaidCount),
+                            todayVal: today?.paidOrders ?? 0, yesterdayVal: yesterday?.paidOrders ?? 0,
+                            color: "from-emerald-500 to-emerald-600", borderColor: "hover:border-emerald-300",
+                          },
+                          {
+                            id: "revenue", label: "收入", icon: <TrendingUp className="w-4 h-4" />,
+                            value: `¥${(overviewStats.revenueCents / 100).toFixed(2)}`,
+                            todayVal: today?.revenue ?? 0, yesterdayVal: yesterday?.revenue ?? 0,
+                            color: "from-amber-500 to-amber-600", borderColor: "hover:border-amber-300",
+                          },
+                          {
+                            id: null, label: "兑换码", icon: <Gift className="w-4 h-4" />,
+                            value: `${overviewStats.redeemUsed} / ${overviewStats.redeemTotal}`,
+                            todayVal: 0, yesterdayVal: 0,
+                            color: "from-pink-500 to-pink-600", borderColor: "",
+                          },
+                        ];
+                        return cards.map((c) => {
+                          const diff = c.todayVal - c.yesterdayVal;
+                          const isRevenue = c.label === "收入";
+                          const todayDisplay = isRevenue ? `¥${(c.todayVal / 100).toFixed(2)}` : String(c.todayVal);
+                          const clickable = c.id !== null;
                           return (
-                            <div key={d.date} className="flex-1 flex flex-col items-center gap-0.5">
-                              <div
-                                className="w-full rounded-t bg-gradient-to-t from-violet-400 to-violet-500 min-h-[4px]"
-                                style={{ height: `${Math.max(4, h)}%` }}
-                                title={`${d.date}: 完成 ${d.completed}，付费 ${d.paidOrders}，¥${(d.revenue / 100).toFixed(2)}`}
-                              />
-                              <span className="text-[10px] text-slate-400">
-                                {d.date.slice(5).replace("-", "/")}
-                              </span>
+                            <div
+                              key={c.label}
+                              className={`rounded-xl bg-white border border-slate-200 p-4 relative overflow-hidden transition-all ${clickable ? `cursor-pointer ${c.borderColor} hover:shadow-sm` : ""}`}
+                              onClick={clickable ? () => setDetailView(c.id) : undefined}
+                            >
+                              <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${c.color}`} />
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
+                                  {c.icon}
+                                  {c.label}
+                                </div>
+                                {clickable && <ChevronRight className="w-3.5 h-3.5 text-slate-300" />}
+                              </div>
+                              <div className="text-xl font-bold text-slate-800 mb-1">{c.value}</div>
+                              {c.label !== "兑换码" && (
+                                <div className="flex items-center gap-2 text-xs">
+                                  <span className="text-slate-400">今日 {todayDisplay}</span>
+                                  {diff !== 0 && (
+                                    <span className={diff > 0 ? "text-emerald-500" : "text-red-400"}>
+                                      {diff > 0 ? "↑" : "↓"}{isRevenue ? `¥${(Math.abs(diff) / 100).toFixed(2)}` : Math.abs(diff)}
+                                    </span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           );
-                        })}
-                      </div>
+                        });
+                      })()}
                     </div>
-                  )}
-                  {overviewStats.traffic && (
-                    <div className="mt-4 pt-4 border-t border-slate-100">
-                      <p className="text-xs text-slate-500 mb-2 flex items-center gap-1">
-                        <Activity className="w-3.5 h-3.5" />
-                        自建埋点流量（近 7 日）
-                      </p>
-                      <div className="flex items-center gap-4 mb-2 text-sm">
-                        <span>今日 PV <strong className="text-slate-800">{overviewStats.traffic.todayPv}</strong></span>
-                        <span>今日 UV <strong className="text-slate-800">{overviewStats.traffic.todayUv}</strong></span>
-                      </div>
-                      {overviewStats.traffic.dailyTraffic && overviewStats.traffic.dailyTraffic.length > 0 && (
-                        <div className="flex items-end gap-1 h-14 mb-2">
-                          {overviewStats.traffic.dailyTraffic.map((d) => {
-                            const maxPv = Math.max(1, ...overviewStats.traffic!.dailyTraffic.map((x) => x.pv));
-                            const h = (d.pv / maxPv) * 100;
-                            return (
-                              <div key={d.date} className="flex-1 flex flex-col items-center gap-0.5">
-                                <div
-                                  className="w-full rounded-t bg-gradient-to-t from-pink-400 to-pink-500 min-h-[4px]"
-                                  style={{ height: `${Math.max(4, h)}%` }}
-                                  title={`${d.date}: PV ${d.pv}，UV ${d.uv}`}
-                                />
-                                <span className="text-[10px] text-slate-400">{d.date.slice(5).replace("-", "/")}</span>
+
+                    {/* 曲线图：转化趋势 + 收入趋势 */}
+                    {overviewStats.daily && overviewStats.daily.length > 0 && (() => {
+                      const daily = overviewStats.daily!;
+                      const svgW = 500;
+                      const chartH = 220;
+                      const padL = 40;
+                      const padR = 12;
+                      const padT = 16;
+                      const padB = 32;
+                      const makeGetX = () => (i: number) => padL + (i / (daily.length - 1 || 1)) * (svgW - padL - padR);
+                      const makeGetY = (maxV: number) => (v: number) => padT + (1 - v / maxV) * (chartH - padT - padB);
+                      const makeGrid = (maxV: number) => [0, 0.25, 0.5, 0.75, 1].map((pct) => ({
+                        val: maxV * (1 - pct),
+                        y: padT + pct * (chartH - padT - padB),
+                      }));
+
+                      const convMax = Math.max(1, ...daily.map((d) => Math.max(d.sessions, d.completed, d.paidOrders)));
+                      const convGetX = makeGetX();
+                      const convGetY = makeGetY(convMax);
+                      const convGrid = makeGrid(convMax);
+                      const convLines: { key: "sessions" | "completed" | "paidOrders"; label: string; color: string; dot: string }[] = [
+                        { key: "sessions", label: "测评场次", color: "#8B5CF6", dot: "bg-violet-500" },
+                        { key: "completed", label: "完成测评", color: "#3B82F6", dot: "bg-blue-500" },
+                        { key: "paidOrders", label: "付费订单", color: "#10B981", dot: "bg-emerald-500" },
+                      ];
+                      const convPath = (key: "sessions" | "completed" | "paidOrders") =>
+                        daily.map((d, i) => `${i === 0 ? "M" : "L"}${convGetX(i)},${convGetY(d[key])}`).join(" ");
+
+                      const revMax = Math.max(1, ...daily.map((d) => d.revenue));
+                      const revGetX = makeGetX();
+                      const revGetY = makeGetY(revMax);
+                      const revGrid = makeGrid(revMax);
+                      const revPath = daily.map((d, i) => `${i === 0 ? "M" : "L"}${revGetX(i)},${revGetY(d.revenue)}`).join(" ");
+                      const revArea = revPath + ` L${revGetX(daily.length - 1)},${chartH - padB} L${revGetX(0)},${chartH - padB} Z`;
+                      const totalRev = daily.reduce((s, d) => s + d.revenue, 0);
+
+                      return (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {/* 转化趋势 */}
+                          <div className="rounded-xl bg-white border border-slate-200 p-5">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-sm font-medium text-slate-700">转化趋势</h3>
+                              <div className="flex items-center gap-3">
+                                {convLines.map((l) => (
+                                  <span key={l.key} className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                                    <span className={`w-2 h-2 rounded-full ${l.dot}`} />
+                                    {l.label}
+                                  </span>
+                                ))}
                               </div>
-                            );
-                          })}
+                            </div>
+                            <svg viewBox={`0 0 ${svgW} ${chartH}`} className="w-full" style={{ height: `${chartH}px` }}>
+                              {convGrid.map((g) => (
+                                <g key={g.y}>
+                                  <line x1={padL} y1={g.y} x2={svgW - padR} y2={g.y} stroke="#F1F5F9" strokeWidth="1" />
+                                  <text x={padL - 6} y={g.y + 4} textAnchor="end" fontSize="10" fill="#94A3B8">{Math.round(g.val)}</text>
+                                </g>
+                              ))}
+                              {daily.map((d, i) => (
+                                <text key={d.date} x={convGetX(i)} y={chartH - 8} textAnchor="middle" fontSize="10" fill="#94A3B8">
+                                  {d.date.slice(5).replace("-", "/")}
+                                </text>
+                              ))}
+                              {convLines.map((l) => (
+                                <path key={l.key} d={convPath(l.key)} fill="none" stroke={l.color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                              ))}
+                              {convLines.map((l) =>
+                                daily.map((d, i) => (
+                                  <g key={`${l.key}-${i}`}>
+                                    <circle cx={convGetX(i)} cy={convGetY(d[l.key])} r="4.5" fill="white" stroke={l.color} strokeWidth="2" />
+                                    <title>{`${d.date.slice(5)} ${l.label}: ${d[l.key]}`}</title>
+                                  </g>
+                                ))
+                              )}
+                            </svg>
+                          </div>
+
+                          {/* 收入趋势 */}
+                          <div className="rounded-xl bg-white border border-slate-200 p-5">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-sm font-medium text-slate-700">收入趋势</h3>
+                              <span className="text-xs text-slate-400">近 7 日合计 <strong className="text-amber-600 font-semibold">¥{(totalRev / 100).toFixed(2)}</strong></span>
+                            </div>
+                            <svg viewBox={`0 0 ${svgW} ${chartH}`} className="w-full" style={{ height: `${chartH}px` }}>
+                              {revGrid.map((g) => (
+                                <g key={g.y}>
+                                  <line x1={padL} y1={g.y} x2={svgW - padR} y2={g.y} stroke="#F1F5F9" strokeWidth="1" />
+                                  <text x={padL - 6} y={g.y + 4} textAnchor="end" fontSize="10" fill="#94A3B8">¥{(g.val / 100).toFixed(0)}</text>
+                                </g>
+                              ))}
+                              {daily.map((d, i) => (
+                                <text key={d.date} x={revGetX(i)} y={chartH - 8} textAnchor="middle" fontSize="10" fill="#94A3B8">
+                                  {d.date.slice(5).replace("-", "/")}
+                                </text>
+                              ))}
+                              <defs>
+                                <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="0%" stopColor="#F59E0B" stopOpacity="0.25" />
+                                  <stop offset="100%" stopColor="#F59E0B" stopOpacity="0.02" />
+                                </linearGradient>
+                              </defs>
+                              <path d={revArea} fill="url(#revGrad)" />
+                              <path d={revPath} fill="none" stroke="#F59E0B" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                              {daily.map((d, i) => (
+                                <g key={i}>
+                                  <circle cx={revGetX(i)} cy={revGetY(d.revenue)} r="4.5" fill="white" stroke="#F59E0B" strokeWidth="2" />
+                                  <title>{`${d.date.slice(5)} 收入: ¥${(d.revenue / 100).toFixed(2)}`}</title>
+                                </g>
+                              ))}
+                            </svg>
+                          </div>
                         </div>
-                      )}
-                      {Object.keys(overviewStats.traffic.eventCounts || {}).length > 0 && (
-                        <p className="text-[11px] text-slate-400">
-                          事件：{Object.entries(overviewStats.traffic.eventCounts).map(([k, v]) => `${k} ${v}`).join("、")}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                </>
-              ) : (
+                      );
+                    })()}
+
+                    {/* 流量趋势 - PV/UV 分组柱状图 */}
+                    {overviewStats.traffic && overviewStats.traffic.dailyTraffic && overviewStats.traffic.dailyTraffic.length > 0 && (
+                      <div className="rounded-xl bg-white border border-slate-200 p-5">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-sm font-medium text-slate-700">流量趋势</h3>
+                          <div className="flex items-center gap-4">
+                            <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                              <span className="w-2.5 h-2.5 rounded-sm bg-pink-500" /> PV
+                              <strong className="text-slate-700 ml-0.5">今日 {overviewStats.traffic.todayPv}</strong>
+                            </span>
+                            <span className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                              <span className="w-2.5 h-2.5 rounded-sm bg-violet-500" /> UV
+                              <strong className="text-slate-700 ml-0.5">今日 {overviewStats.traffic.todayUv}</strong>
+                            </span>
+                          </div>
+                        </div>
+                        {(() => {
+                          const dt = overviewStats.traffic!.dailyTraffic;
+                          const maxVal = Math.max(1, ...dt.map((d) => Math.max(d.pv, d.uv)));
+                          const chartH = 180;
+                          return (
+                            <div className="flex items-end gap-3" style={{ height: `${chartH}px` }}>
+                              {dt.map((d) => {
+                                const pvH = Math.max(d.pv > 0 ? 14 : 3, (d.pv / maxVal) * (chartH - 40));
+                                const uvH = Math.max(d.uv > 0 ? 14 : 3, (d.uv / maxVal) * (chartH - 40));
+                                return (
+                                  <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full">
+                                    <div className="flex items-end gap-1 w-full justify-center mb-1">
+                                      <div className="flex flex-col items-center flex-1">
+                                        <span className="text-[10px] font-medium text-pink-500 mb-0.5">{d.pv > 0 ? d.pv : ""}</span>
+                                        <div
+                                          className="w-full max-w-[28px] rounded-t bg-pink-500 opacity-80 hover:opacity-100 transition-all"
+                                          style={{ height: `${pvH}px` }}
+                                          title={`${d.date} PV: ${d.pv}`}
+                                        />
+                                      </div>
+                                      <div className="flex flex-col items-center flex-1">
+                                        <span className="text-[10px] font-medium text-violet-500 mb-0.5">{d.uv > 0 ? d.uv : ""}</span>
+                                        <div
+                                          className="w-full max-w-[28px] rounded-t bg-violet-500 opacity-80 hover:opacity-100 transition-all"
+                                          style={{ height: `${uvH}px` }}
+                                          title={`${d.date} UV: ${d.uv}`}
+                                        />
+                                      </div>
+                                    </div>
+                                    <span className="text-[11px] text-slate-400 mt-1.5">{d.date.slice(5).replace("-", "/")}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                        {Object.keys(overviewStats.traffic.eventCounts || {}).length > 0 && (
+                          <div className="flex flex-wrap gap-2 mt-4 pt-3 border-t border-slate-100">
+                            {Object.entries(overviewStats.traffic.eventCounts).map(([k, v]) => (
+                              <span key={k} className="inline-flex items-center gap-1 text-[11px] bg-slate-50 border border-slate-100 rounded-full px-2.5 py-0.5 text-slate-500">
+                                <span className="font-medium text-slate-700">{v}</span> {k}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  /* ========== 详情视图 ========== */
+                  <div className="space-y-4">
+                    <button
+                      onClick={() => setDetailView(null)}
+                      className="flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors"
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                      返回概览
+                    </button>
+
+                    {/* ---- 测评场次详情 ---- */}
+                    {detailView === "sessions" && (() => {
+                      const daily = overviewStats.daily ?? [];
+                      const total = overviewStats.sessionsTotal;
+                      const values = daily.map((d) => d.sessions);
+                      const maxVal = Math.max(1, ...values);
+                      return (
+                        <div className="rounded-xl bg-white border border-slate-200 p-5">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                              <Users className="w-4 h-4 text-violet-500" /> 测评场次
+                            </h3>
+                            <span className="text-lg font-bold text-slate-800">{total}</span>
+                          </div>
+                          <div className="flex items-end gap-2 h-40 mb-1">
+                            {daily.map((d) => {
+                              const val = d.sessions;
+                              const barH = Math.max(val > 0 ? 16 : 4, (val / maxVal) * 140);
+                              return (
+                                <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full">
+                                  <span className="text-xs font-semibold text-violet-600 mb-1">{val > 0 ? val : ""}</span>
+                                  <div className="w-full rounded-md bg-violet-500 opacity-80" style={{ height: `${barH}px` }} />
+                                  <span className="text-[11px] text-slate-400 mt-2">{d.date.slice(5).replace("-", "/")}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="text-xs text-slate-400 mt-3">近 7 日合计：{values.reduce((a, b) => a + b, 0)} 场</p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* ---- 完成测评详情 ---- */}
+                    {detailView === "completed" && (() => {
+                      const daily = overviewStats.daily ?? [];
+                      const total = overviewStats.sessionsCompleted;
+                      const values = daily.map((d) => d.completed);
+                      const maxVal = Math.max(1, ...values);
+                      const rate = overviewStats.sessionsTotal > 0 ? ((total / overviewStats.sessionsTotal) * 100).toFixed(1) : "0";
+                      return (
+                        <div className="rounded-xl bg-white border border-slate-200 p-5">
+                          <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                              <FileCheck className="w-4 h-4 text-blue-500" /> 完成测评
+                            </h3>
+                            <div className="text-right">
+                              <span className="text-lg font-bold text-slate-800">{total}</span>
+                              <span className="text-xs text-slate-400 ml-2">完成率 {rate}%</span>
+                            </div>
+                          </div>
+                          <div className="flex items-end gap-2 h-40 mb-1">
+                            {daily.map((d) => {
+                              const val = d.completed;
+                              const barH = Math.max(val > 0 ? 16 : 4, (val / maxVal) * 140);
+                              return (
+                                <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full">
+                                  <span className="text-xs font-semibold text-blue-600 mb-1">{val > 0 ? val : ""}</span>
+                                  <div className="w-full rounded-md bg-blue-500 opacity-80" style={{ height: `${barH}px` }} />
+                                  <span className="text-[11px] text-slate-400 mt-2">{d.date.slice(5).replace("-", "/")}</span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                          <p className="text-xs text-slate-400 mt-3">近 7 日合计：{values.reduce((a, b) => a + b, 0)} 次</p>
+                        </div>
+                      );
+                    })()}
+
+                    {/* ---- 付费订单详情 ---- */}
+                    {detailView === "orders" && (() => {
+                      const daily = overviewStats.daily ?? [];
+                      const values = daily.map((d) => d.paidOrders);
+                      const maxVal = Math.max(1, ...values);
+                      const orders = overviewStats.recentOrders ?? [];
+                      const methodMap: Record<string, string> = { WECHAT: "微信", ALIPAY: "支付宝" };
+                      const statusMap: Record<string, { label: string; cls: string }> = {
+                        PAID: { label: "已支付", cls: "text-emerald-600 bg-emerald-50" },
+                        PENDING: { label: "待支付", cls: "text-amber-600 bg-amber-50" },
+                        FAILED: { label: "失败", cls: "text-red-500 bg-red-50" },
+                      };
+                      return (
+                        <>
+                          <div className="rounded-xl bg-white border border-slate-200 p-5">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                <CreditCard className="w-4 h-4 text-emerald-500" /> 付费订单
+                              </h3>
+                              <span className="text-lg font-bold text-slate-800">{overviewStats.ordersPaidCount} 单</span>
+                            </div>
+                            <div className="flex items-end gap-2 h-32 mb-1">
+                              {daily.map((d) => {
+                                const val = d.paidOrders;
+                                const barH = Math.max(val > 0 ? 16 : 4, (val / maxVal) * 112);
+                                return (
+                                  <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full">
+                                    <span className="text-xs font-semibold text-emerald-600 mb-1">{val > 0 ? val : ""}</span>
+                                    <div className="w-full rounded-md bg-emerald-500 opacity-80" style={{ height: `${barH}px` }} />
+                                    <span className="text-[11px] text-slate-400 mt-2">{d.date.slice(5).replace("-", "/")}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                          {orders.length > 0 && (
+                            <div className="rounded-xl bg-white border border-slate-200 p-5">
+                              <h4 className="text-xs font-medium text-slate-600 mb-3">订单列表（最近 50 条）</h4>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b border-slate-100 text-slate-400">
+                                      <th className="text-left py-2 pr-3 font-medium">时间</th>
+                                      <th className="text-left py-2 pr-3 font-medium">订单号</th>
+                                      <th className="text-left py-2 pr-3 font-medium">金额</th>
+                                      <th className="text-left py-2 pr-3 font-medium">支付方式</th>
+                                      <th className="text-left py-2 pr-3 font-medium">状态</th>
+                                      <th className="text-left py-2 font-medium">交易号</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {orders.map((o) => {
+                                      const time = o.paidAt || o.createdAt;
+                                      const d = new Date(time);
+                                      const timeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+                                      const st = statusMap[o.status] ?? { label: o.status, cls: "text-slate-500 bg-slate-50" };
+                                      return (
+                                        <tr key={o.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                                          <td className="py-2.5 pr-3 text-slate-500 whitespace-nowrap">{timeStr}</td>
+                                          <td className="py-2.5 pr-3 text-slate-600 font-mono text-[11px]">{o.id.slice(-8)}</td>
+                                          <td className="py-2.5 pr-3 font-semibold text-slate-800">¥{(o.amount / 100).toFixed(2)}</td>
+                                          <td className="py-2.5 pr-3 text-slate-500">{o.paymentMethod ? (methodMap[o.paymentMethod] || o.paymentMethod) : "-"}</td>
+                                          <td className="py-2.5 pr-3">
+                                            <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-medium ${st.cls}`}>{st.label}</span>
+                                          </td>
+                                          <td className="py-2.5 text-slate-400 font-mono text-[11px]">{o.paymentId || "-"}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+
+                    {/* ---- 收入详情 ---- */}
+                    {detailView === "revenue" && (() => {
+                      const daily = overviewStats.daily ?? [];
+                      const values = daily.map((d) => d.revenue);
+                      const maxVal = Math.max(1, ...values);
+                      const totalRevenue = overviewStats.revenueCents;
+                      const paidOrders = (overviewStats.recentOrders ?? []).filter((o) => o.status === "PAID");
+                      const wechatRevenue = paidOrders.filter((o) => o.paymentMethod === "WECHAT").reduce((s, o) => s + o.amount, 0);
+                      const alipayRevenue = paidOrders.filter((o) => o.paymentMethod === "ALIPAY").reduce((s, o) => s + o.amount, 0);
+                      return (
+                        <>
+                          <div className="rounded-xl bg-white border border-slate-200 p-5">
+                            <div className="flex items-center justify-between mb-4">
+                              <h3 className="text-sm font-semibold text-slate-700 flex items-center gap-2">
+                                <TrendingUp className="w-4 h-4 text-amber-500" /> 收入
+                              </h3>
+                              <span className="text-lg font-bold text-slate-800">¥{(totalRevenue / 100).toFixed(2)}</span>
+                            </div>
+                            {/* 渠道拆分 */}
+                            <div className="flex gap-4 mb-4">
+                              <div className="flex-1 rounded-lg bg-green-50 border border-green-100 p-3 text-center">
+                                <div className="text-[11px] text-green-600 mb-0.5">微信收入</div>
+                                <div className="text-base font-bold text-green-700">¥{(wechatRevenue / 100).toFixed(2)}</div>
+                              </div>
+                              <div className="flex-1 rounded-lg bg-blue-50 border border-blue-100 p-3 text-center">
+                                <div className="text-[11px] text-blue-600 mb-0.5">支付宝收入</div>
+                                <div className="text-base font-bold text-blue-700">¥{(alipayRevenue / 100).toFixed(2)}</div>
+                              </div>
+                              <div className="flex-1 rounded-lg bg-slate-50 border border-slate-100 p-3 text-center">
+                                <div className="text-[11px] text-slate-500 mb-0.5">客单价</div>
+                                <div className="text-base font-bold text-slate-700">
+                                  ¥{paidOrders.length > 0 ? (totalRevenue / paidOrders.length / 100).toFixed(2) : "0.00"}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="flex items-end gap-2 h-40 mb-1">
+                              {daily.map((d) => {
+                                const val = d.revenue;
+                                const barH = Math.max(val > 0 ? 16 : 4, (val / maxVal) * 140);
+                                return (
+                                  <div key={d.date} className="flex-1 flex flex-col items-center justify-end h-full">
+                                    <span className="text-xs font-semibold text-amber-600 mb-1">{val > 0 ? `¥${(val / 100).toFixed(0)}` : ""}</span>
+                                    <div className="w-full rounded-md bg-amber-500 opacity-80" style={{ height: `${barH}px` }} />
+                                    <span className="text-[11px] text-slate-400 mt-2">{d.date.slice(5).replace("-", "/")}</span>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                            <p className="text-xs text-slate-400 mt-3">近 7 日合计：¥{(values.reduce((a, b) => a + b, 0) / 100).toFixed(2)}</p>
+                          </div>
+                          {/* 已支付订单明细 */}
+                          {paidOrders.length > 0 && (
+                            <div className="rounded-xl bg-white border border-slate-200 p-5">
+                              <h4 className="text-xs font-medium text-slate-600 mb-3">已支付收入明细</h4>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b border-slate-100 text-slate-400">
+                                      <th className="text-left py-2 pr-3 font-medium">支付时间</th>
+                                      <th className="text-left py-2 pr-3 font-medium">金额</th>
+                                      <th className="text-left py-2 pr-3 font-medium">渠道</th>
+                                      <th className="text-left py-2 font-medium">交易号</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {paidOrders.map((o) => {
+                                      const d = new Date(o.paidAt || o.createdAt);
+                                      const timeStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+                                      return (
+                                        <tr key={o.id} className="border-b border-slate-50 hover:bg-slate-50/50">
+                                          <td className="py-2.5 pr-3 text-slate-500 whitespace-nowrap">{timeStr}</td>
+                                          <td className="py-2.5 pr-3 font-semibold text-amber-700">¥{(o.amount / 100).toFixed(2)}</td>
+                                          <td className="py-2.5 pr-3 text-slate-500">{o.paymentMethod === "WECHAT" ? "微信" : o.paymentMethod === "ALIPAY" ? "支付宝" : "-"}</td>
+                                          <td className="py-2.5 text-slate-400 font-mono text-[11px]">{o.paymentId || "-"}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
+                  </div>
+                )}
+              </>
+            ) : (
+              <div className="rounded-xl bg-white border border-slate-200 p-5">
                 <p className="text-sm text-slate-400">暂无统计数据</p>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="rounded-xl bg-white border border-slate-200 p-5">

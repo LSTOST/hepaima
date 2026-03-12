@@ -33,6 +33,21 @@ export async function GET(
       );
     }
 
+    // 服务端 submit 时已异步预生成，等待最多 8 秒看能否拿到
+    for (let wait = 0; wait < 8; wait++) {
+      await new Promise((r) => setTimeout(r, 1000));
+      const refreshed = await prisma.result.findUnique({
+        where: { id: result.id },
+        select: { reportBasic: true },
+      });
+      if (refreshed?.reportBasic != null) {
+        return NextResponse.json(
+          { message: "基础报告已生成" },
+          { status: 400 },
+        );
+      }
+    }
+
     const payload: ReportStreamPayload = {
       stage: (session as { stage?: string }).stage ?? "STAGED",
       initiatorName: session.initiatorName ?? "你",

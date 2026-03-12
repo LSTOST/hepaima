@@ -102,10 +102,11 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
       lastAnswersRef.current = ans;
       setSubmitError(null);
       submitAnswers(ans)
-        .then(() => {
+        .then((data) => {
           if (typeof window !== "undefined") {
             sessionStorage.removeItem(`quiz_${sessionId}`);
-            const targetPath = `/result/${sessionId}`;
+            const ready = data?.bothCompleted ? "?ready=1" : "";
+            const targetPath = `/result/${sessionId}${ready}`;
             window.location.assign(`${window.location.origin}${targetPath}`);
           }
         })
@@ -133,10 +134,11 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
     isSubmitting.current = true;
     setSubmitError(null);
     submitAnswers(ans)
-      .then(() => {
+      .then((data) => {
         if (typeof window !== "undefined") {
           sessionStorage.removeItem(`quiz_${sessionId}`);
-          window.location.assign(`${window.location.origin}/result/${sessionId}`);
+          const ready = data?.bothCompleted ? "?ready=1" : "";
+          window.location.assign(`${window.location.origin}/result/${sessionId}${ready}`);
         }
       })
       .catch((err) => {

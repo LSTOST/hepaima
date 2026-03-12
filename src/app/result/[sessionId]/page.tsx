@@ -456,10 +456,11 @@ function ResultPageContent() {
   const [linkCopied, setLinkCopied] = useState(false);
   const [reportPollTimeout, setReportPollTimeout] = useState(false);
   const [generatingTipIndex, setGeneratingTipIndex] = useState(0);
+  const [generatingProgress, setGeneratingProgress] = useState(0);
   const reportPollCountRef = React.useRef(0);
   const streamFetchStartedRef = React.useRef(false);
   const REPORT_POLL_MAX = 12;
-  const REPORT_POLL_INTERVAL_MS = 5000;
+  const REPORT_POLL_INTERVAL_MS = 2000;
 
   const inviteCode = sessionData?.inviteCode ?? "";
   const inviteLink =
@@ -790,13 +791,24 @@ function ResultPageContent() {
     return () => clearInterval(timer);
   }, [pageState, sessionId, resultData?.reportStatus?.premium, resultData?.premiumReport, fetchResultWithRetry]);
 
-  // 生成报告中轮播提示文案
+  // 生成报告中轮播提示文案 + 进度条
   useEffect(() => {
     if (pageState !== "generating") return;
-    const t = setInterval(() => {
+    const tipTimer = setInterval(() => {
       setGeneratingTipIndex((i) => (i + 1) % GENERATING_TIPS.length);
     }, 2500);
-    return () => clearInterval(t);
+    setGeneratingProgress(0);
+    const start = Date.now();
+    const progressTimer = setInterval(() => {
+      const elapsed = (Date.now() - start) / 1000;
+      let p: number;
+      if (elapsed < 2) p = (elapsed / 2) * 30;
+      else if (elapsed < 6) p = 30 + ((elapsed - 2) / 4) * 30;
+      else if (elapsed < 12) p = 60 + ((elapsed - 6) / 6) * 20;
+      else p = 80 + Math.min((elapsed - 12) / 20, 1) * 15;
+      setGeneratingProgress(Math.min(Math.round(p), 95));
+    }, 250);
+    return () => { clearInterval(tipTimer); clearInterval(progressTimer); };
   }, [pageState]);
 
   if (pageState === "loading") {
@@ -870,8 +882,24 @@ function ResultPageContent() {
             <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
           </motion.div>
           <h1 className="text-xl font-bold text-gray-800 mb-2">正在生成你们的专属报告</h1>
-          <p className="text-gray-500 text-sm mb-1">AI 正在为你们分析契合度</p>
-          <p className="text-gray-400 text-xs mb-4">会自动跳转，无需刷新</p>
+          <p className="text-gray-500 text-sm mb-4">AI 正在为你们分析契合度，会自动跳转</p>
+          <div className="w-full max-w-[260px] mx-auto mb-4">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs text-gray-400">生成进度</span>
+              <span className="text-xs font-medium tabular-nums" style={{ color: "#EC4899" }}>
+                {generatingProgress}%
+              </span>
+            </div>
+            <div className="w-full h-2 rounded-full bg-white/60 overflow-hidden shadow-inner">
+              <motion.div
+                className="h-full rounded-full"
+                style={{ background: "linear-gradient(90deg, #EC4899, #8B5CF6)" }}
+                initial={{ width: "0%" }}
+                animate={{ width: `${generatingProgress}%` }}
+                transition={{ duration: 0.4, ease: "easeOut" }}
+              />
+            </div>
+          </div>
           <div className="min-h-[28px] flex items-center justify-center">
             <AnimatePresence mode="wait">
               <motion.p
@@ -880,27 +908,12 @@ function ResultPageContent() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -6 }}
                 transition={{ duration: 0.3 }}
-                className="text-gray-600 text-sm font-medium"
+                className="text-gray-500 text-sm"
               >
                 {GENERATING_TIPS[generatingTipIndex]}
               </motion.p>
             </AnimatePresence>
           </div>
-          <motion.div
-            className="mt-6 flex justify-center gap-1.5"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.3 }}
-          >
-            {[0, 1, 2].map((i) => (
-              <motion.span
-                key={i}
-                className="w-2.5 h-2.5 rounded-full bg-pink-400"
-                animate={{ opacity: [0.4, 1, 0.4], scale: [0.9, 1.15, 0.9] }}
-                transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-              />
-            ))}
-          </motion.div>
         </motion.div>
       </div>
     );
@@ -1093,6 +1106,7 @@ function ReadyReport({
   const [payError, setPayError] = useState<string | null>(null);
   const [jsapiChecking, setJsapiChecking] = useState(false);
   const [paySuccess, setPaySuccess] = useState(false);
+  const [loadingReport, setLoadingReport] = useState(false);
   const [wechatCopied, setWechatCopied] = useState(false);
 
   const isWechatBrowser = typeof navigator !== "undefined" && /MicroMessenger/i.test(navigator.userAgent);
@@ -1143,8 +1157,41 @@ function ReadyReport({
     return () => clearInterval(t);
   }, [payDialogOpen, sessionId, onRefetchResult, payResult?.orderId, paySuccess]);
 
+  // 支付成功后预加载深度报告，就绪后再显示按钮
+  useEffect(() => {
+    if (!paySuccess || !sessionId) return;
+    let cancelled = false;
+    setLoadingReport(true);
+
+    const preload = async () => {
+      for (let i = 0; i < 20; i++) {
+        if (cancelled) return;
+        try {
+          const res = await fetch(`/api/v1/result/${sessionId}`, { cache: "no-store" });
+          const json = await res.json();
+          if (json?.status === "ready" && json.result) {
+            const pr = (json.result as Record<string, unknown>).premiumReport;
+            if (pr && typeof pr === "object" && "deepAnalysis" in (pr as Record<string, unknown>)) {
+              await onRefetchResult?.();
+              if (!cancelled) setLoadingReport(false);
+              return;
+            }
+          }
+        } catch { /* ignore */ }
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+      }
+      // 超时兜底：即使报告未就绪也放行
+      await onRefetchResult?.();
+      if (!cancelled) setLoadingReport(false);
+    };
+    preload();
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [paySuccess, sessionId]);
+
   const [premiumTipIndex, setPremiumTipIndex] = useState(0);
   const [basicReportTipIndex, setBasicReportTipIndex] = useState(0);
+  const [reportProgress, setReportProgress] = useState(0);
   const PREMIUM_GENERATING_TIPS = [
     "AI 正在分析你们的依恋模式...",
     "正在模拟你们的日常互动场景...",
@@ -1352,6 +1399,33 @@ function ReadyReport({
     const t = setInterval(() => {
       setBasicReportTipIndex((i) => (i + 1) % BASIC_REPORT_ANALYSIS_TIPS.length);
     }, 2500);
+    return () => clearInterval(t);
+  }, [hasReport, reportPollTimeout]);
+
+  // 模拟进度条：指数衰减，越接近完成越慢，报告就绪后跳到 100%
+  useEffect(() => {
+    if (hasReport) {
+      setReportProgress(100);
+      return;
+    }
+    if (reportPollTimeout) return;
+    setReportProgress(0);
+    const start = Date.now();
+    const t = setInterval(() => {
+      const elapsed = (Date.now() - start) / 1000;
+      // 0-3s: 快速到 40%；3-8s: 缓慢到 65%；8-15s: 爬到 82%；15s+: 最多 92%
+      let p: number;
+      if (elapsed < 3) {
+        p = (elapsed / 3) * 40;
+      } else if (elapsed < 8) {
+        p = 40 + ((elapsed - 3) / 5) * 25;
+      } else if (elapsed < 15) {
+        p = 65 + ((elapsed - 8) / 7) * 17;
+      } else {
+        p = 82 + Math.min((elapsed - 15) / 30, 1) * 10;
+      }
+      setReportProgress(Math.min(Math.round(p), 92));
+    }, 300);
     return () => clearInterval(t);
   }, [hasReport, reportPollTimeout]);
 
@@ -1750,17 +1824,31 @@ function ReadyReport({
               <div className="flex flex-col gap-3 px-5 sm:px-6 pb-5 sm:pb-6">
               <ScrollCard delay={0.05}>
                 <div className="rounded-xl bg-gradient-to-br from-pink-50/60 to-violet-50/40 p-4 sm:p-5">
-                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
-                    <Sparkles className="w-4 h-4 text-[#EC4899]" />
-                    整体分析
-                  </p>
-                  <div className="flex items-center gap-3 py-4" style={{ fontSize: 15, color: "#444444" }}>
-                    {reportPollTimeout ? (
-                      <p>报告生成较慢，请稍后刷新页面查看</p>
-                    ) : (
-                      <>
-                        <Loader2 className="w-5 h-5 text-pink-500 animate-spin flex-shrink-0" />
-                        <div className="min-h-[22px] flex items-center flex-1">
+                  {reportPollTimeout ? (
+                    <p className="text-sm text-gray-500 py-2">报告生成较慢，请稍后刷新页面查看</p>
+                  ) : (
+                    <>
+                      <div className="flex items-center justify-between mb-3">
+                        <p className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-[#EC4899]" />
+                          AI 正在生成报告
+                        </p>
+                        <span className="text-xs font-medium tabular-nums" style={{ color: "#EC4899" }}>
+                          {reportProgress}%
+                        </span>
+                      </div>
+                      <div className="w-full h-1.5 rounded-full bg-pink-100/80 overflow-hidden mb-3">
+                        <motion.div
+                          className="h-full rounded-full"
+                          style={{ background: "linear-gradient(90deg, #EC4899, #8B5CF6)" }}
+                          initial={{ width: "0%" }}
+                          animate={{ width: `${reportProgress}%` }}
+                          transition={{ duration: 0.5, ease: "easeOut" }}
+                        />
+                      </div>
+                      <div className="flex items-center gap-2.5">
+                        <Loader2 className="w-4 h-4 text-pink-400 animate-spin flex-shrink-0" />
+                        <div className="min-h-[20px] flex items-center flex-1">
                           <AnimatePresence mode="wait">
                             <motion.p
                               key={basicReportTipIndex}
@@ -1768,25 +1856,16 @@ function ReadyReport({
                               animate={{ opacity: 1, x: 0 }}
                               exit={{ opacity: 0, x: -6 }}
                               transition={{ duration: 0.3 }}
+                              className="text-xs text-gray-500"
                               style={{ margin: 0 }}
                             >
                               {BASIC_REPORT_ANALYSIS_TIPS[basicReportTipIndex]}
                             </motion.p>
                           </AnimatePresence>
                         </div>
-                        <motion.div className="flex gap-1 flex-shrink-0" aria-hidden>
-                          {[0, 1, 2].map((i) => (
-                            <motion.span
-                              key={i}
-                              className="w-1.5 h-1.5 rounded-full bg-pink-300"
-                              animate={{ opacity: [0.4, 1, 0.4] }}
-                              transition={{ duration: 1, repeat: Infinity, delay: i * 0.2 }}
-                            />
-                          ))}
-                        </motion.div>
-                      </>
-                    )}
-                  </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </ScrollCard>
               {!reportPollTimeout && (
@@ -2403,19 +2482,29 @@ function ReadyReport({
             <DialogTitle className="sr-only">支付解锁</DialogTitle>
             {paySuccess && (
               <div className="px-6 py-10 flex flex-col items-center">
-                <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
-                <p className="text-base font-medium text-gray-800 mb-1">支付成功</p>
-                <p className="text-sm text-gray-500 mb-5">深度报告已解锁</p>
-                <Button
-                  className="rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8"
-                  onClick={async () => {
-                    await onRefetchResult?.();
-                    setPayDialogOpen(false);
-                    setPaySuccess(false);
-                  }}
-                >
-                  查看完整报告
-                </Button>
+                {loadingReport ? (
+                  <>
+                    <Loader2 className="w-10 h-10 text-pink-500 animate-spin mb-3" />
+                    <p className="text-base font-medium text-gray-800 mb-1">支付成功</p>
+                    <p className="text-sm text-gray-500">正在加载深度报告，马上就好...</p>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
+                    <p className="text-base font-medium text-gray-800 mb-1">深度报告已就绪</p>
+                    <p className="text-sm text-gray-500 mb-5">点击下方按钮立即查看</p>
+                    <Button
+                      className="rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8"
+                      onClick={() => {
+                        setPayDialogOpen(false);
+                        setPaySuccess(false);
+                        setLoadingReport(false);
+                      }}
+                    >
+                      查看完整报告
+                    </Button>
+                  </>
+                )}
               </div>
             )}
             {jsapiChecking && !paySuccess && (
