@@ -206,4 +206,34 @@ export async function decryptWechatNotifyResource(resource: {
   };
 }
 
+/** 主动查询微信订单状态 */
+export async function queryWechatOrder(outTradeNo: string): Promise<{
+  trade_state: string;
+  transaction_id?: string;
+  amount?: { total: number };
+}> {
+  const { pay } = await getWxPay();
+  const mchId = (await getPaymentProviderConfig("WECHAT"))?.mchId || MCH_ID;
+  if (!mchId) throw new Error("微信商户号未配置");
+  let result: Record<string, unknown>;
+  try {
+    result = (await (pay as Record<string, Function>).query({
+      out_trade_no: outTradeNo,
+      mchid: mchId,
+    })) as Record<string, unknown>;
+  } catch (e: unknown) {
+    const err = e as { message?: string; response?: { data?: Record<string, unknown> } };
+    const apiDetail = err?.response?.data ? getWechatErrorDetail(err.response.data, "") : "";
+    const msg = apiDetail || err?.message || String(e);
+    console.error("[WeChat Query] 查单异常:", msg);
+    throw new Error(`微信查单失败: ${msg}`);
+  }
+  const data = (result.data ?? result) as Record<string, unknown>;
+  return {
+    trade_state: (data.trade_state as string) ?? "UNKNOWN",
+    transaction_id: data.transaction_id as string | undefined,
+    amount: data.amount as { total: number } | undefined,
+  };
+}
+
 export { TIER_AMOUNT_CENTS };

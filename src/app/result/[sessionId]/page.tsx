@@ -1076,7 +1076,6 @@ function ReadyReport({
 }) {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [unlocked, setUnlocked] = useState(resultData.purchasedTier === "PREMIUM");
-  const [unlocking, setUnlocking] = useState(false);
 
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [payLoading, setPayLoading] = useState(false);
@@ -1102,11 +1101,19 @@ function ReadyReport({
     }
   }, [resultData.purchasedTier]);
 
-  // 支付弹窗打开时轮询结果，支付成功后刷新父级 resultData（父级更新后 resultData.purchasedTier 会变 PREMIUM，上面 useEffect 会关弹窗并解锁）
   useEffect(() => {
     if (!payDialogOpen || !sessionId) return;
     const checkPaid = async () => {
       try {
+        const oid = payResult?.orderId;
+        if (oid) {
+          const checkRes = await fetch(`/api/v1/orders/${oid}/check`, { method: "POST" });
+          const checkData = await checkRes.json();
+          if (checkData?.status === "PAID") {
+            await onRefetchResult?.();
+            return;
+          }
+        }
         const res = await fetch(`/api/v1/result/${sessionId}`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok || data?.result?.purchasedTier !== "PREMIUM") return;
@@ -1115,10 +1122,10 @@ function ReadyReport({
         // ignore
       }
     };
-    checkPaid(); // 立即查一次，不等待首个 interval
-    const t = setInterval(checkPaid, 1500);
+    checkPaid();
+    const t = setInterval(checkPaid, 3000);
     return () => clearInterval(t);
-  }, [payDialogOpen, sessionId, onRefetchResult]);
+  }, [payDialogOpen, sessionId, onRefetchResult, payResult?.orderId]);
 
   const [premiumTipIndex, setPremiumTipIndex] = useState(0);
   const [basicReportTipIndex, setBasicReportTipIndex] = useState(0);
@@ -1140,23 +1147,9 @@ function ReadyReport({
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
 
 
-  const handleUnlockPremium = async () => {
-    setUnlocking(true);
-    try {
-      const res = await fetch(`/api/v1/result/${sessionId}/unlock`, {
-        method: "POST",
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        setUnlocked(true);
-      } else {
-        setUnlocked(false);
-      }
-    } catch {
-      setUnlocked(false);
-    } finally {
-      setUnlocking(false);
-    }
+  const handleOpenPayDialog = () => {
+    setPayDialogOpen(true);
+    void handlePay("WECHAT");
   };
 
   const handlePay = async (paymentMethod: "WECHAT" | "ALIPAY") => {
@@ -1233,12 +1226,12 @@ function ReadyReport({
     report && (report.overallAnalysis ?? report.attachmentAnalysis ?? report.loveLanguageAnalysis);
 
   useEffect(() => {
-    if ((!unlocked && !unlocking) || hasPremiumReport) return;
+    if (!unlocked || hasPremiumReport) return;
     const t = setInterval(() => {
       setPremiumTipIndex((i) => (i + 1) % PREMIUM_GENERATING_TIPS.length);
     }, 3000);
     return () => clearInterval(t);
-  }, [unlocked, unlocking, hasPremiumReport]);
+  }, [unlocked, hasPremiumReport]);
 
   useEffect(() => {
     if (hasReport || reportPollTimeout) return;
@@ -1478,46 +1471,27 @@ function ReadyReport({
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
-              {/* 契合解读版块：报告标题样式 */}
-              <div
-                className="rounded-2xl overflow-hidden"
-                style={{
-                  background: "linear-gradient(160deg, rgba(253,242,248,0.9) 0%, rgba(250,250,250,0.6) 100%)",
-                  border: "1px solid rgba(236,72,153,0.18)",
-                  boxShadow: "0 1px 3px rgba(236,72,153,0.06)",
-                }}
-              >
-                <div className="flex flex-col items-center text-center px-6 py-8 sm:py-10">
+              {/* 契合解读版块 */}
+              <div className="rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm border border-pink-100/50 shadow-sm">
+                <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex items-center gap-3">
                   <div
-                    className="flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-sm"
-                    style={{
-                      background: "linear-gradient(145deg, #FDF2F8 0%, #FCE7F3 100%)",
-                      border: "1px solid rgba(236,72,153,0.2)",
-                      boxShadow: "0 2px 8px rgba(236,72,153,0.12)",
-                    }}
-                  >
-                    <Sparkles className="w-7 h-7 text-[#EC4899]" strokeWidth={2} />
-                  </div>
-                  <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">契合解读</h2>
-                  <p className="text-sm text-gray-500 mt-2 max-w-[240px] leading-relaxed">基于契合度的简明分析</p>
-                  <div
-                    className="mt-5 h-0.5 rounded-full opacity-80"
-                    style={{ width: 48, background: "linear-gradient(90deg, transparent, #EC4899, #8B5CF6, transparent)" }}
+                    className="w-1 h-8 rounded-full flex-shrink-0"
+                    style={{ background: "linear-gradient(180deg, #EC4899, #8B5CF6)" }}
                   />
-                </div>
-                <div className="flex flex-col gap-4 p-4 pt-3 sm:p-5 sm:pt-4">
-              <ScrollCard delay={0.05}>
-                <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm" style={{ padding: "20px 24px" }}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
-                      <Sparkles className="w-4.5 h-4.5 text-[#EC4899]" />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">契合解读</h2>
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">整体分析</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">基于你们的答题数据生成的契合分析</p>
                   </div>
-                  <div
-                    className="rounded-full mb-5"
-                    style={{ height: 2, width: 40, background: "linear-gradient(90deg, #EC4899, #8B5CF6)" }}
-                  />
+                </div>
+                <div className="flex flex-col gap-3 px-5 sm:px-6 pb-5 sm:pb-6">
+              <ScrollCard delay={0.05}>
+                <div className="rounded-xl bg-gradient-to-br from-pink-50/60 to-violet-50/40 p-4 sm:p-5">
+                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#EC4899]" />
+                    整体分析
+                  </p>
                   {report?.overallAnalysis != null ? (
                     typeof report.overallAnalysis === "string" ? (
                       (report.overallAnalysis as string).trim() ? (
@@ -1572,148 +1546,100 @@ function ReadyReport({
                 </div>
               </ScrollCard>
 
-              {report?.strengths && report.strengths.length > 0 && (
+              {((report?.strengths && report.strengths.length > 0) || (report?.challenges && report.challenges.length > 0)) && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: "#ECFDF5" }}
-                      >
-                        <ThumbsUp className="w-4.5 h-4.5" style={{ color: "#10B981" }} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {report?.strengths && report.strengths.length > 0 && (
+                      <div className="rounded-xl bg-emerald-50/70 p-4">
+                        <p className="text-sm font-semibold text-emerald-700 mb-3 flex items-center gap-1.5">
+                          <ThumbsUp className="w-3.5 h-3.5" />
+                          你们的优势
+                        </p>
+                        <ul className="space-y-2">
+                          {report.strengths.map((s, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-600 leading-relaxed">
+                              <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-emerald-500" />
+                              <span>{s}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      <h2 className="text-lg font-bold text-gray-800">你们的优势</h2>
-                    </div>
-                    <ul className="space-y-2">
-                      {report.strengths.map((s, i) => (
-                        <li key={i} className="flex items-start gap-2 text-gray-600" style={{ fontSize: 15 }}>
-                          <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: "#10B981" }} />
-                          <span>{s}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </ScrollCard>
-              )}
-
-              {report?.challenges && report.challenges.length > 0 && (
-                <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: "#FFFBEB" }}
-                      >
-                        <AlertTriangle className="w-4.5 h-4.5" style={{ color: "#F59E0B" }} />
+                    )}
+                    {report?.challenges && report.challenges.length > 0 && (
+                      <div className="rounded-xl bg-amber-50/70 p-4">
+                        <p className="text-sm font-semibold text-amber-700 mb-3 flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5" />
+                          需要注意
+                        </p>
+                        <ul className="space-y-2">
+                          {report.challenges.map((c, i) => (
+                            <li key={i} className="flex items-start gap-2 text-sm text-gray-600 leading-relaxed">
+                              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 bg-amber-400" />
+                              <span>{c}</span>
+                            </li>
+                          ))}
+                        </ul>
                       </div>
-                      <h2 className="text-lg font-bold text-gray-800">需要注意</h2>
-                    </div>
-                    <ul className="space-y-2">
-                      {report.challenges.map((c, i) => (
-                        <li key={i} className="flex items-start gap-2 text-gray-600">
-                          <span
-                            className="w-2 h-2 rounded-full flex-shrink-0 mt-1.5"
-                            style={{ backgroundColor: "#F59E0B" }}
-                          />
-                          <span>{c}</span>
-                        </li>
-                      ))}
-                    </ul>
+                    )}
                   </div>
                 </ScrollCard>
               )}
 
               {report?.actionItems && report.actionItems.length > 0 && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm p-5 sm:p-6">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ backgroundColor: "#F5F3FF" }}
-                      >
-                        <Target className="w-4.5 h-4.5" style={{ color: "#8B5CF6" }} />
-                      </div>
-                      <h2 className="text-lg font-bold text-gray-800">成长任务</h2>
-                    </div>
-                    <div className="space-y-0">
+                  <div className="rounded-xl bg-violet-50/50 p-4 sm:p-5">
+                    <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Target className="w-4 h-4 text-[#8B5CF6]" />
+                      成长任务
+                    </p>
+                    <div className="space-y-2.5">
                       {report.actionItems.map((item, i) => (
-                        <div key={i}>
-                          <div className="flex items-start gap-3 py-4">
-                            <span
-                              className="flex-shrink-0 w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-600"
-                            >
-                              {i + 1}
-                            </span>
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-gray-800 mb-1.5" style={{ fontSize: 16 }}>
-                                {item.title}
-                              </p>
-                              <p className="leading-relaxed" style={{ fontSize: 14, color: "#666666" }}>
-                                {item.description}
-                              </p>
-                            </div>
+                        <div key={i} className="flex items-start gap-3 bg-white/80 rounded-lg p-3">
+                          <span
+                            className="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold text-white"
+                            style={{ background: "linear-gradient(135deg, #EC4899, #8B5CF6)" }}
+                          >
+                            {i + 1}
+                          </span>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-gray-800 text-sm">{item.title}</p>
+                            <p className="text-xs text-gray-500 leading-relaxed mt-1">{item.description}</p>
                           </div>
-                          {i < report.actionItems!.length - 1 && (
-                            <div className="border-t border-gray-100" />
-                          )}
                         </div>
                       ))}
-                    </div>
-                    <div className="mt-5 rounded-xl bg-amber-50 border border-amber-100 px-3.5 py-3 flex items-start gap-2">
-                      <ShieldAlert className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
-                      <p className="text-xs leading-relaxed text-amber-700">
-                        本报告基于问卷结果与 AI 分析生成，仅供自我觉察和关系参考，不构成专业心理咨询、医疗或法律建议。
-                        如你们正经历较严重的情绪困扰或关系危机，建议及时寻求具备资质的专业机构或咨询师帮助。
-                      </p>
                     </div>
                   </div>
                 </ScrollCard>
               )}
+
+              <div className="rounded-lg bg-gray-50 px-3.5 py-2.5 flex items-start gap-2">
+                <ShieldAlert className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
+                <p className="text-[11px] leading-relaxed text-gray-400">
+                  本报告基于问卷结果与 AI 分析生成，仅供自我觉察和关系参考，不构成专业心理咨询、医疗或法律建议。
+                </p>
+              </div>
                 </div>
               </div>
             </motion.div>
           ) : (
-            <div
-              className="rounded-2xl overflow-hidden"
-              style={{
-                background: "linear-gradient(160deg, rgba(253,242,248,0.9) 0%, rgba(250,250,250,0.6) 100%)",
-                border: "1px solid rgba(236,72,153,0.18)",
-                boxShadow: "0 1px 3px rgba(236,72,153,0.06)",
-              }}
-            >
-              <div className="flex flex-col items-center text-center px-6 py-8 sm:py-10">
+            <div className="rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm border border-pink-100/50 shadow-sm">
+              <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex items-center gap-3">
                 <div
-                  className="flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-sm"
-                  style={{
-                    background: "linear-gradient(145deg, #FDF2F8 0%, #FCE7F3 100%)",
-                    border: "1px solid rgba(236,72,153,0.2)",
-                    boxShadow: "0 2px 8px rgba(236,72,153,0.12)",
-                  }}
-                >
-                  <Sparkles className="w-7 h-7 text-[#EC4899]" strokeWidth={2} />
-                </div>
-                <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">契合解读</h2>
-                <p className="text-sm text-gray-500 mt-2 max-w-[240px] leading-relaxed">基于契合度的简明分析</p>
-                <div
-                  className="mt-5 h-0.5 rounded-full opacity-80"
-                  style={{ width: 48, background: "linear-gradient(90deg, transparent, #EC4899, #8B5CF6, transparent)" }}
+                  className="w-1 h-8 rounded-full flex-shrink-0"
+                  style={{ background: "linear-gradient(180deg, #EC4899, #8B5CF6)" }}
                 />
+                <div>
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">契合解读</h2>
+                  <p className="text-xs text-gray-400 mt-0.5">基于你们的答题数据生成的契合分析</p>
+                </div>
               </div>
-              <div className="flex flex-col gap-4 p-4 pt-3 sm:p-5 sm:pt-4">
+              <div className="flex flex-col gap-3 px-5 sm:px-6 pb-5 sm:pb-6">
               <ScrollCard delay={0.05}>
-                <div className="bg-white rounded-xl border border-pink-100/60 shadow-sm" style={{ padding: "20px 24px" }}>
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
-                      <Sparkles className="w-4.5 h-4.5 text-[#EC4899]" />
-                    </div>
-                    <h2 className="text-lg font-bold text-gray-800">整体分析</h2>
-                  </div>
-                  <motion.div
-                    className="rounded-full mb-5"
-                    style={{ height: 2, width: 40, background: "linear-gradient(90deg, #EC4899, #8B5CF6)" }}
-                    animate={{ opacity: [0.7, 1, 0.7] }}
-                    transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
-                  />
+                <div className="rounded-xl bg-gradient-to-br from-pink-50/60 to-violet-50/40 p-4 sm:p-5">
+                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-[#EC4899]" />
+                    整体分析
+                  </p>
                   <div className="flex items-center gap-3 py-4" style={{ fontSize: 15, color: "#444444" }}>
                     {reportPollTimeout ? (
                       <p>报告生成较慢，请稍后刷新页面查看</p>
@@ -1760,7 +1686,30 @@ function ReadyReport({
             </div>
           )}
 
-          {!unlocked && !unlocking ? (
+          {/* 服务号关注引导 */}
+          <ScrollCard delay={0.05}>
+            <div className="rounded-2xl overflow-hidden border border-emerald-100/60 bg-gradient-to-r from-emerald-50/60 via-white to-pink-50/40">
+              <div className="flex items-center gap-4 p-4 sm:p-5">
+                <Image
+                  src="/qrcode_for_258.jpg"
+                  alt="知我实验室"
+                  width={80}
+                  height={80}
+                  className="rounded-xl flex-shrink-0 border border-gray-100"
+                />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-gray-800 mb-1">关注「知我实验室」</p>
+                  <p className="text-xs text-gray-500 leading-relaxed">解锁更多趣味测试，从性格、职业到关系，全方位认识自己</p>
+                  <p className="text-[11px] text-emerald-600 mt-2 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
+                    截图或长按识别二维码关注
+                  </p>
+                </div>
+              </div>
+            </div>
+          </ScrollCard>
+
+          {!unlocked ? (
             <div className="flex flex-col">
               <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50/80" style={{ minHeight: 100 }}>
                 <div className="absolute inset-0 flex items-center justify-center z-10">
@@ -1789,10 +1738,10 @@ function ReadyReport({
                   <p className="text-sm mb-5" style={{ color: "#888888" }}>更深入的分析，更具体的建议</p>
                   <ul className="space-y-3 mb-5 text-left inline-block">
                     {[
-                      "深度解读（300+字专业分析）",
-                      "爱的语言日常场景模拟",
-                      "4周情侣成长任务",
-                      "专属沟通指南与冲突处理锦囊",
+                      "你们最容易在哪些事上产生矛盾",
+                      "基于你们性格的专属沟通方式",
+                      "量身定制的 4 周关系提升计划",
+                      "吵架后如何快速修复关系",
                     ].map((item) => (
                       <li key={item} className="flex items-center gap-2" style={{ fontSize: 15, color: "#333333" }}>
                         <Check className="w-4 h-4 flex-shrink-0" style={{ color: "#10B981" }} />
@@ -1801,18 +1750,19 @@ function ReadyReport({
                     ))}
                   </ul>
                   <Button
-                    onClick={() => void handleUnlockPremium()}
+                    onClick={handleOpenPayDialog}
                     className="w-full max-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white text-base font-semibold shadow-lg shadow-pink-500/10 transition-transform duration-200 hover:scale-[1.02] mx-auto"
                   >
-                    限时免费解锁深度报告
+                    <span className="line-through opacity-60 text-sm mr-1.5">¥29.90</span>
+                    ¥19.90 立即解锁
                   </Button>
                   <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
-                    深度报告同样仅供自我觉察和关系参考，不替代专业心理咨询或医疗服务。
+                    限时优惠中 · 深度报告仅供自我觉察和关系参考
                   </p>
                 </div>
               </ScrollCard>
             </div>
-          ) : (unlocking || !hasPremiumReport) ? (
+          ) : !hasPremiumReport ? (
             <ScrollCard delay={0.05}>
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 sm:p-12 text-center">
                 <div
@@ -1825,7 +1775,7 @@ function ReadyReport({
                   }}
                 />
                 <p className="text-base font-medium text-gray-800 mb-3" style={{ fontSize: 16 }}>
-                  {unlocking ? "正在解锁..." : "正在为你们生成深度报告..."}
+                  正在为你们生成深度报告...
                 </p>
                 <div className="min-h-[24px] flex items-center justify-center">
                   <AnimatePresence mode="wait">
@@ -1851,50 +1801,28 @@ function ReadyReport({
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
-              {/* 深度解读版块：报告标题样式 */}
-              <div
-                className="rounded-2xl overflow-hidden relative"
-                style={{
-                  background: "linear-gradient(160deg, rgba(245,243,255,0.95) 0%, rgba(238,242,255,0.5) 100%)",
-                  border: "1px solid rgba(139,92,246,0.25)",
-                  boxShadow: "0 2px 8px rgba(139,92,246,0.08)",
-                }}
-              >
-                <div className="flex flex-col items-center text-center px-6 py-8 sm:py-10">
+              {/* 深度解读版块 */}
+              <div className="rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm border border-violet-100/50 shadow-sm">
+                <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex items-center gap-3">
                   <div
-                    className="flex items-center justify-center w-14 h-14 rounded-2xl mb-4 shadow-sm"
-                    style={{
-                      background: "linear-gradient(145deg, #F5F3FF 0%, #EDE9FE 100%)",
-                      border: "1px solid rgba(139,92,246,0.25)",
-                      boxShadow: "0 2px 8px rgba(139,92,246,0.15)",
-                    }}
-                  >
-                    <Brain className="w-7 h-7 text-[#8B5CF6]" strokeWidth={2} />
-                  </div>
-                  <div className="flex items-center justify-center gap-2 flex-wrap">
-                    <h2 className="text-xl sm:text-2xl font-bold text-gray-900 tracking-tight">深度解读</h2>
-                    <span
-                      className="text-[10px] font-medium px-2 py-0.5 rounded-md"
-                      style={{ background: "rgba(139,92,246,0.12)", color: "#7C3AED", letterSpacing: "0.05em" }}
-                    >
-                      专业
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500 mt-2 max-w-[260px] leading-relaxed">更深入的专业分析与建议</p>
-                  <div
-                    className="mt-5 h-0.5 rounded-full opacity-80"
-                    style={{ width: 48, background: "linear-gradient(90deg, transparent, #8B5CF6, #EC4899, transparent)" }}
+                    className="w-1 h-8 rounded-full flex-shrink-0"
+                    style={{ background: "linear-gradient(180deg, #8B5CF6, #EC4899)" }}
                   />
-                </div>
-                <div className="flex flex-col gap-4 p-4 pt-3 sm:p-5 sm:pt-4">
-              <ScrollCard delay={0.05}>
-                <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
-                  <div className="flex items-center gap-2 mb-5">
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#F5F3FF" }}>
-                      <Brain className="w-4.5 h-4.5" style={{ color: "#8B5CF6" }} />
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">深度解读</h2>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 tracking-wider">PRO</span>
                     </div>
-                    <h2 className="text-lg font-bold text-gray-800">深度解读</h2>
+                    <p className="text-xs text-gray-400 mt-0.5">更深入的专业分析与个性化建议</p>
                   </div>
+                </div>
+                <div className="flex flex-col gap-3 px-5 sm:px-6 pb-5 sm:pb-6">
+              <ScrollCard delay={0.05}>
+                <div className="rounded-xl bg-gradient-to-br from-violet-50/60 to-pink-50/40 p-4 sm:p-5">
+                  <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                    <Brain className="w-4 h-4 text-[#8B5CF6]" />
+                    深度分析
+                  </p>
                   {typeof premiumReport.deepAnalysis === "object" && premiumReport.deepAnalysis !== null && "summary" in premiumReport.deepAnalysis ? (
                     <>
                       <p className="leading-relaxed text-gray-700 mb-6" style={{ fontSize: 15, lineHeight: 1.8 }}>
@@ -1924,15 +1852,11 @@ function ReadyReport({
 
               {premiumReport.attachmentDeep && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
-                        <Heart className="w-4.5 h-4.5 text-[#EC4899]" />
-                      </div>
-                      <h2 className="text-lg font-bold text-gray-800">
-                        {premiumReport.attachmentDeep.title ?? "依恋模式深度解析"}
-                      </h2>
-                    </div>
+                  <div className="rounded-xl bg-pink-50/50 p-4 sm:p-5">
+                    <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Heart className="w-4 h-4 text-[#EC4899]" />
+                      {premiumReport.attachmentDeep.title ?? "依恋模式深度解析"}
+                    </p>
                     <div className="space-y-4">
                       <div>
                         <p className="text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
@@ -1977,15 +1901,11 @@ function ReadyReport({
 
               {premiumReport.loveLanguageDeep && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
-                        <MessageCircleHeart className="w-4.5 h-4.5 text-[#EC4899]" />
-                      </div>
-                      <h2 className="text-lg font-bold text-gray-800">
-                        {premiumReport.loveLanguageDeep.title ?? "爱的语言日常场景"}
-                      </h2>
-                    </div>
+                  <div className="rounded-xl bg-gradient-to-br from-pink-50/50 to-violet-50/30 p-4 sm:p-5">
+                    <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <MessageCircleHeart className="w-4 h-4 text-[#EC4899]" />
+                      {premiumReport.loveLanguageDeep.title ?? "爱的语言日常场景"}
+                    </p>
                     <p className="text-sm text-gray-600 leading-relaxed mb-4">
                       <ReportText text={premiumReport.loveLanguageDeep.mismatchAnalysis ?? ""} />
                     </p>
@@ -2010,15 +1930,11 @@ function ReadyReport({
 
               {premiumReport.relationshipForecast && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#F5F3FF" }}>
-                        <TrendingUp className="w-4.5 h-4.5" style={{ color: "#8B5CF6" }} />
-                      </div>
-                      <h2 className="text-lg font-bold text-gray-800">
-                        {premiumReport.relationshipForecast.title ?? "关系趋势预测"}
-                      </h2>
-                    </div>
+                  <div className="rounded-xl bg-violet-50/50 p-4 sm:p-5">
+                    <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <TrendingUp className="w-4 h-4 text-[#8B5CF6]" />
+                      {premiumReport.relationshipForecast.title ?? "关系趋势预测"}
+                    </p>
                     <div className="space-y-4">
                       <div>
                         <p className="text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
@@ -2061,13 +1977,11 @@ function ReadyReport({
 
               {premiumReport.couplesTasks && premiumReport.couplesTasks.length > 0 && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
-                        <Calendar className="w-4.5 h-4.5 text-[#EC4899]" />
-                      </div>
-                      <h2 className="text-lg font-bold text-gray-800">4周成长任务</h2>
-                    </div>
+                  <div className="rounded-xl bg-gradient-to-br from-pink-50/40 to-violet-50/40 p-4 sm:p-5">
+                    <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <Calendar className="w-4 h-4 text-[#EC4899]" />
+                      4周成长任务
+                    </p>
                     <div className="relative pl-1">
                       {/* 时间线连接线：贯穿所有周次 */}
                       {premiumReport.couplesTasks.length > 1 && (
@@ -2105,15 +2019,11 @@ function ReadyReport({
 
               {premiumReport.communicationGuide && (
                 <ScrollCard delay={0.05}>
-                  <div className="bg-white rounded-xl border border-violet-200/70 shadow-sm p-5 sm:p-6 border-l-4 border-l-violet-500">
-                    <div className="flex items-center gap-2 mb-5">
-                      <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ backgroundColor: "#F5F3FF" }}>
-                        <MessagesSquare className="w-4.5 h-4.5" style={{ color: "#8B5CF6" }} />
-                      </div>
-                      <h2 className="text-lg font-bold text-gray-800">
-                        {premiumReport.communicationGuide.title ?? "专属沟通指南"}
-                      </h2>
-                    </div>
+                  <div className="rounded-xl bg-violet-50/50 p-4 sm:p-5">
+                    <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                      <MessagesSquare className="w-4 h-4 text-[#8B5CF6]" />
+                      {premiumReport.communicationGuide.title ?? "专属沟通指南"}
+                    </p>
                     <div className="space-y-4">
                       <div>
                         <p className="text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-2">
@@ -2378,6 +2288,19 @@ function ReadyReport({
                 originalPrice={29.9}
                 orderId={payResult.orderId ?? resultData.id ?? ""}
                 onRefresh={async () => {
+                  const oid = payResult?.orderId;
+                  if (oid) {
+                    try {
+                      const res = await fetch(`/api/v1/orders/${oid}/check`, { method: "POST" });
+                      const data = await res.json();
+                      if (data?.status === "PAID") {
+                        await onRefetchResult?.();
+                        return;
+                      }
+                    } catch {
+                      // 查单失败时回退到刷新结果
+                    }
+                  }
                   await onRefetchResult?.();
                 }}
               />
@@ -2580,7 +2503,7 @@ function PaymentPanel({
                   </div>
 
                   <p className="text-sm text-gray-600 mb-1">
-                    请打开{" "}
+                    请使用{" "}
                     <span style={{ color: current.color }} className="font-medium">
                       {paymentMethod === "WECHAT" ? "微信" : "支付宝"}
                     </span>{" "}
@@ -2596,23 +2519,20 @@ function PaymentPanel({
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  disabled={refreshLoading}
-                  onClick={async () => {
-                    setRefreshLoading(true);
-                    try {
-                      await onRefresh();
-                    } finally {
-                      setRefreshLoading(false);
-                    }
-                  }}
-                  className="mt-5 w-full text-xs font-medium text-pink-500 hover:text-pink-600 underline text-center disabled:opacity-60"
-                >
-                  {refreshLoading ? "正在查询..." : "支付已完成？点击刷新解锁"}
-                </button>
-                <p className="mt-2 text-xs text-gray-400 text-center">
-                  若已支付成功但未自动解锁，请<button type="button" onClick={() => window.location.reload()} className="underline text-pink-500 hover:text-pink-600">刷新页面</button>
+                <p className="mt-5 text-xs text-gray-400 text-center">
+                  若已支付成功但未自动解锁，请<button
+                    type="button"
+                    disabled={refreshLoading}
+                    onClick={async () => {
+                      setRefreshLoading(true);
+                      try {
+                        await onRefresh();
+                      } finally {
+                        setRefreshLoading(false);
+                      }
+                    }}
+                    className="underline text-pink-500 hover:text-pink-600 disabled:opacity-60"
+                  >{refreshLoading ? "查询中..." : "刷新页面"}</button>
                 </p>
               </motion.div>
             )}
@@ -2647,7 +2567,7 @@ function PaymentPanel({
 
         <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-gray-400">
           <Shield className="w-3.5 h-3.5" />
-          <span>安全支付 · 微信/支付宝官方提供保障</span>
+          <span>安全支付 · {paymentMethod === "WECHAT" ? "微信" : "支付宝"}官方提供保障</span>
         </div>
       </main>
     </div>

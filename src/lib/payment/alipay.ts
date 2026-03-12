@@ -205,6 +205,45 @@ export async function createAlipayWapPay(params: {
   return url;
 }
 
+/** 主动查询支付宝订单状态 */
+export async function queryAlipayOrder(outTradeNo: string): Promise<{
+  trade_status: string;
+  trade_no?: string;
+  total_amount?: string;
+}> {
+  const sdk = await getAlipaySdk();
+  const res = await (sdk as {
+    exec: (method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+  }).exec("alipay.trade.query", {
+    bizContent: { out_trade_no: outTradeNo },
+  });
+
+  let payload: Record<string, unknown> = res;
+  if (payload?.data) {
+    try {
+      const dataObj = typeof payload.data === "string" ? JSON.parse(payload.data) : payload.data;
+      payload = (dataObj?.alipay_trade_query_response as Record<string, unknown>) ?? dataObj;
+    } catch {
+      // fallback
+    }
+  } else if (payload?.alipay_trade_query_response) {
+    payload = payload.alipay_trade_query_response as Record<string, unknown>;
+  }
+
+  const code = payload?.code as string | undefined;
+  if (code !== "10000") {
+    const subMsg = (payload?.sub_msg as string) || (payload?.msg as string) || "";
+    console.error("[Alipay Query] 查单失败:", JSON.stringify(res));
+    throw new Error(subMsg ? `支付宝查单失败: ${subMsg}` : "支付宝查单失败");
+  }
+
+  return {
+    trade_status: (payload.trade_status as string) ?? "UNKNOWN",
+    trade_no: payload.trade_no as string | undefined,
+    total_amount: payload.total_amount as string | undefined,
+  };
+}
+
 /** 异步通知验签（POST body 为 form 键值对） */
 export async function verifyAlipayNotifySign(postData: Record<string, string>): Promise<boolean> {
   const sdk = await getAlipaySdk();
