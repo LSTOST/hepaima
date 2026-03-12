@@ -217,7 +217,7 @@ export async function queryWechatOrder(outTradeNo: string): Promise<{
   if (!mchId) throw new Error("微信商户号未配置");
   let result: Record<string, unknown>;
   try {
-    result = (await (pay as Record<string, Function>).query({
+    result = (await (pay as unknown as Record<string, Function>).query({
       out_trade_no: outTradeNo,
       mchid: mchId,
     })) as Record<string, unknown>;
