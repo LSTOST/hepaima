@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { createWechatNativeOrder } from "@/lib/payment/wechat";
+import { createWechatNativeOrder, createWechatJsapiOrder, buildJsapiPayParams } from "@/lib/payment/wechat";
 import { createAlipayPrecreate, createAlipayWapPay, getTierAmountYuan } from "@/lib/payment/alipay";
 import { TIER_AMOUNT_CENTS } from "@/lib/payment/constants";
 
@@ -23,6 +23,7 @@ export async function POST(req: NextRequest) {
     const tier = body?.tier as string | undefined;
     const paymentMethod = body?.paymentMethod as string | undefined;
     const deviceId = body?.deviceId as string | undefined;
+    const openid = body?.openid as string | undefined;
 
     if (!resultId || !tier || !paymentMethod) {
       return NextResponse.json(
@@ -72,8 +73,24 @@ export async function POST(req: NextRequest) {
     const amountYuan = getTierAmountYuan(tier);
     const userAgent = req.headers.get("user-agent") ?? "";
 
-    // 微信：统一使用 Native（扫码）支付，PC 和移动端都展示二维码
     if (paymentMethod === "WECHAT") {
+      // 微信内浏览器：JSAPI 直接唤起支付（需要 openid）
+      if (openid) {
+        const { prepay_id } = await createWechatJsapiOrder({
+          outTradeNo,
+          description,
+          amountCents: amount,
+          openid,
+        });
+        const jsapiParams = await buildJsapiPayParams(prepay_id);
+        return NextResponse.json({
+          orderId: order.id,
+          paymentMethod: "WECHAT",
+          type: "jsapi",
+          jsapiParams,
+        });
+      }
+      // 非微信浏览器：Native 扫码支付
       const { code_url } = await createWechatNativeOrder({
         outTradeNo,
         description,

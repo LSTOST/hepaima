@@ -1,9 +1,10 @@
 /**
- * 微信支付 V3：Native（扫码）、H5、下单与回调验签/解密
+ * 微信支付 V3：Native（扫码）、H5、JSAPI、下单与回调验签/解密
  * 优先使用后台 PaymentProviderConfig 配置，否则使用环境变量
  */
 import fs from "node:fs";
 import path from "node:path";
+import crypto from "node:crypto";
 import WxPay from "wechatpay-node-v3";
 import { TIER_AMOUNT_CENTS } from "./constants";
 import { getPaymentProviderConfig } from "./config-db";
@@ -233,6 +234,76 @@ export async function queryWechatOrder(outTradeNo: string): Promise<{
     trade_state: (data.trade_state as string) ?? "UNKNOWN",
     transaction_id: data.transaction_id as string | undefined,
     amount: data.amount as { total: number } | undefined,
+  };
+}
+
+/** JSAPI 下单（微信内支付），返回 prepay_id */
+export async function createWechatJsapiOrder(params: {
+  outTradeNo: string;
+  description: string;
+  amountCents: number;
+  openid: string;
+}): Promise<{ prepay_id: string }> {
+  const { pay } = await getWxPay();
+  const dbConfig = await getPaymentProviderConfig("WECHAT");
+  const notifyUrl = dbConfig?.notifyUrl || `${BASE_URL}/api/v1/payment/wechat/notify`;
+  const appId = dbConfig?.appId || APP_ID;
+  console.log("[WeChat JSAPI] 下单 notify_url:", notifyUrl, "openid:", params.openid);
+  let result: Record<string, unknown> & { status?: number; prepay_id?: string };
+  try {
+    result = (await pay.transactions_jsapi({
+      description: params.description,
+      out_trade_no: params.outTradeNo,
+      notify_url: notifyUrl,
+      amount: { total: params.amountCents, currency: "CNY" },
+      payer: { openid: params.openid },
+    })) as typeof result;
+  } catch (e: unknown) {
+    const err = e as { message?: string; response?: { data?: Record<string, unknown> } };
+    const apiDetail = err?.response?.data ? getWechatErrorDetail(err.response.data, "") : "";
+    const fullMsg = apiDetail ? `微信 JSAPI 下单异常: ${apiDetail}` : `微信 JSAPI 下单异常: ${err?.message ?? String(e)}`;
+    console.error("[WeChat JSAPI] 请求异常:", fullMsg);
+    throw new Error(fullMsg);
+  }
+  const prepayId =
+    (result.data as { prepay_id?: string } | undefined)?.prepay_id ?? result.prepay_id;
+  if (result.status !== 200 || !prepayId) {
+    const detail = getWechatErrorDetail(result, "");
+    console.error("[WeChat JSAPI] 非 200 或缺少 prepay_id, 完整响应:", JSON.stringify(result));
+    throw new Error(detail ? `微信 JSAPI 下单失败: ${detail}` : `微信 JSAPI 下单失败(无详情)，status=${result.status}`);
+  }
+  return { prepay_id: prepayId };
+}
+
+/** 生成前端 WeixinJSBridge 调起支付所需的签名参数 */
+export async function buildJsapiPayParams(prepayId: string): Promise<{
+  appId: string;
+  timeStamp: string;
+  nonceStr: string;
+  package: string;
+  signType: string;
+  paySign: string;
+}> {
+  const dbConfig = await getPaymentProviderConfig("WECHAT");
+  const appId = dbConfig?.appId || APP_ID || "";
+  const timeStamp = Math.floor(Date.now() / 1000).toString();
+  const nonceStr = crypto.randomBytes(16).toString("hex");
+  const pkg = `prepay_id=${prepayId}`;
+
+  const message = `${appId}\n${timeStamp}\n${nonceStr}\n${pkg}\n`;
+  const keyPath = getCertPath("apiclient_key.pem");
+  const privateKey = fs.readFileSync(keyPath, "utf-8");
+  const sign = crypto.createSign("RSA-SHA256");
+  sign.update(message);
+  const paySign = sign.sign(privateKey, "base64");
+
+  return {
+    appId,
+    timeStamp,
+    nonceStr,
+    package: pkg,
+    signType: "RSA",
+    paySign,
   };
 }
 

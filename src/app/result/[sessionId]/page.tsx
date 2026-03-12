@@ -1093,6 +1093,18 @@ function ReadyReport({
   const [payError, setPayError] = useState<string | null>(null);
   const [wechatCopied, setWechatCopied] = useState(false);
 
+  const isWechatBrowser = typeof navigator !== "undefined" && /MicroMessenger/i.test(navigator.userAgent);
+
+  // 微信浏览器内：页面加载时静默 OAuth 获取 openid
+  useEffect(() => {
+    if (!isWechatBrowser) return;
+    const cookies = document.cookie.split(";").map((c) => c.trim());
+    const hasOpenid = cookies.some((c) => c.startsWith("wx_openid="));
+    if (hasOpenid) return;
+    const currentPath = window.location.pathname + window.location.search;
+    window.location.href = `/api/v1/wechat/oauth?redirect=${encodeURIComponent(currentPath)}`;
+  }, [isWechatBrowser]);
+
   useEffect(() => {
     if (resultData.purchasedTier === "PREMIUM") {
       setUnlocked(true);
@@ -1147,9 +1159,52 @@ function ReadyReport({
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
 
 
+  const getWxOpenid = (): string | undefined => {
+    const match = document.cookie.match(/(?:^|;\s*)wx_openid=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : undefined;
+  };
+
+  const invokeJsapiPay = (params: {
+    appId: string;
+    timeStamp: string;
+    nonceStr: string;
+    package: string;
+    signType: string;
+    paySign: string;
+  }): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const invoke = () => {
+        const bridge = (window as unknown as Record<string, unknown>).WeixinJSBridge as
+          | { invoke: (api: string, params: Record<string, string>, cb: (res: { err_msg: string }) => void) => void }
+          | undefined;
+        if (!bridge) { resolve(false); return; }
+        bridge.invoke("getBrandWCPayRequest", {
+          appId: params.appId,
+          timeStamp: params.timeStamp,
+          nonceStr: params.nonceStr,
+          package: params.package,
+          signType: params.signType,
+          paySign: params.paySign,
+        }, (res) => {
+          resolve(res.err_msg === "get_brand_wcpay_request:ok");
+        });
+      };
+      if ((window as unknown as Record<string, unknown>).WeixinJSBridge) {
+        invoke();
+      } else {
+        document.addEventListener("WeixinJSBridgeReady", invoke, { once: true });
+        setTimeout(() => resolve(false), 8000);
+      }
+    });
+  };
+
   const handleOpenPayDialog = () => {
-    setPayDialogOpen(true);
-    void handlePay("WECHAT");
+    if (isWechatBrowser) {
+      void handlePay("WECHAT");
+    } else {
+      setPayDialogOpen(true);
+      void handlePay("WECHAT");
+    }
   };
 
   const handlePay = async (paymentMethod: "WECHAT" | "ALIPAY") => {
@@ -1168,8 +1223,9 @@ function ReadyReport({
     setPayLoadingMethod(paymentMethod);
     setPayLoading(true);
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 25000); // 25 秒超时
+    const timeoutId = setTimeout(() => controller.abort(), 25000);
     try {
+      const openid = isWechatBrowser ? getWxOpenid() : undefined;
       const res = await fetch("/api/v1/orders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1179,6 +1235,7 @@ function ReadyReport({
           tier: "PREMIUM",
           paymentMethod,
           deviceId,
+          ...(openid ? { openid } : {}),
         }),
         signal: controller.signal,
       });
@@ -1187,6 +1244,20 @@ function ReadyReport({
         setPayError(data.message || "创建订单失败");
         return;
       }
+
+      // JSAPI：微信内直接唤起支付
+      if (data.type === "jsapi" && data.jsapiParams) {
+        setPayResult({ type: "jsapi", orderId: data.orderId, paymentMethod: "WECHAT" });
+        const ok = await invokeJsapiPay(data.jsapiParams);
+        if (ok) {
+          await onRefetchResult?.();
+        } else {
+          setPayDialogOpen(true);
+          setPayError("支付未完成，如已支付请稍等片刻自动刷新");
+        }
+        return;
+      }
+
       setPayResult({
         type: data.type,
         orderId: data.orderId,
@@ -1196,6 +1267,7 @@ function ReadyReport({
         pay_url: data.pay_url,
         paymentMethod: data.paymentMethod,
       });
+      if (!payDialogOpen) setPayDialogOpen(true);
       if (data.h5_url) {
         window.location.href = data.h5_url;
         return;
@@ -1204,7 +1276,6 @@ function ReadyReport({
         window.location.href = data.pay_url;
         return;
       }
-      // form_html 和 code_url 场景由下方弹窗组件根据 payResult 自行处理
     } catch (e) {
       if (e instanceof Error && e.name === "AbortError") {
         setPayError("请求超时，请检查网络或稍后重试");

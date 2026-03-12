@@ -60,7 +60,8 @@ export async function POST(
     try {
       const result = await queryAlipayOrder(orderId);
       console.log("[order check] 支付宝查单结果:", orderId, result.trade_status);
-      if (result.trade_status === "TRADE_SUCCESS" || result.trade_status === "TRADE_FINISHED") {
+      const ts = result.trade_status;
+      if (ts === "TRADE_SUCCESS" || ts === "TRADE_FINISHED" || ts === "TRADE_FINISH") {
         return markPaid(result.trade_no);
       }
       return NextResponse.json({ status: result.trade_status });

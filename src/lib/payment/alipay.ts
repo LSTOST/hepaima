@@ -133,6 +133,7 @@ export async function createAlipayPrecreate(params: {
   const sdk = await getAlipaySdk();
   const dbConfig = await getPaymentProviderConfig("ALIPAY");
   const notifyUrl = dbConfig?.notifyUrl || `${BASE_URL}/api/v1/payment/alipay/notify`;
+  console.log("[Alipay Precreate] notify_url:", notifyUrl, "| BASE_URL:", BASE_URL);
   const res = await (sdk as {
     exec: (method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>;
   }).exec("alipay.trade.precreate", {
@@ -212,17 +213,25 @@ export async function queryAlipayOrder(outTradeNo: string): Promise<{
   total_amount?: string;
 }> {
   const sdk = await getAlipaySdk();
-  const res = await (sdk as {
-    exec: (method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>;
-  }).exec("alipay.trade.query", {
-    bizContent: { out_trade_no: outTradeNo },
-  });
+  let res: Record<string, unknown>;
+  try {
+    res = await (sdk as {
+      exec: (method: string, params: Record<string, unknown>) => Promise<Record<string, unknown>>;
+    }).exec("alipay.trade.query", {
+      bizContent: { out_trade_no: outTradeNo },
+    });
+  } catch (e) {
+    console.error("[Alipay Query] SDK exec 异常:", e);
+    throw new Error(`支付宝查单请求异常: ${e instanceof Error ? e.message : String(e)}`);
+  }
+
+  console.log("[Alipay Query] 原始响应:", JSON.stringify(res));
 
   let payload: Record<string, unknown> = res;
   if (payload?.data) {
     try {
-      const dataObj = typeof payload.data === "string" ? JSON.parse(payload.data) : payload.data;
-      payload = (dataObj?.alipay_trade_query_response as Record<string, unknown>) ?? dataObj;
+      const dataObj = typeof payload.data === "string" ? JSON.parse(payload.data as string) : payload.data;
+      payload = ((dataObj as Record<string, unknown>)?.alipay_trade_query_response as Record<string, unknown>) ?? (dataObj as Record<string, unknown>);
     } catch {
       // fallback
     }
@@ -230,18 +239,23 @@ export async function queryAlipayOrder(outTradeNo: string): Promise<{
     payload = payload.alipay_trade_query_response as Record<string, unknown>;
   }
 
-  const code = payload?.code as string | undefined;
+  const code = (payload?.code as string) || (payload?.Code as string) || undefined;
   if (code !== "10000") {
-    const subMsg = (payload?.sub_msg as string) || (payload?.msg as string) || "";
-    console.error("[Alipay Query] 查单失败:", JSON.stringify(res));
-    throw new Error(subMsg ? `支付宝查单失败: ${subMsg}` : "支付宝查单失败");
+    const subMsg = (payload?.sub_msg as string) || (payload?.subMsg as string)
+      || (payload?.msg as string) || (payload?.Msg as string) || "";
+    console.error("[Alipay Query] 查单业务失败, code:", code, "payload:", JSON.stringify(payload));
+    throw new Error(subMsg ? `支付宝查单失败: ${subMsg}` : `支付宝查单失败(code=${code})`);
   }
 
-  return {
-    trade_status: (payload.trade_status as string) ?? "UNKNOWN",
-    trade_no: payload.trade_no as string | undefined,
-    total_amount: payload.total_amount as string | undefined,
-  };
+  const tradeStatus = (payload.trade_status as string)
+    || (payload.tradeStatus as string) || "UNKNOWN";
+  const tradeNo = (payload.trade_no as string)
+    || (payload.tradeNo as string) || undefined;
+  const totalAmount = (payload.total_amount as string)
+    || (payload.totalAmount as string) || undefined;
+
+  console.log("[Alipay Query] 解析结果: trade_status=", tradeStatus, "trade_no=", tradeNo);
+  return { trade_status: tradeStatus, trade_no: tradeNo, total_amount: totalAmount };
 }
 
 /** 异步通知验签（POST body 为 form 键值对） */
