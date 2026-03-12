@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { createWechatNativeOrder, createWechatJsapiOrder, buildJsapiPayParams } from "@/lib/payment/wechat";
+import { createWechatNativeOrder, createWechatJsapiOrder } from "@/lib/payment/wechat";
 import { createAlipayPrecreate, createAlipayWapPay, getTierAmountYuan } from "@/lib/payment/alipay";
 import { TIER_AMOUNT_CENTS } from "@/lib/payment/constants";
 
@@ -76,13 +76,12 @@ export async function POST(req: NextRequest) {
     if (paymentMethod === "WECHAT") {
       // 微信内浏览器：JSAPI 直接唤起支付（需要 openid）
       if (openid) {
-        const { prepay_id } = await createWechatJsapiOrder({
+        const jsapiParams = await createWechatJsapiOrder({
           outTradeNo,
           description,
           amountCents: amount,
           openid,
         });
-        const jsapiParams = await buildJsapiPayParams(prepay_id);
         return NextResponse.json({
           orderId: order.id,
           paymentMethod: "WECHAT",
