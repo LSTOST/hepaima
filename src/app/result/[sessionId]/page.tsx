@@ -1199,12 +1199,8 @@ function ReadyReport({
   };
 
   const handleOpenPayDialog = () => {
-    if (isWechatBrowser) {
-      void handlePay("WECHAT");
-    } else {
-      setPayDialogOpen(true);
-      void handlePay("WECHAT");
-    }
+    setPayDialogOpen(true);
+    void handlePay("WECHAT");
   };
 
   const handlePay = async (paymentMethod: "WECHAT" | "ALIPAY") => {
@@ -1250,9 +1246,9 @@ function ReadyReport({
         setPayResult({ type: "jsapi", orderId: data.orderId, paymentMethod: "WECHAT" });
         const ok = await invokeJsapiPay(data.jsapiParams);
         if (ok) {
+          setPayDialogOpen(false);
           await onRefetchResult?.();
         } else {
-          setPayDialogOpen(true);
           setPayError("支付未完成，如已支付请稍等片刻自动刷新");
         }
         return;
@@ -1822,10 +1818,14 @@ function ReadyReport({
                   </ul>
                   <Button
                     onClick={handleOpenPayDialog}
-                    className="w-full max-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white text-base font-semibold shadow-lg shadow-pink-500/10 transition-transform duration-200 hover:scale-[1.02] mx-auto"
+                    disabled={payLoading}
+                    className="w-full max-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white text-base font-semibold shadow-lg shadow-pink-500/10 transition-transform duration-200 hover:scale-[1.02] mx-auto disabled:opacity-70"
                   >
-                    <span className="line-through opacity-60 text-sm mr-1.5">¥29.90</span>
-                    ¥19.90 立即解锁
+                    {payLoading ? (
+                      <><Loader2 className="w-4 h-4 animate-spin mr-2" />正在发起支付...</>
+                    ) : (
+                      <><span className="line-through opacity-60 text-sm mr-1.5">¥29.90</span>¥19.90 立即解锁</>
+                    )}
                   </Button>
                   <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
                     限时优惠中 · 深度报告仅供自我觉察和关系参考
@@ -2385,17 +2385,30 @@ function ReadyReport({
             {payError && (
               <div className="px-6 py-10 flex flex-col items-center">
                 <p className="text-sm text-red-500 text-center mb-4">{payError}</p>
-                <Button
-                  type="button"
-                  variant="outline"
-                  className="rounded-xl"
-                  onClick={() => {
-                    setPayError(null);
-                    void handlePay(paymentMethod);
-                  }}
-                >
-                  重试
-                </Button>
+                <div className="flex gap-3 mb-3">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => {
+                      setPayError(null);
+                      void handlePay("WECHAT");
+                    }}
+                  >
+                    重试微信支付
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="rounded-xl"
+                    onClick={() => {
+                      setPayError(null);
+                      void handlePay("ALIPAY");
+                    }}
+                  >
+                    切换支付宝
+                  </Button>
+                </div>
               </div>
             )}
             {payResult?.form_html && (
