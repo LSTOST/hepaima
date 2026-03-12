@@ -1171,29 +1171,40 @@ function ReadyReport({
     package: string;
     signType: string;
     paySign: string;
-  }): Promise<boolean> => {
+  }): Promise<{ ok: boolean; errMsg?: string }> => {
     return new Promise((resolve) => {
       const invoke = () => {
         const bridge = (window as unknown as Record<string, unknown>).WeixinJSBridge as
           | { invoke: (api: string, params: Record<string, string>, cb: (res: { err_msg: string }) => void) => void }
           | undefined;
-        if (!bridge) { resolve(false); return; }
-        bridge.invoke("getBrandWCPayRequest", {
-          appId: params.appId,
-          timeStamp: params.timeStamp,
-          nonceStr: params.nonceStr,
-          package: params.package,
-          signType: params.signType,
-          paySign: params.paySign,
-        }, (res) => {
-          resolve(res.err_msg === "get_brand_wcpay_request:ok");
-        });
+        if (!bridge) {
+          resolve({ ok: false, errMsg: "WeixinJSBridge 不可用" });
+          return;
+        }
+        try {
+          bridge.invoke("getBrandWCPayRequest", {
+            appId: params.appId,
+            timeStamp: params.timeStamp,
+            nonceStr: params.nonceStr,
+            package: params.package,
+            signType: params.signType,
+            paySign: params.paySign,
+          }, (res) => {
+            if (res.err_msg === "get_brand_wcpay_request:ok") {
+              resolve({ ok: true });
+            } else {
+              resolve({ ok: false, errMsg: res.err_msg });
+            }
+          });
+        } catch (e) {
+          resolve({ ok: false, errMsg: `调用异常: ${e instanceof Error ? e.message : String(e)}` });
+        }
       };
       if ((window as unknown as Record<string, unknown>).WeixinJSBridge) {
         invoke();
       } else {
         document.addEventListener("WeixinJSBridgeReady", invoke, { once: true });
-        setTimeout(() => resolve(false), 8000);
+        setTimeout(() => resolve({ ok: false, errMsg: "WeixinJSBridge 加载超时" }), 8000);
       }
     });
   };
@@ -1244,12 +1255,17 @@ function ReadyReport({
       // JSAPI：微信内直接唤起支付
       if (data.type === "jsapi" && data.jsapiParams) {
         setPayResult({ type: "jsapi", orderId: data.orderId, paymentMethod: "WECHAT" });
-        const ok = await invokeJsapiPay(data.jsapiParams);
-        if (ok) {
+        const result = await invokeJsapiPay(data.jsapiParams);
+        if (result.ok) {
           setPayDialogOpen(false);
           await onRefetchResult?.();
         } else {
-          setPayError("支付未完成，如已支付请稍等片刻自动刷新");
+          const msg = result.errMsg || "未知错误";
+          if (msg.includes("cancel")) {
+            setPayError("已取消支付");
+          } else {
+            setPayError(`微信支付未完成 (${msg})，如已支付请稍等片刻自动刷新`);
+          }
         }
         return;
       }
