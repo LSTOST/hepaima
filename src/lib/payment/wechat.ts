@@ -274,24 +274,30 @@ export async function createWechatJsapiOrder(params: {
 
   console.log("[WeChat JSAPI] 下单响应:", JSON.stringify(result));
 
+  // 提取实际数据：库可能返回 { status, data: {...} } 或直接返回 {...}
+  const raw = (result.data && typeof result.data === "object")
+    ? (result.data as Record<string, unknown>)
+    : result;
+
+  const pkg = (raw.package as string) || undefined;
+  const paySign = (raw.paySign as string) || (raw.pay_sign as string) || undefined;
+
   // wechatpay-node-v3 直接返回签好名的前端参数
-  const pkg = (result.package as string) || (result.data as Record<string, unknown>)?.package as string | undefined;
-  if (pkg && (result.paySign || result.pay_sign)) {
+  if (pkg && paySign) {
     return {
-      appId: (result.appId as string) || (result.appid as string) || dbConfig?.appId || APP_ID || "",
-      timeStamp: String(result.timeStamp ?? result.timestamp ?? ""),
-      nonceStr: (result.nonceStr as string) || (result.nonce_str as string) || "",
+      appId: (raw.appId as string) || (raw.appid as string) || dbConfig?.appId || APP_ID || "",
+      timeStamp: String(raw.timeStamp ?? raw.timestamp ?? ""),
+      nonceStr: (raw.nonceStr as string) || (raw.nonce_str as string) || "",
       package: pkg,
-      signType: (result.signType as string) || "RSA",
-      paySign: (result.paySign as string) || (result.pay_sign as string) || "",
+      signType: (raw.signType as string) || "RSA",
+      paySign,
     };
   }
 
   // 兼容：如果返回的是 prepay_id，手动签名
-  const prepayId =
-    (result.data as { prepay_id?: string } | undefined)?.prepay_id ?? (result.prepay_id as string);
+  const prepayId = (raw.prepay_id as string) || undefined;
   if (!prepayId) {
-    console.error("[WeChat JSAPI] 无法解析 prepay_id 或支付参数:", JSON.stringify(result));
+    console.error("[WeChat JSAPI] 无法解析支付参数, raw:", JSON.stringify(raw), "result:", JSON.stringify(result));
     throw new Error("微信 JSAPI 下单失败：无法获取支付参数");
   }
   const appId = dbConfig?.appId || APP_ID || "";

@@ -1227,6 +1227,7 @@ function ReadyReport({
     }
     setPaymentMethod(paymentMethod);
     setPayError(null);
+    setPayResult(null);
     setPayLoadingMethod(paymentMethod);
     setPayLoading(true);
     const controller = new AbortController();
