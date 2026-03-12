@@ -1255,9 +1255,24 @@ function ReadyReport({
 
       // JSAPI：微信内直接唤起支付
       if (data.type === "jsapi" && data.jsapiParams) {
-        setPayResult({ type: "jsapi", orderId: data.orderId, paymentMethod: "WECHAT" });
+        const oid = data.orderId as string;
+        setPayResult({ type: "jsapi", orderId: oid, paymentMethod: "WECHAT" });
         const result = await invokeJsapiPay(data.jsapiParams);
         if (result.ok) {
+          // 支付成功，轮询查单直到确认 PAID
+          for (let i = 0; i < 10; i++) {
+            await new Promise((r) => setTimeout(r, 1500));
+            try {
+              const checkRes = await fetch(`/api/v1/orders/${oid}/check`, { method: "POST" });
+              const checkData = await checkRes.json();
+              if (checkData?.status === "PAID") {
+                setPayDialogOpen(false);
+                await onRefetchResult?.();
+                return;
+              }
+            } catch { /* continue polling */ }
+          }
+          // 10 次未确认，让用户手动刷新
           setPayDialogOpen(false);
           await onRefetchResult?.();
         } else {
