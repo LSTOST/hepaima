@@ -35,6 +35,7 @@ import {
   ShieldAlert,
   Shield,
   Clock,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -1091,6 +1092,8 @@ function ReadyReport({
     paymentMethod?: string;
   } | null>(null);
   const [payError, setPayError] = useState<string | null>(null);
+  const [jsapiChecking, setJsapiChecking] = useState(false);
+  const [paySuccess, setPaySuccess] = useState(false);
   const [wechatCopied, setWechatCopied] = useState(false);
 
   const isWechatBrowser = typeof navigator !== "undefined" && /MicroMessenger/i.test(navigator.userAgent);
@@ -1114,7 +1117,7 @@ function ReadyReport({
   }, [resultData.purchasedTier]);
 
   useEffect(() => {
-    if (!payDialogOpen || !sessionId) return;
+    if (!payDialogOpen || !sessionId || paySuccess) return;
     const checkPaid = async () => {
       try {
         const oid = payResult?.orderId;
@@ -1122,6 +1125,7 @@ function ReadyReport({
           const checkRes = await fetch(`/api/v1/orders/${oid}/check`, { method: "POST" });
           const checkData = await checkRes.json();
           if (checkData?.status === "PAID") {
+            setPaySuccess(true);
             await onRefetchResult?.();
             return;
           }
@@ -1129,6 +1133,7 @@ function ReadyReport({
         const res = await fetch(`/api/v1/result/${sessionId}`, { cache: "no-store" });
         const data = await res.json();
         if (!res.ok || data?.result?.purchasedTier !== "PREMIUM") return;
+        setPaySuccess(true);
         await onRefetchResult?.();
       } catch {
         // ignore
@@ -1137,7 +1142,7 @@ function ReadyReport({
     checkPaid();
     const t = setInterval(checkPaid, 3000);
     return () => clearInterval(t);
-  }, [payDialogOpen, sessionId, onRefetchResult, payResult?.orderId]);
+  }, [payDialogOpen, sessionId, onRefetchResult, payResult?.orderId, paySuccess]);
 
   const [premiumTipIndex, setPremiumTipIndex] = useState(0);
   const [basicReportTipIndex, setBasicReportTipIndex] = useState(0);
@@ -1210,6 +1215,9 @@ function ReadyReport({
   };
 
   const handleOpenPayDialog = () => {
+    setPayError(null);
+    setPaySuccess(false);
+    setJsapiChecking(false);
     setPayDialogOpen(true);
     void handlePay("WECHAT");
   };
@@ -1249,6 +1257,11 @@ function ReadyReport({
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data.message === "该报告已解锁") {
+          setPaySuccess(true);
+          await onRefetchResult?.();
+          return;
+        }
         setPayError(data.message || "创建订单失败");
         return;
       }
@@ -1259,6 +1272,7 @@ function ReadyReport({
         setPayResult({ type: "jsapi", orderId: oid, paymentMethod: "WECHAT" });
         const result = await invokeJsapiPay(data.jsapiParams);
         if (result.ok) {
+          setJsapiChecking(true);
           // 支付成功，轮询查单直到确认 PAID
           for (let i = 0; i < 10; i++) {
             await new Promise((r) => setTimeout(r, 1500));
@@ -1266,14 +1280,16 @@ function ReadyReport({
               const checkRes = await fetch(`/api/v1/orders/${oid}/check`, { method: "POST" });
               const checkData = await checkRes.json();
               if (checkData?.status === "PAID") {
-                setPayDialogOpen(false);
+                setJsapiChecking(false);
+                setPaySuccess(true);
                 await onRefetchResult?.();
                 return;
               }
             } catch { /* continue polling */ }
           }
-          // 10 次未确认，让用户手动刷新
-          setPayDialogOpen(false);
+          // 10 次未确认，仍显示成功（回调可能延迟）
+          setJsapiChecking(false);
+          setPaySuccess(true);
           await onRefetchResult?.();
         } else {
           const msg = result.errMsg || "未知错误";
@@ -2376,10 +2392,42 @@ function ReadyReport({
           </DialogContent>
         </Dialog>
 
-        <Dialog open={payDialogOpen} onOpenChange={setPayDialogOpen}>
+        <Dialog open={payDialogOpen} onOpenChange={(open) => {
+          if (!open && paySuccess) {
+            setPayDialogOpen(false);
+            setPaySuccess(false);
+            window.location.reload();
+            return;
+          }
+          setPayDialogOpen(open);
+        }}>
           <DialogContent className="sm:max-w-lg p-0 overflow-hidden">
             <DialogTitle className="sr-only">支付解锁</DialogTitle>
-            {payResult?.code_url && (
+            {paySuccess && (
+              <div className="px-6 py-10 flex flex-col items-center">
+                <CheckCircle2 className="w-12 h-12 text-green-500 mb-3" />
+                <p className="text-base font-medium text-gray-800 mb-1">支付成功</p>
+                <p className="text-sm text-gray-500 mb-5">深度报告已解锁</p>
+                <Button
+                  className="rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8"
+                  onClick={() => {
+                    setPayDialogOpen(false);
+                    setPaySuccess(false);
+                    window.location.reload();
+                  }}
+                >
+                  查看完整报告
+                </Button>
+              </div>
+            )}
+            {jsapiChecking && !paySuccess && (
+              <div className="px-6 py-10 flex flex-col items-center">
+                <Loader2 className="w-8 h-8 text-green-500 animate-spin mb-3" />
+                <p className="text-base font-medium text-gray-800 mb-1">支付成功</p>
+                <p className="text-sm text-gray-500">正在确认订单，请稍候...</p>
+              </div>
+            )}
+            {!paySuccess && !jsapiChecking && payResult?.code_url && (
               <PaymentPanel
                 paymentMethod={paymentMethod}
                 onSelectMethod={(m) => {
@@ -2397,6 +2445,7 @@ function ReadyReport({
                       const res = await fetch(`/api/v1/orders/${oid}/check`, { method: "POST" });
                       const data = await res.json();
                       if (data?.status === "PAID") {
+                        setPaySuccess(true);
                         await onRefetchResult?.();
                         return;
                       }
@@ -2408,13 +2457,13 @@ function ReadyReport({
                 }}
               />
             )}
-            {!payResult?.code_url && !payError && (
+            {!paySuccess && !jsapiChecking && !payResult?.code_url && !payError && (
               <div className="px-6 py-10 flex flex-col items-center">
                 <Loader2 className="w-6 h-6 text-pink-500 animate-spin mb-3" />
                 <p className="text-sm text-gray-600">正在为你生成支付二维码...</p>
               </div>
             )}
-            {payError && (
+            {!paySuccess && !jsapiChecking && payError && (
               <div className="px-6 py-10 flex flex-col items-center">
                 <p className="text-sm text-red-500 text-center mb-4">{payError}</p>
                 <div className="flex gap-3 mb-3">
