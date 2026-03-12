@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, Suspense, useCallback } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import { motion, useInView, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import {
@@ -444,9 +444,11 @@ function ReportCardSkeleton() {
 
 function ResultPageContent() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const sessionId = params.sessionId as string;
+  const hintReady = searchParams.get("ready") === "1";
 
-  const [pageState, setPageState] = useState<PageState>("loading");
+  const [pageState, setPageState] = useState<PageState>(hintReady ? "generating" : "loading");
   const [sessionData, setSessionData] = useState<SessionStatus | null>(null);
   const [resultData, setResultData] = useState<ResultData | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -572,8 +574,7 @@ function ResultPageContent() {
           } else {
             setPageState("waiting");
           }
-        } else if (bothCompleted) {
-          // 双方都已完成，但会话状态尚未切到 COMPLETED：直接进入生成态，避免在邀请页多停留
+        } else if (bothCompleted || hintReady) {
           setPageState("generating");
         } else {
           setPageState("waiting");
@@ -616,12 +617,11 @@ function ResultPageContent() {
       }
     };
 
-    poll(); // 进入等待页先立即查一次
-    const timer = setInterval(poll, 3000);
+    poll();
+    const timer = setInterval(poll, 1500);
     return () => clearInterval(timer);
   }, [pageState, sessionId, fetchResultWithRetry]);
 
-  // Poll result when generating（立即查一次 + 每 3s 轮询）
   useEffect(() => {
     if (pageState !== "generating" || !sessionId) return;
 
@@ -638,7 +638,7 @@ function ResultPageContent() {
     };
 
     poll();
-    const timer = setInterval(poll, 3000);
+    const timer = setInterval(poll, 1500);
     return () => clearInterval(timer);
   }, [pageState, sessionId, fetchResultWithRetry]);
 
@@ -2395,7 +2395,6 @@ function ReadyReport({
           if (!open && paySuccess) {
             setPayDialogOpen(false);
             setPaySuccess(false);
-            window.location.reload();
             return;
           }
           setPayDialogOpen(open);
@@ -2409,10 +2408,10 @@ function ReadyReport({
                 <p className="text-sm text-gray-500 mb-5">深度报告已解锁</p>
                 <Button
                   className="rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white px-8"
-                  onClick={() => {
+                  onClick={async () => {
+                    await onRefetchResult?.();
                     setPayDialogOpen(false);
                     setPaySuccess(false);
-                    window.location.reload();
                   }}
                 >
                   查看完整报告

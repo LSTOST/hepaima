@@ -68,10 +68,11 @@ function QuizContent() {
       setSubmitError(null);
       setSubmitting(true);
       submitUniversalAnswers(answers)
-        .then(() => {
+        .then((data) => {
           if (typeof window !== "undefined") {
             sessionStorage.removeItem(`quiz_universal_${sessionId}`);
-            const targetPath = `/result/${sessionId}`;
+            const ready = data?.bothCompleted ? "?ready=1" : "";
+            const targetPath = `/result/${sessionId}${ready}`;
             window.location.assign(`${window.location.origin}${targetPath}`);
           }
         })
@@ -92,10 +93,11 @@ function QuizContent() {
     setSubmitError(null);
     setSubmitting(true);
     submitUniversalAnswers(ans)
-      .then(() => {
+      .then((data) => {
         if (typeof window !== "undefined") {
           sessionStorage.removeItem(`quiz_universal_${sessionId}`);
-          window.location.assign(`${window.location.origin}/result/${sessionId}`);
+          const ready = data?.bothCompleted ? "?ready=1" : "";
+          window.location.assign(`${window.location.origin}/result/${sessionId}${ready}`);
         }
       })
       .catch((err) => {
