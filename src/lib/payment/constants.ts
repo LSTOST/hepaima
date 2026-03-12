@@ -3,8 +3,8 @@
  * 本地测试可设 PAYMENT_TEST_AMOUNT_CENTS=100 改为 1 元
  */
 const REAL_AMOUNTS: Record<string, number> = {
-  STANDARD: 1290, // 12.9 元
-  PREMIUM: 1990,  // 19.9 元
+  STANDARD: 990,  // 9.9 元
+  PREMIUM: 990,   // 9.9 元
 };
 
 const testCents = process.env.PAYMENT_TEST_AMOUNT_CENTS

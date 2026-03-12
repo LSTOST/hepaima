@@ -1871,7 +1871,7 @@ function ReadyReport({
                     {payLoading ? (
                       <><Loader2 className="w-4 h-4 animate-spin mr-2" />正在发起支付...</>
                     ) : (
-                      <><span className="line-through opacity-60 text-sm mr-1.5">¥29.90</span>¥19.90 立即解锁</>
+                      <><span className="line-through opacity-60 text-sm mr-1.5">¥29.90</span>¥9.90 立即解锁</>
                     )}
                   </Button>
                   <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
@@ -2433,7 +2433,7 @@ function ReadyReport({
                 }}
                 payResult={payResult}
                 loadingMethod={payLoadingMethod}
-                price={19.9}
+                price={9.9}
                 originalPrice={29.9}
                 orderId={payResult.orderId ?? resultData.id ?? ""}
                 onRefresh={async () => {
