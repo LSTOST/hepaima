@@ -93,7 +93,7 @@ export function Hero() {
           <Button
             onClick={scrollToCards}
             size="lg"
-            className="bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-pink-500/25 transition-all duration-300 gap-1.5"
+            className="gradient-btn-solid-text bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white rounded-full px-8 py-6 text-lg shadow-lg shadow-pink-500/25 transition-all duration-300 gap-1.5"
           >
             开始探索
             <Sparkles className="w-5 h-5" />

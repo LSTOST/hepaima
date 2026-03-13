@@ -194,3 +194,13 @@ body {
 html {
   scroll-behavior: smooth;
 }
+
+/* 渐变按钮文字：修复 iOS Safari / 微信内置浏览器 白色文字渲染为空心/半透明的问题 */
+.gradient-btn-solid-text {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
+.gradient-btn-solid-text svg {
+  color: #ffffff !important;
+  -webkit-text-fill-color: #ffffff !important;
+}
