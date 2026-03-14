@@ -3,14 +3,29 @@ import "./globals.css";
 import { prisma } from "@/lib/db";
 import { AnalyticsProvider } from "@/components/AnalyticsProvider";
 
+const DEFAULT_METADATA = {
+  title: "合拍吗 - 超级准的情侣契合度测试",
+  description: "用科学的方式，读懂你们的爱情密码",
+} as const;
+
+/** 带超时的数据库查询，避免 DB 挂起导致整站 502 */
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T | null> {
+  return Promise.race([
+    promise,
+    new Promise<null>((_, reject) =>
+      setTimeout(() => reject(new Error("Metadata DB timeout")), ms)
+    ),
+  ]).catch(() => null);
+}
+
 export async function generateMetadata(): Promise<Metadata> {
   try {
-    const settings = await prisma.siteSettings.findFirst();
+    const settings = await withTimeout(
+      prisma.siteSettings.findFirst(),
+      3000
+    );
     if (!settings) {
-      return {
-        title: "合拍吗 - 超级准的情侣契合度测试",
-        description: "用科学的方式，读懂你们的爱情密码",
-      };
+      return DEFAULT_METADATA;
     }
     return {
       title:
@@ -31,10 +46,7 @@ export async function generateMetadata(): Promise<Metadata> {
       },
     };
   } catch {
-    return {
-      title: "合拍吗 - 超级准的情侣契合度测试",
-      description: "用科学的方式，读懂你们的爱情密码",
-    };
+    return DEFAULT_METADATA;
   }
 }
 
