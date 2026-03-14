@@ -1114,6 +1114,7 @@ function ReadyReport({
   const [promoVerifyLoading, setPromoVerifyLoading] = useState(false);
   const [promoError, setPromoError] = useState<string | null>(null);
   const [promoUnlockError, setPromoUnlockError] = useState<string | null>(null);
+  const [promoUnlockStatusMessage, setPromoUnlockStatusMessage] = useState<string | null>(null);
   const [promoApplied, setPromoApplied] = useState<{
     code: string;
     finalAmountCents: number;
@@ -1313,6 +1314,7 @@ function ReadyReport({
   const handleUnlockClick = async () => {
     if (promoApplied?.finalAmountCents === 0) {
       setPromoUnlockError(null);
+      setPromoUnlockStatusMessage(null);
       setPayLoading(true);
       try {
         const res = await fetch("/api/v1/promo/unlock", {
@@ -1322,6 +1324,7 @@ function ReadyReport({
         });
         const data = await res.json().catch(() => ({}));
         if (res.ok && data.success) {
+          setPromoUnlockStatusMessage("解锁成功，正在加载报告…");
           await onRefetchResult?.();
           return;
         }
@@ -2029,6 +2032,7 @@ function ReadyReport({
                         setPromoExpanded((e) => !e);
                         setPromoError(null);
                         setPromoUnlockError(null);
+                        setPromoUnlockStatusMessage(null);
                         if (!promoExpanded) setPromoApplied(null);
                       }}
                       className="text-xs text-gray-400 hover:text-gray-500 transition-colors"
@@ -2083,6 +2087,12 @@ function ReadyReport({
                       <><span className="line-through opacity-60 text-sm mr-1.5">¥29.90</span>¥9.90 立即解锁</>
                     )}
                   </Button>
+                  {promoUnlockStatusMessage && (
+                    <p className="mt-3 flex items-center justify-center gap-2 text-sm text-emerald-600 max-w-[280px] mx-auto">
+                      <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
+                      {promoUnlockStatusMessage}
+                    </p>
+                  )}
                   {promoUnlockError && (
                     <p className="mt-2 text-xs text-red-500 max-w-[280px] mx-auto">{promoUnlockError}</p>
                   )}
