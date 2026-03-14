@@ -34,9 +34,11 @@ COPYFILE_DISABLE=1 tar -czf "$TARBALL" -C . .next
 ssh "$DEPLOY_SSH" "rm -rf $REMOTE_DIR/.next"
 scp -q "$TARBALL" "$DEPLOY_SSH:$REMOTE_DIR/"
 ssh "$DEPLOY_SSH" "cd $REMOTE_DIR && tar -xzf $(basename $TARBALL) && rm -f $(basename $TARBALL)"
-# 上传其余目录和文件
+# 上传其余目录和文件（含 src、scripts，供 seed 用代码里的题目更新数据库）
 scp -r -q public "$DEPLOY_SSH:$REMOTE_DIR/"
 scp -r -q prisma "$DEPLOY_SSH:$REMOTE_DIR/"
+scp -r -q src "$DEPLOY_SSH:$REMOTE_DIR/"
+scp -r -q scripts "$DEPLOY_SSH:$REMOTE_DIR/"
 scp -q package.json pnpm-lock.yaml next.config.ts "$DEPLOY_SSH:$REMOTE_DIR/"
 
 echo ">>> 2.1 校验关键文件是否上传成功..."
@@ -45,7 +47,7 @@ if ! ssh "$DEPLOY_SSH" "test -f $REMOTE_DIR/.next/routes-manifest.json"; then
   exit 1
 fi
 
-echo ">>> 3. 服务器安装依赖并重启（不执行 build）..."
-ssh "$DEPLOY_SSH" "cd $REMOTE_DIR && pnpm install --frozen-lockfile && pm2 restart hepaima"
+echo ">>> 3. 服务器安装依赖、用代码里的题目更新数据库并重启..."
+ssh "$DEPLOY_SSH" "cd $REMOTE_DIR && pnpm install --frozen-lockfile && pnpm seed && pm2 restart hepaima"
 
 echo "全部完成，站点应已更新。"
