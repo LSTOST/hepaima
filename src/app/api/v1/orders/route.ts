@@ -1,6 +1,7 @@
 /**
  * POST /api/v1/orders
  * 创建订单并返回支付参数（微信 code_url / h5_url 或支付宝 form/url）
+ * 支持可选 promoCode：校验后按折后价创建订单，支付成功后记入 PromoCodeUsage
  */
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
@@ -10,6 +11,7 @@ import { TIER_AMOUNT_CENTS } from "@/lib/payment/constants";
 
 const VALID_TIERS = ["STANDARD", "PREMIUM"] as const;
 const VALID_METHODS = ["WECHAT", "ALIPAY"] as const;
+const PREMIUM_BASE_CENTS = TIER_AMOUNT_CENTS.PREMIUM ?? 990;
 
 function isMobile(userAgent: string): boolean {
   return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
@@ -24,6 +26,7 @@ export async function POST(req: NextRequest) {
     const paymentMethod = body?.paymentMethod as string | undefined;
     const deviceId = body?.deviceId as string | undefined;
     const openid = body?.openid as string | undefined;
+    const promoCode = (body?.promoCode as string)?.trim?.();
 
     if (!resultId || !tier || !paymentMethod) {
       return NextResponse.json(
@@ -52,9 +55,41 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ message: "该报告已解锁" }, { status: 400 });
     }
 
-    const amount = TIER_AMOUNT_CENTS[tier] ?? 0;
+    let amount = TIER_AMOUNT_CENTS[tier] ?? 0;
+    let promoCodeId: string | undefined;
+
+    if (promoCode && tier === "PREMIUM") {
+      const promo = await prisma.promoCode.findUnique({ where: { code: promoCode } });
+      if (!promo) {
+        return NextResponse.json({ message: "优惠码不存在" }, { status: 400 });
+      }
+      if (promo.disabled) {
+        return NextResponse.json({ message: "优惠码已失效" }, { status: 400 });
+      }
+      const now = new Date();
+      if (promo.expiresAt && promo.expiresAt < now) {
+        return NextResponse.json({ message: "优惠码已过期" }, { status: 400 });
+      }
+      if (promo.maxUses != null && promo.usedCount >= promo.maxUses) {
+        return NextResponse.json({ message: "优惠码已达使用上限" }, { status: 400 });
+      }
+      if (promo.type === "FREE_UNLOCK") {
+        return NextResponse.json(
+          { message: "该优惠码为免单，请使用「¥0 立即解锁」按钮" },
+          { status: 400 },
+        );
+      }
+      if (promo.type === "FIXED_OFF") {
+        amount = Math.max(0, PREMIUM_BASE_CENTS - promo.value);
+      } else if (promo.type === "PERCENT_OFF") {
+        const pct = Math.min(99, Math.max(1, promo.value));
+        amount = Math.round((PREMIUM_BASE_CENTS * pct) / 100);
+      }
+      promoCodeId = promo.id;
+    }
+
     if (amount <= 0) {
-      return NextResponse.json({ message: "档位金额未配置" }, { status: 400 });
+      return NextResponse.json({ message: "档位金额未配置或优惠后金额无效" }, { status: 400 });
     }
 
     const order = await prisma.order.create({
@@ -65,12 +100,13 @@ export async function POST(req: NextRequest) {
         amount,
         status: "PENDING",
         paymentMethod: paymentMethod as "WECHAT" | "ALIPAY",
+        promoCodeId: promoCodeId ?? undefined,
       },
     });
 
     const outTradeNo = order.id;
     const description = `合拍吗-${tier === "PREMIUM" ? "深度报告" : "标准报告"}`;
-    const amountYuan = getTierAmountYuan(tier);
+    const amountYuan = (amount / 100).toFixed(2);
     const userAgent = req.headers.get("user-agent") ?? "";
 
     if (paymentMethod === "WECHAT") {

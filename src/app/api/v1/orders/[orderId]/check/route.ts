@@ -41,6 +41,21 @@ export async function POST(
         data: { purchasedTier: order.tier },
       }),
     ]);
+    if (order.promoCodeId) {
+      await prisma.$transaction([
+        prisma.promoCodeUsage.create({
+          data: {
+            promoCodeId: order.promoCodeId,
+            resultId: order.resultId,
+            orderId: order.id,
+          },
+        }),
+        prisma.promoCode.update({
+          where: { id: order.promoCodeId },
+          data: { usedCount: { increment: 1 } },
+        }),
+      ]);
+    }
     return NextResponse.json({ status: "PAID", purchasedTier: order.tier });
   };
 

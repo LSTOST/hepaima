@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Link from "next/link";
-import { Settings2, LayoutDashboard, BookOpen, Palette, Ticket, Eye, EyeOff, LogOut, BarChart3, Users, FileCheck, CreditCard, Gift, TrendingUp, Activity, ArrowLeft, ChevronRight } from "lucide-react";
+import { Settings2, LayoutDashboard, BookOpen, Palette, Ticket, Percent, Eye, EyeOff, LogOut, BarChart3, Users, FileCheck, CreditCard, Gift, TrendingUp, Activity, ArrowLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ADMIN_PASSWORD_HEADER_KEY } from "@/lib/admin-auth";
 import { useAdminAuth } from "@/hooks/useAdminAuth";
@@ -437,6 +437,16 @@ export default function AdminDashboardPage() {
               >
                 <Ticket className="w-3.5 h-3.5" />
                 兑换码
+              </Button>
+            </Link>
+            <Link href="/admin/promo">
+              <Button
+                variant="outline"
+                size="sm"
+                className="rounded-lg text-xs text-slate-500 border-slate-200 flex items-center gap-1"
+              >
+                <Percent className="w-3.5 h-3.5" />
+                优惠码
               </Button>
             </Link>
             <Link href="/" target="_blank">

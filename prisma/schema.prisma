@@ -82,6 +82,7 @@ model Order {
   tier          ReportTier
   amount        Int
   status        OrderStatus    @default(PENDING)
+  promoCodeId   String?        // 若使用优惠码，支付成功后记入 PromoCodeUsage
 
   paymentMethod PaymentMethod?
   paymentId     String?
@@ -113,6 +114,33 @@ model RedeemCodeUsage {
   usedAt       DateTime   @default(now())
 
   @@unique([redeemCodeId, stage]) // 同一个码同一个阶段只能用一次
+}
+
+/// 优惠码：用于「解锁深度报告」时的折扣/免单，与兑换码（测评资格）分离
+model PromoCode {
+  id        String    @id @default(cuid())
+  code      String    @unique // 如 HP9-XXXX-XXXX
+  type      PromoType // FIXED_OFF | PERCENT_OFF | FREE_UNLOCK
+  value     Int       // 固定减免(分) / 折扣1-99 / 0表免单
+  maxUses   Int?      // 总使用次数上限，null 不限制
+  usedCount Int       @default(0)
+  expiresAt DateTime?
+  disabled  Boolean   @default(false)
+  batchId   String?
+  createdAt DateTime  @default(now())
+
+  usages PromoCodeUsage[]
+}
+
+model PromoCodeUsage {
+  id          String    @id @default(cuid())
+  promoCodeId String
+  promoCode   PromoCode @relation(fields: [promoCodeId], references: [id], onDelete: Cascade)
+  resultId    String
+  orderId     String?
+  usedAt      DateTime  @default(now())
+
+  @@index([promoCodeId])
 }
 
 /// 全局站点与品牌配置，通常只有一行（单租户场景）
@@ -401,4 +429,10 @@ enum OrderStatus {
 enum PaymentMethod {
   WECHAT
   ALIPAY
+}
+
+enum PromoType {
+  FIXED_OFF   // 固定减免，value=金额(分)
+  PERCENT_OFF // 折扣，value=1-99
+  FREE_UNLOCK // 免单，value=0
 }

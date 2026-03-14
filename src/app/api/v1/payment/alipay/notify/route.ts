@@ -94,6 +94,22 @@ export async function POST(req: NextRequest) {
       }),
     ]);
 
+    if (order.promoCodeId) {
+      await prisma.$transaction([
+        prisma.promoCodeUsage.create({
+          data: {
+            promoCodeId: order.promoCodeId,
+            resultId: order.resultId,
+            orderId: order.id,
+          },
+        }),
+        prisma.promoCode.update({
+          where: { id: order.promoCodeId },
+          data: { usedCount: { increment: 1 } },
+        }),
+      ]);
+    }
+
     console.log("[alipay notify] 成功，订单已更新:", outTradeNo);
     return new NextResponse("success", {
       status: 200,

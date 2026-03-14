@@ -1109,6 +1109,17 @@ function ReadyReport({
   const [loadingReport, setLoadingReport] = useState(false);
   const [wechatCopied, setWechatCopied] = useState(false);
 
+  const [promoExpanded, setPromoExpanded] = useState(false);
+  const [promoInput, setPromoInput] = useState("");
+  const [promoVerifyLoading, setPromoVerifyLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoUnlockError, setPromoUnlockError] = useState<string | null>(null);
+  const [promoApplied, setPromoApplied] = useState<{
+    code: string;
+    finalAmountCents: number;
+    message: string;
+  } | null>(null);
+
   const isWechatBrowser = typeof navigator !== "undefined" && /MicroMessenger/i.test(navigator.userAgent);
 
   // 微信浏览器内：页面加载时静默 OAuth 获取 openid
@@ -1268,6 +1279,63 @@ function ReadyReport({
     void handlePay("WECHAT");
   };
 
+  const handlePromoVerify = async () => {
+    const code = promoInput.trim();
+    if (!code || !resultData.id) return;
+    setPromoError(null);
+    setPromoUnlockError(null);
+    setPromoVerifyLoading(true);
+    try {
+      const res = await fetch("/api/v1/promo/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, resultId: resultData.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setPromoError(data.message || "校验失败");
+        setPromoApplied(null);
+        return;
+      }
+      setPromoApplied({
+        code,
+        finalAmountCents: data.finalAmountCents ?? 990,
+        message: data.message ?? "",
+      });
+    } catch {
+      setPromoError("网络异常，请重试");
+      setPromoApplied(null);
+    } finally {
+      setPromoVerifyLoading(false);
+    }
+  };
+
+  const handleUnlockClick = async () => {
+    if (promoApplied?.finalAmountCents === 0) {
+      setPromoUnlockError(null);
+      setPayLoading(true);
+      try {
+        const res = await fetch("/api/v1/promo/unlock", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code: promoApplied.code, resultId: resultData.id }),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.success) {
+          await onRefetchResult?.();
+          return;
+        }
+        setPromoUnlockError(data.message || "解锁失败");
+      } catch {
+        setPromoUnlockError("解锁失败，请重试");
+      } finally {
+        setPayLoading(false);
+      }
+      return;
+    }
+    handleOpenPayDialog();
+  };
+
   const handlePay = async (paymentMethod: "WECHAT" | "ALIPAY") => {
     const resultId = resultData.id;
     if (!resultId) {
@@ -1298,6 +1366,7 @@ function ReadyReport({
           paymentMethod,
           deviceId,
           ...(openid ? { openid } : {}),
+          ...(promoApplied?.code && promoApplied.finalAmountCents > 0 ? { promoCode: promoApplied.code } : {}),
         }),
         signal: controller.signal,
       });
@@ -1825,7 +1894,17 @@ function ReadyReport({
               <ScrollCard delay={0.05}>
                 <div className="rounded-xl bg-gradient-to-br from-pink-50/60 to-violet-50/40 p-4 sm:p-5">
                   {reportPollTimeout ? (
-                    <p className="text-sm text-gray-500 py-2">报告生成较慢，请稍后刷新页面查看</p>
+                    <p className="text-sm text-gray-500 py-2">
+                      报告生成较慢，请稍后
+                      <button
+                        type="button"
+                        onClick={() => window.location.reload()}
+                        className="text-[#EC4899] font-medium underline underline-offset-2 hover:text-[#DB2777] focus:outline-none focus:ring-2 focus:ring-pink-300 rounded"
+                      >
+                        刷新页面
+                      </button>
+                      查看
+                    </p>
                   ) : (
                     <>
                       <div className="flex items-center justify-between mb-3">
@@ -1942,17 +2021,71 @@ function ReadyReport({
                       </li>
                     ))}
                   </ul>
+                  {/* 优惠码入口 */}
+                  <div className="mb-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setPromoExpanded((e) => !e);
+                        setPromoError(null);
+                        setPromoUnlockError(null);
+                        if (!promoExpanded) setPromoApplied(null);
+                      }}
+                      className="text-xs text-gray-400 hover:text-gray-500 transition-colors"
+                    >
+                      {promoExpanded ? "收起优惠码" : "有优惠码？"}
+                    </button>
+                    {promoExpanded && (
+                      <div className="mt-2 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center max-w-[280px] mx-auto">
+                        <input
+                          type="text"
+                          value={promoInput}
+                          onChange={(e) => setPromoInput(e.target.value)}
+                          onKeyDown={(e) => e.key === "Enter" && handlePromoVerify()}
+                          placeholder="输入优惠码"
+                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-gray-200 text-sm focus:border-[#EC4899] focus:ring-1 focus:ring-[#EC4899]/30 outline-none"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePromoVerify}
+                          disabled={promoVerifyLoading || !promoInput.trim()}
+                          className="rounded-lg border-[#EC4899] text-[#EC4899] hover:bg-pink-50 shrink-0"
+                        >
+                          {promoVerifyLoading ? (
+                            <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />验证中</>
+                          ) : (
+                            "验证"
+                          )}
+                        </Button>
+                      </div>
+                    )}
+                    {promoError && (
+                      <p className="mt-1.5 text-xs text-red-500 max-w-[280px] mx-auto">{promoError}</p>
+                    )}
+                    {promoApplied && !promoError && (
+                      <p className="mt-1.5 text-xs text-emerald-600 max-w-[280px] mx-auto">{promoApplied.message}</p>
+                    )}
+                  </div>
                   <Button
-                    onClick={handleOpenPayDialog}
+                    onClick={handleUnlockClick}
                     disabled={payLoading}
                     className="w-full max-w-[280px] h-12 rounded-xl bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white text-base font-semibold shadow-lg shadow-pink-500/10 transition-transform duration-200 hover:scale-[1.02] mx-auto disabled:opacity-70"
                   >
                     {payLoading ? (
-                      <><Loader2 className="w-4 h-4 animate-spin mr-2" />正在发起支付...</>
+                      <><Loader2 className="w-4 h-4 animate-spin mr-2" />{promoApplied?.finalAmountCents === 0 ? "正在解锁..." : "正在发起支付..."}</>
+                    ) : promoApplied?.finalAmountCents === 0 ? (
+                      <>¥0 立即解锁</>
+                    ) : promoApplied && promoApplied.finalAmountCents < 990 ? (
+                      <><span className="line-through opacity-60 text-sm mr-1.5">¥9.90</span>¥{(promoApplied.finalAmountCents / 100).toFixed(2)} 立即解锁</>
                     ) : (
                       <><span className="line-through opacity-60 text-sm mr-1.5">¥29.90</span>¥9.90 立即解锁</>
                     )}
                   </Button>
+                  {promoUnlockError && (
+                    <p className="mt-2 text-xs text-red-500 max-w-[280px] mx-auto">{promoUnlockError}</p>
+                  )}
                   <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
                     限时优惠中 · 深度报告仅供自我觉察和关系参考
                   </p>
@@ -2522,8 +2655,8 @@ function ReadyReport({
                 }}
                 payResult={payResult}
                 loadingMethod={payLoadingMethod}
-                price={9.9}
-                originalPrice={29.9}
+                price={promoApplied && promoApplied.finalAmountCents > 0 ? promoApplied.finalAmountCents / 100 : 9.9}
+                originalPrice={promoApplied && promoApplied.finalAmountCents > 0 && promoApplied.finalAmountCents < 990 ? 9.9 : 29.9}
                 orderId={payResult.orderId ?? resultData.id ?? ""}
                 onRefresh={async () => {
                   const oid = payResult?.orderId;

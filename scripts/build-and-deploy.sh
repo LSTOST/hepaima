@@ -47,7 +47,7 @@ if ! ssh "$DEPLOY_SSH" "test -f $REMOTE_DIR/.next/routes-manifest.json"; then
   exit 1
 fi
 
-echo ">>> 3. 服务器安装依赖、用代码里的题目更新数据库并重启..."
-ssh "$DEPLOY_SSH" "cd $REMOTE_DIR && pnpm install --frozen-lockfile && pnpm seed && pm2 restart hepaima"
+echo ">>> 3. 服务器安装依赖、执行数据库迁移、用代码里的题目更新数据库并重启..."
+ssh "$DEPLOY_SSH" "cd $REMOTE_DIR && pnpm install --frozen-lockfile && pnpm prisma migrate deploy && pnpm seed && pm2 restart hepaima"
 
 echo "全部完成，站点应已更新。"
