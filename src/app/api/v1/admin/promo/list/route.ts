@@ -48,6 +48,7 @@ export async function GET(req: NextRequest) {
     const search = (searchParams.get("search") ?? "").trim();
     const status = searchParams.get("status") ?? "all";
     const batch = searchParams.get("batch") ?? "all";
+    const type = searchParams.get("type") ?? "all";
 
     const where: Prisma.PromoCodeWhereInput = {
       ...statusWhere(status),
@@ -61,6 +62,10 @@ export async function GET(req: NextRequest) {
     }
     if (batch !== "all" && batch) {
       where.batchId = batch;
+    }
+    if (type !== "all" && type) {
+      // 这里直接按字符串匹配枚举值，由 Prisma 在运行时校验
+      where.type = type as any;
     }
 
     const [rows, total] = await Promise.all([

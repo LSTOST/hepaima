@@ -29,7 +29,14 @@ export async function GET(req: NextRequest) {
       ordersPaid,
       redeemTotal,
       redeemUsed,
+      redeemUsedToday,
+      promoTotal,
+      promoUsed,
       recentOrders,
+      redeemPreviewRaw,
+      recentSessions,
+      recentCompletedSessionsRaw,
+      recentCompletedOrders,
     ] = await Promise.all([
       prisma.session.count(),
       prisma.session.count({ where: { status: "COMPLETED" } }),
@@ -40,6 +47,18 @@ export async function GET(req: NextRequest) {
       }),
       prisma.redeemCode.count(),
       prisma.redeemCode.count({ where: { firstUsedAt: { not: null } } }),
+      (async () => {
+        const todayStart = new Date(
+          now.getFullYear(),
+          now.getMonth(),
+          now.getDate(),
+        );
+        return prisma.redeemCodeUsage.count({
+          where: { usedAt: { gte: todayStart } },
+        });
+      })(),
+      prisma.promoCode.count(),
+      prisma.promoCode.count({ where: { usedCount: { gt: 0 } } }),
       prisma.order.findMany({
         orderBy: { createdAt: "desc" },
         take: 50,
@@ -55,9 +74,135 @@ export async function GET(req: NextRequest) {
           createdAt: true,
         },
       }),
+      prisma.redeemCode.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 6,
+        select: {
+          id: true,
+          code: true,
+          batchId: true,
+          firstUsedAt: true,
+          createdAt: true,
+          expiresAt: true,
+          disabled: true,
+        },
+      }),
+      prisma.session.findMany({
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          stage: true,
+          createdAt: true,
+          initiatorName: true,
+          partnerName: true,
+          status: true,
+          initiatorCompletedAt: true,
+          partnerCompletedAt: true,
+        },
+      }),
+      prisma.session.findMany({
+        where: { status: "COMPLETED" },
+        orderBy: { createdAt: "desc" },
+        take: 50,
+        select: {
+          id: true,
+          createdAt: true,
+          initiatorCompletedAt: true,
+          partnerCompletedAt: true,
+          stage: true,
+          initiatorName: true,
+          partnerName: true,
+          result: {
+            select: {
+              id: true,
+            },
+          },
+        },
+      }),
+      prisma.order.findMany({
+        where: {
+          status: "PAID",
+        },
+        orderBy: { createdAt: "desc" },
+        take: 200,
+        select: {
+          id: true,
+          resultId: true,
+          amount: true,
+          paymentMethod: true,
+          paidAt: true,
+        },
+      }),
     ]);
 
     const revenueCents = ordersPaid.reduce((sum, o) => sum + o.amount, 0);
+
+    // 近期测评场次列表
+    const recentSessionsList = recentSessions.map((s) => ({
+      id: s.id,
+      stage: s.stage,
+      createdAt: s.createdAt,
+      initiatorName: s.initiatorName,
+      partnerName: s.partnerName,
+      status: s.status,
+      initiatorCompletedAt: s.initiatorCompletedAt,
+      partnerCompletedAt: s.partnerCompletedAt,
+    }));
+
+    // 近期完成测评 + 付费信息
+    const paidOrderByResult = new Map<
+      string,
+      { amount: number; paymentMethod: string | null; paidAt: Date | null }
+    >();
+    for (const o of recentCompletedOrders) {
+      if (!o.resultId) continue;
+      if (!paidOrderByResult.has(o.resultId)) {
+        paidOrderByResult.set(o.resultId, {
+          amount: o.amount,
+          paymentMethod: o.paymentMethod ?? null,
+          paidAt: o.paidAt ?? null,
+        });
+      }
+    }
+
+    const recentCompletedSessions = recentCompletedSessionsRaw.map((s) => {
+      const resultId = s.result?.id ?? null;
+      const paid = resultId ? paidOrderByResult.get(resultId) : undefined;
+      return {
+        id: s.id,
+        stage: s.stage,
+        createdAt: s.createdAt,
+        initiatorName: s.initiatorName,
+        partnerName: s.partnerName,
+        initiatorCompletedAt: s.initiatorCompletedAt,
+        partnerCompletedAt: s.partnerCompletedAt,
+        hasPaid: !!paid,
+        paidAmount: paid?.amount ?? 0,
+        paymentMethod: paid?.paymentMethod ?? null,
+      };
+    });
+
+    const redeemPreview = redeemPreviewRaw.map((r) => {
+      const nowTs = new Date();
+      let status: "UNUSED" | "USED" | "EXPIRED" | "DISABLED" = "UNUSED";
+      if (r.disabled) {
+        status = "DISABLED";
+      } else if (r.expiresAt && r.expiresAt < nowTs) {
+        status = "EXPIRED";
+      } else if (r.firstUsedAt) {
+        status = "USED";
+      }
+      return {
+        id: r.id,
+        code: r.code,
+        batchId: r.batchId,
+        status,
+        createdAt: r.createdAt,
+        firstUsedAt: r.firstUsedAt,
+        expiresAt: r.expiresAt,
+      };
+    });
 
     const dayMap = new Map<string, {
       sessions: number;
@@ -185,8 +330,14 @@ export async function GET(req: NextRequest) {
       revenueCents,
       redeemTotal,
       redeemUsed,
+      redeemUsedToday,
+      promoTotal,
+      promoUsed,
       daily,
       recentOrders,
+      redeemPreview,
+      recentSessions: recentSessionsList,
+      recentCompletedSessions,
       ...(traffic ? { traffic } : {}),
     });
   } catch (e) {

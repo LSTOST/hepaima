@@ -125,6 +125,7 @@ export default function AdminPromoPage() {
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterBatch, setFilterBatch] = useState("all");
+  const [filterType, setFilterType] = useState<"all" | "FREE_UNLOCK" | "FIXED_OFF" | "PERCENT_OFF">("all");
   const [toast, setToast] = useState<{ msg: string; type: "success" | "error" } | null>(null);
   const [selectedCode, setSelectedCode] = useState<PromoCodeRow | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
@@ -174,6 +175,7 @@ export default function AdminPromoPage() {
         ...(search && { search }),
         ...(filterStatus !== "all" && { status: filterStatus }),
         ...(filterBatch !== "all" && filterBatch && { batch: filterBatch }),
+        ...(filterType !== "all" && { type: filterType }),
       });
       const res = await fetch(`/api/v1/admin/promo/list?${params}&t=${Date.now()}`, {
         headers: authHeaders(password),
@@ -191,7 +193,7 @@ export default function AdminPromoPage() {
     } finally {
       setListLoading(false);
     }
-  }, [password, currentPage, search, filterStatus, filterBatch, showToast]);
+  }, [password, currentPage, search, filterStatus, filterBatch, filterType, showToast]);
 
   useEffect(() => {
     if (authenticated && password) {
@@ -199,7 +201,7 @@ export default function AdminPromoPage() {
     }
   }, [authenticated, password, fetchStats]);
 
-  useEffect(() => setCurrentPage(1), [search, filterStatus, filterBatch]);
+  useEffect(() => setCurrentPage(1), [search, filterStatus, filterBatch, filterType]);
 
   useEffect(() => {
     if (authenticated && password && view === "list") {
@@ -348,6 +350,7 @@ export default function AdminPromoPage() {
       const params = new URLSearchParams();
       if (filterStatus !== "all") params.set("status", filterStatus);
       if (filterBatch !== "all" && filterBatch) params.set("batch", filterBatch);
+      if (filterType !== "all") params.set("type", filterType);
       const res = await fetch(`/api/v1/admin/promo/export?${params}`, {
         headers: authHeaders(password),
       });
@@ -364,7 +367,7 @@ export default function AdminPromoPage() {
     } catch {
       showToast("导出失败", "error");
     }
-  }, [password, filterStatus, filterBatch, showToast]);
+  }, [password, filterStatus, filterBatch, filterType, showToast]);
 
   const handleGenerate = async () => {
     if (!password) return;
@@ -590,6 +593,21 @@ export default function AdminPromoPage() {
                     className="w-full pl-9 pr-3 py-2 rounded-lg border border-slate-200 text-sm outline-none focus:border-violet-300"
                   />
                 </div>
+                <select
+                  value={filterType}
+                  onChange={(e) => {
+                    setFilterType(e.target.value as typeof filterType);
+                    setCurrentPage(1);
+                  }}
+                  className="py-2 px-3 rounded-lg border border-slate-200 text-sm bg-white"
+                >
+                  <option value="all">全部类型</option>
+                  {TYPE_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
                 <select
                   value={filterStatus}
                   onChange={(e) => {

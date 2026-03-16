@@ -107,8 +107,42 @@ export default function AdminDashboardPage() {
     revenueCents: number;
     redeemTotal: number;
     redeemUsed: number;
+    redeemUsedToday: number;
+    promoTotal: number;
+    promoUsed: number;
     daily: { date: string; sessions: number; completed: number; paidOrders: number; revenue: number }[];
     recentOrders?: RecentOrder[];
+    redeemPreview?: {
+      id: string;
+      code: string;
+      batchId: string | null;
+      status: "UNUSED" | "USED" | "EXPIRED" | "DISABLED";
+      createdAt: string;
+      firstUsedAt: string | null;
+      expiresAt: string | null;
+    }[];
+    recentSessions?: {
+      id: string;
+      stage: string;
+      createdAt: string;
+      initiatorName: string;
+      partnerName: string | null;
+      status: "WAITING_PARTNER" | "IN_PROGRESS" | "COMPLETED" | "EXPIRED";
+      initiatorCompletedAt: string | null;
+      partnerCompletedAt: string | null;
+    }[];
+    recentCompletedSessions?: {
+      id: string;
+      stage: string;
+      createdAt: string;
+      initiatorName: string;
+      partnerName: string | null;
+      initiatorCompletedAt: string | null;
+      partnerCompletedAt: string | null;
+      hasPaid: boolean;
+      paidAmount: number;
+      paymentMethod: string | null;
+    }[];
     traffic?: {
       todayPv: number;
       todayUv: number;
@@ -120,6 +154,40 @@ export default function AdminDashboardPage() {
   const [loadingStats, setLoadingStats] = useState(false);
   type DetailView = "sessions" | "completed" | "orders" | "revenue" | null;
   const [detailView, setDetailView] = useState<DetailView>(null);
+  const [completedStageFilter, setCompletedStageFilter] = useState<"all" | "UNIVERSAL" | "AMBIGUOUS" | "ROMANCE" | "STABLE">("all");
+  const [completedPaidFilter, setCompletedPaidFilter] = useState<"all" | "paid" | "unpaid">("all");
+  const [previewSessionId, setPreviewSessionId] = useState<string | null>(null);
+  const [previewSessionLoading, setPreviewSessionLoading] = useState(false);
+  const [previewSessionData, setPreviewSessionData] = useState<{
+    session: {
+      id: string;
+      stage: string;
+      createdAt: string;
+      initiatorName: string;
+      partnerName: string | null;
+      initiatorCompletedAt: string | null;
+      partnerCompletedAt: string | null;
+    };
+    result: {
+      id: string;
+      overallScore: number;
+      dimensions: Record<string, number>;
+      purchasedTier: string;
+      initiatorAttachment: string;
+      partnerAttachment: string;
+      initiatorLoveLanguage: string;
+      partnerLoveLanguage: string;
+      reportBasic: unknown;
+      reportStandard: unknown;
+      reportPremium: unknown;
+    } | null;
+    payment: {
+      hasPaid: boolean;
+      amount: number | null;
+      paymentMethod: string | null;
+      paidAt: string | null;
+    } | null;
+  } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -508,7 +576,7 @@ export default function AdminDashboardPage() {
                 {!detailView ? (
                   <>
                     {/* 概览卡片 - 可点击 */}
-                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
                       {(() => {
                         const daily = overviewStats.daily ?? [];
                         const today = daily[daily.length - 1];
@@ -541,8 +609,14 @@ export default function AdminDashboardPage() {
                           {
                             id: null, label: "兑换码", icon: <Gift className="w-4 h-4" />,
                             value: `${overviewStats.redeemUsed} / ${overviewStats.redeemTotal}`,
-                            todayVal: 0, yesterdayVal: 0,
+                            todayVal: overviewStats.redeemUsedToday, yesterdayVal: 0,
                             color: "from-pink-500 to-pink-600", borderColor: "",
+                          },
+                          {
+                            id: null, label: "优惠码", icon: <Percent className="w-4 h-4" />,
+                            value: `${overviewStats.promoUsed} / ${overviewStats.promoTotal}`,
+                            todayVal: 0, yesterdayVal: 0,
+                            color: "from-pink-500 to-violet-500", borderColor: "",
                           },
                         ];
                         return cards.map((c) => {
@@ -565,16 +639,14 @@ export default function AdminDashboardPage() {
                                 {clickable && <ChevronRight className="w-3.5 h-3.5 text-slate-300" />}
                               </div>
                               <div className="text-xl font-bold text-slate-800 mb-1">{c.value}</div>
-                              {c.label !== "兑换码" && (
-                                <div className="flex items-center gap-2 text-xs">
-                                  <span className="text-slate-400">今日 {todayDisplay}</span>
-                                  {diff !== 0 && (
-                                    <span className={diff > 0 ? "text-emerald-500" : "text-red-400"}>
-                                      {diff > 0 ? "↑" : "↓"}{isRevenue ? `¥${(Math.abs(diff) / 100).toFixed(2)}` : Math.abs(diff)}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2 text-xs">
+                                <span className="text-slate-400">今日 {todayDisplay}</span>
+                                {diff !== 0 && (
+                                  <span className={diff > 0 ? "text-emerald-500" : "text-red-400"}>
+                                    {diff > 0 ? "↑" : "↓"}{isRevenue ? `¥${(Math.abs(diff) / 100).toFixed(2)}` : Math.abs(diff)}
+                                  </span>
+                                )}
+                              </div>
                             </div>
                           );
                         });
@@ -777,6 +849,19 @@ export default function AdminDashboardPage() {
                       const total = overviewStats.sessionsTotal;
                       const values = daily.map((d) => d.sessions);
                       const maxVal = Math.max(1, ...values);
+                      const sessions = overviewStats.recentSessions ?? [];
+                      const stageMap: Record<string, string> = {
+                        UNIVERSAL: "通用",
+                        AMBIGUOUS: "暧昧期",
+                        ROMANCE: "热恋期",
+                        STABLE: "稳定期",
+                      };
+                      const statusLabel: Record<string, string> = {
+                        WAITING_PARTNER: "等待另一方加入",
+                        IN_PROGRESS: "问卷进行中",
+                        COMPLETED: "已完成",
+                        EXPIRED: "已过期",
+                      };
                       return (
                         <div className="rounded-xl bg-white border border-slate-200 p-5">
                           <div className="flex items-center justify-between mb-4">
@@ -799,6 +884,72 @@ export default function AdminDashboardPage() {
                             })}
                           </div>
                           <p className="text-xs text-slate-400 mt-3">近 7 日合计：{values.reduce((a, b) => a + b, 0)} 场</p>
+                          {sessions.length > 0 && (
+                            <div className="mt-4 border-t border-slate-100 pt-3">
+                              <h4 className="text-xs font-medium text-slate-600 mb-2">
+                                最近测评记录（最多 50 条）
+                              </h4>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b border-slate-100 text-slate-400">
+                                      <th className="text-left py-2 pr-3 font-medium">参与时间</th>
+                                      <th className="text-left py-2 pr-3 font-medium">阶段</th>
+                                      <th className="text-left py-2 pr-3 font-medium">发起人</th>
+                                      <th className="text-left py-2 pr-3 font-medium">另一方</th>
+                                      <th className="text-left py-2 pr-3 font-medium">完成进度</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {sessions.map((s) => {
+                                      const d = new Date(s.createdAt);
+                                      const timeStr = `${d.getFullYear()}-${String(
+                                        d.getMonth() + 1,
+                                      ).padStart(2, "0")}-${String(d.getDate()).padStart(
+                                        2,
+                                        "0",
+                                      )} ${String(d.getHours()).padStart(2, "0")}:${String(
+                                        d.getMinutes(),
+                                      ).padStart(2, "0")}`;
+
+                                      let progress = statusLabel[s.status] ?? s.status;
+                                      if (s.status === "COMPLETED") {
+                                        progress = "双方已完成问卷";
+                                      } else if (s.status === "IN_PROGRESS") {
+                                        if (s.initiatorCompletedAt && !s.partnerCompletedAt) {
+                                          progress = "仅发起人完成问卷";
+                                        } else if (!s.initiatorCompletedAt && s.partnerCompletedAt) {
+                                          progress = "仅另一方完成问卷";
+                                        } else {
+                                          progress = "问卷进行中";
+                                        }
+                                      }
+
+                                      return (
+                                        <tr key={s.id} className="border-b border-slate-50">
+                                          <td className="py-2.5 pr-3 text-slate-500 whitespace-nowrap">
+                                            {timeStr}
+                                          </td>
+                                          <td className="py-2.5 pr-3 text-slate-600">
+                                            {stageMap[s.stage] ?? s.stage}
+                                          </td>
+                                          <td className="py-2.5 pr-3 text-slate-600">
+                                            {s.initiatorName}
+                                          </td>
+                                          <td className="py-2.5 pr-3 text-slate-600">
+                                            {s.partnerName ?? "—"}
+                                          </td>
+                                          <td className="py-2.5 pr-3 text-slate-600">
+                                            {progress}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -810,6 +961,29 @@ export default function AdminDashboardPage() {
                       const values = daily.map((d) => d.completed);
                       const maxVal = Math.max(1, ...values);
                       const rate = overviewStats.sessionsTotal > 0 ? ((total / overviewStats.sessionsTotal) * 100).toFixed(1) : "0";
+                      const last7Total = values.reduce((a, b) => a + b, 0);
+                      const bestDay = daily.reduce<{ date: string; value: number } | null>(
+                        (acc, d) => {
+                          if (!acc || d.completed > acc.value) return { date: d.date, value: d.completed };
+                          return acc;
+                        },
+                        null,
+                      );
+                      const completedSessionsAll = overviewStats.recentCompletedSessions ?? [];
+                      const completedSessions = completedSessionsAll.filter((s) => {
+                        if (completedStageFilter !== "all" && s.stage !== completedStageFilter) {
+                          return false;
+                        }
+                        if (completedPaidFilter === "paid" && !s.hasPaid) return false;
+                        if (completedPaidFilter === "unpaid" && s.hasPaid) return false;
+                        return true;
+                      });
+                      const stageMap: Record<string, string> = {
+                        UNIVERSAL: "通用",
+                        AMBIGUOUS: "暧昧期",
+                        ROMANCE: "热恋期",
+                        STABLE: "稳定期",
+                      };
                       return (
                         <div className="rounded-xl bg-white border border-slate-200 p-5">
                           <div className="flex items-center justify-between mb-4">
@@ -834,7 +1008,146 @@ export default function AdminDashboardPage() {
                               );
                             })}
                           </div>
-                          <p className="text-xs text-slate-400 mt-3">近 7 日合计：{values.reduce((a, b) => a + b, 0)} 次</p>
+                          <div className="mt-3 text-xs text-slate-500 space-y-1">
+                            <p>近 7 日合计：{last7Total} 次，日均 {(last7Total / (daily.length || 1)).toFixed(1)} 次。</p>
+                            {bestDay && (
+                              <p>
+                                单日峰值：{bestDay.value} 次（{bestDay.date.slice(5).replace("-", "/")}），可重点复盘该日投放与渠道。
+                              </p>
+                            )}
+                          </div>
+                          {completedSessions.length > 0 && (
+                            <div className="mt-4 border-t border-slate-100 pt-3">
+                              <div className="flex items-center justify-between gap-3 mb-2 flex-wrap">
+                                <h4 className="text-xs font-medium text-slate-600">
+                                  最近完成记录（最多 50 条）
+                                </h4>
+                                <div className="flex items-center gap-2 text-xs">
+                                  <select
+                                    value={completedStageFilter}
+                                    onChange={(e) =>
+                                      setCompletedStageFilter(
+                                        e.target.value as
+                                          | "all"
+                                          | "UNIVERSAL"
+                                          | "AMBIGUOUS"
+                                          | "ROMANCE"
+                                          | "STABLE",
+                                      )
+                                    }
+                                    className="px-2 py-1 rounded-md border border-slate-200 bg-white"
+                                  >
+                                    <option value="all">全部阶段</option>
+                                    <option value="UNIVERSAL">通用</option>
+                                    <option value="AMBIGUOUS">暧昧期</option>
+                                    <option value="ROMANCE">热恋期</option>
+                                    <option value="STABLE">稳定期</option>
+                                  </select>
+                                  <select
+                                    value={completedPaidFilter}
+                                    onChange={(e) =>
+                                      setCompletedPaidFilter(
+                                        e.target.value as "all" | "paid" | "unpaid",
+                                      )
+                                    }
+                                    className="px-2 py-1 rounded-md border border-slate-200 bg-white"
+                                  >
+                                    <option value="all">全部付费状态</option>
+                                    <option value="paid">已付费</option>
+                                    <option value="unpaid">未付费</option>
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="overflow-x-auto">
+                                <table className="w-full text-xs">
+                                  <thead>
+                                    <tr className="border-b border-slate-100 text-slate-400">
+                                      <th className="text-left py-2 pr-3 font-medium">完成时间</th>
+                                      <th className="text-left py-2 pr-3 font-medium">阶段</th>
+                                      <th className="text-left py-2 pr-3 font-medium">发起人</th>
+                                      <th className="text-left py-2 pr-3 font-medium">另一方</th>
+                                      <th className="text-left py-2 pr-3 font-medium">付费情况</th>
+                                      <th className="text-left py-2 font-medium">SessionID</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {completedSessions.map((s) => {
+                                      const finishAt =
+                                        s.partnerCompletedAt ??
+                                        s.initiatorCompletedAt ??
+                                        s.createdAt;
+                                      const d = new Date(finishAt);
+                                      const timeStr = `${d.getFullYear()}-${String(
+                                        d.getMonth() + 1,
+                                      ).padStart(2, "0")}-${String(d.getDate()).padStart(
+                                        2,
+                                        "0",
+                                      )} ${String(d.getHours()).padStart(2, "0")}:${String(
+                                        d.getMinutes(),
+                                      ).padStart(2, "0")}`;
+                                      return (
+                                        <tr
+                                          key={s.id}
+                                          className="border-b border-slate-50 hover:bg-slate-50/50 cursor-pointer"
+                                          onClick={() => {
+                                            setPreviewSessionId(s.id);
+                                            setPreviewSessionLoading(true);
+                                            setPreviewSessionData(null);
+                                            if (!password) return;
+                                            fetch("/api/v1/admin/session/" + s.id, {
+                                              headers: ADMIN_HEADER(password),
+                                            })
+                                              .then(async (res) => {
+                                                if (!res.ok) throw new Error("获取详情失败");
+                                                const data = await res.json();
+                                                setPreviewSessionData({
+                                                  session: data.session,
+                                                  result: data.result,
+                                                  payment: data.payment
+                                                    ? {
+                                                        ...data.payment,
+                                                        paidAt: data.payment.paidAt,
+                                                      }
+                                                    : null,
+                                                });
+                                              })
+                                              .catch(() => {
+                                                showToast("获取会话详情失败", "error");
+                                                setPreviewSessionId(null);
+                                              })
+                                              .finally(() => {
+                                                setPreviewSessionLoading(false);
+                                              });
+                                          }}
+                                        >
+                                          <td className="py-2.5 pr-3 text-slate-500 whitespace-nowrap">
+                                            {timeStr}
+                                          </td>
+                                          <td className="py-2.5 pr-3 text-slate-600">
+                                            {stageMap[s.stage] ?? s.stage}
+                                          </td>
+                                          <td className="py-2.5 pr-3 text-slate-600">
+                                            {s.initiatorName}
+                                          </td>
+                                          <td className="py-2.5 pr-3 text-slate-600">
+                                            {s.partnerName ?? "—"}
+                                          </td>
+                                          <td className="py-2.5 pr-3 text-slate-600">
+                                            {s.hasPaid
+                                              ? `已付 ¥${(s.paidAmount / 100).toFixed(2)}`
+                                              : "未付费"}
+                                          </td>
+                                          <td className="py-2.5 text-slate-400 font-mono text-[11px]">
+                                            {s.id.slice(-6)}
+                                          </td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          )}
                         </div>
                       );
                     })()}
@@ -1012,75 +1325,75 @@ export default function AdminDashboardPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="rounded-xl bg-white border border-slate-200 p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-3">
-                <Settings2 className="w-4 h-4 text-violet-500" />
-                站点信息
-              </h2>
-              {loadingSite ? (
-                <div className="h-24 rounded-lg bg-slate-100 animate-pulse" />
-              ) : siteSettings ? (
-                <div className="space-y-1 text-sm text-slate-600">
-                  <p>
-                    网站名称：<span className="font-semibold">{siteSettings.siteName}</span>
-                  </p>
-                  {siteSettings.siteSubtitle && (
-                    <p>副标题：{siteSettings.siteSubtitle}</p>
-                  )}
-                  {siteSettings.seoTitle && (
-                    <p className="text-xs text-slate-400">
-                      默认 SEO 标题：{siteSettings.seoTitle}
+              <div className="rounded-xl bg-white border border-slate-200 p-5">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-3">
+                  <Settings2 className="w-4 h-4 text-violet-500" />
+                  站点信息
+                </h2>
+                {loadingSite ? (
+                  <div className="h-24 rounded-lg bg-slate-100 animate-pulse" />
+                ) : siteSettings ? (
+                  <div className="space-y-1 text-sm text-slate-600">
+                    <p>
+                      网站名称：<span className="font-semibold">{siteSettings.siteName}</span>
                     </p>
-                  )}
-                </div>
-              ) : (
-                <p className="text-sm text-slate-400">
-                  暂无数据，请切换到「站点设置」进行初始化。
-                </p>
-              )}
-            </div>
+                    {siteSettings.siteSubtitle && (
+                      <p>副标题：{siteSettings.siteSubtitle}</p>
+                    )}
+                    {siteSettings.seoTitle && (
+                      <p className="text-xs text-slate-400">
+                        默认 SEO 标题：{siteSettings.seoTitle}
+                      </p>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-400">
+                    暂无数据，请切换到「站点设置」进行初始化。
+                  </p>
+                )}
+              </div>
 
-            <div className="rounded-xl bg-white border border-slate-200 p-5">
-              <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-3">
-                <BookOpen className="w-4 h-4 text-pink-500" />
-                测评产品
-              </h2>
-              {loadingProducts ? (
-                <div className="h-24 rounded-lg bg-slate-100 animate-pulse" />
-              ) : products.length === 0 ? (
-                <div className="flex flex-col items-start gap-3 text-sm text-slate-500">
-                  <p>当前还没有配置任何测评产品。</p>
-                  <Button
-                    size="sm"
-                    className="rounded-lg bg-gradient-to-r from-pink-500 to-violet-500 text-white"
-                    onClick={handleCreateProduct}
-                    disabled={creatingProduct}
-                  >
-                    创建第一个测评产品
-                  </Button>
-                </div>
-              ) : (
-                <ul className="space-y-2 text-sm text-slate-600">
-                  {products.map((p) => (
-                    <li
-                      key={p.id}
-                      className="flex items-center justify-between gap-2"
+              <div className="rounded-xl bg-white border border-slate-200 p-5">
+                <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-700 mb-3">
+                  <BookOpen className="w-4 h-4 text-pink-500" />
+                  测评产品
+                </h2>
+                {loadingProducts ? (
+                  <div className="h-24 rounded-lg bg-slate-100 animate-pulse" />
+                ) : products.length === 0 ? (
+                  <div className="flex flex-col items-start gap-3 text-sm text-slate-500">
+                    <p>当前还没有配置任何测评产品。</p>
+                    <Button
+                      size="sm"
+                      className="rounded-lg bg-gradient-to-r from-pink-500 to-violet-500 text-white"
+                      onClick={handleCreateProduct}
+                      disabled={creatingProduct}
                     >
-                      <span className="truncate">
-                        {p.name}{" "}
-                        <span className="text-xs text-slate-400">
-                          ({p.slug})
+                      创建第一个测评产品
+                    </Button>
+                  </div>
+                ) : (
+                  <ul className="space-y-2 text-sm text-slate-600">
+                    {products.map((p) => (
+                      <li
+                        key={p.id}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="truncate">
+                          {p.name}{" "}
+                          <span className="text-xs text-slate-400">
+                            ({p.slug})
+                          </span>
                         </span>
-                      </span>
-                      <span className="text-xs text-slate-400">
-                        {p.isActive ? "已上架" : "未上架"}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-              )}
+                        <span className="text-xs text-slate-400">
+                          {p.isActive ? "已上架" : "未上架"}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
             </div>
-          </div>
           </div>
         )}
 
@@ -1782,6 +2095,341 @@ export default function AdminDashboardPage() {
           </div>
         )}
       </div>
+
+      {/* 完成测评 - 会话预览弹窗 */}
+      {previewSessionId && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-[210] flex items-center justify-center p-4"
+          onClick={() => {
+            setPreviewSessionId(null);
+            setPreviewSessionData(null);
+          }}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl max-w-2xl w-full max-h-[85vh] overflow-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-slate-800">
+                  测评详情预览
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  仅管理端可见，用于快速查看报告与付费情况
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setPreviewSessionId(null);
+                  setPreviewSessionData(null);
+                }}
+                className="p-2 rounded-lg hover:bg-slate-100 text-slate-500"
+              >
+                <EyeOff className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 space-y-4 text-sm text-slate-700">
+              {previewSessionLoading && (
+                <p className="text-center text-slate-400 py-6">加载中...</p>
+              )}
+              {!previewSessionLoading && previewSessionData && (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <div className="text-xs text-slate-400 mb-0.5">Session ID</div>
+                      <div className="font-mono text-[11px] break-all">
+                        {previewSessionData.session.id}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400 mb-0.5">阶段</div>
+                      <div>
+                        {previewSessionData.session.stage}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400 mb-0.5">发起人</div>
+                      <div>{previewSessionData.session.initiatorName}</div>
+                    </div>
+                    <div>
+                      <div className="text-xs text-slate-400 mb-0.5">另一方</div>
+                      <div>{previewSessionData.session.partnerName ?? "—"}</div>
+                    </div>
+                  </div>
+
+                  {previewSessionData.result && (
+                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-slate-500">
+                          报告概要
+                        </span>
+                        <span className="text-xs text-slate-500">
+                          整体得分{" "}
+                          <span className="font-semibold text-slate-800">
+                            {previewSessionData.result.overallScore}
+                          </span>
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <div className="text-slate-400 mb-0.5">付费档位</div>
+                          <div className="font-medium">
+                            {previewSessionData.result.purchasedTier === "PREMIUM"
+                              ? "深度版"
+                              : previewSessionData.result.purchasedTier === "STANDARD"
+                                ? "标准版"
+                                : "免费版"}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400 mb-0.5">依恋类型</div>
+                          <div>
+                            发起人：{previewSessionData.result.initiatorAttachment}；
+                            另一方：{previewSessionData.result.partnerAttachment}
+                          </div>
+                        </div>
+                        <div>
+                          <div className="text-slate-400 mb-0.5">爱情语言</div>
+                          <div>
+                            发起人：{previewSessionData.result.initiatorLoveLanguage}；
+                            另一方：{previewSessionData.result.partnerLoveLanguage}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 维度雷达图 */}
+                  {previewSessionData.result && previewSessionData.result.dimensions && (
+                    <div className="rounded-lg bg-white border border-slate-100 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-slate-500">
+                          维度分布（雷达图）
+                        </span>
+                      </div>
+                      {(() => {
+                        const entries = Object.entries(
+                          previewSessionData.result!.dimensions as Record<string, number>,
+                        ).slice(0, 6);
+                        if (entries.length === 0) {
+                          return (
+                            <p className="text-xs text-slate-400">
+                              暂无维度数据。
+                            </p>
+                          );
+                        }
+                        const maxVal = Math.max(...entries.map(([, v]) => v), 1);
+                        const size = 220;
+                        const cx = size / 2;
+                        const cy = size / 2;
+                        const R = 80;
+                        const points = entries.map(([, v], i) => {
+                          const angle = (2 * Math.PI * i) / entries.length - Math.PI / 2;
+                          const r = (v / maxVal) * R;
+                          const x = cx + r * Math.cos(angle);
+                          const y = cy + r * Math.sin(angle);
+                          return { x, y };
+                        });
+                        const polygon = points.map((p) => `${p.x},${p.y}`).join(" ");
+                        return (
+                          <div className="flex items-center gap-4">
+                            <svg
+                              viewBox={`0 0 ${size} ${size}`}
+                              className="w-40 h-40 text-violet-500"
+                            >
+                              {[0.33, 0.66, 1].map((r, idx) => (
+                                <circle
+                                  key={idx}
+                                  cx={cx}
+                                  cy={cy}
+                                  r={R * r}
+                                  fill="none"
+                                  stroke="#E5E7EB"
+                                  strokeWidth={0.5}
+                                />
+                              ))}
+                              {entries.map(([, ], i) => {
+                                const angle = (2 * Math.PI * i) / entries.length - Math.PI / 2;
+                                const x = cx + R * Math.cos(angle);
+                                const y = cy + R * Math.sin(angle);
+                                return (
+                                  <line
+                                    key={i}
+                                    x1={cx}
+                                    y1={cy}
+                                    x2={x}
+                                    y2={y}
+                                    stroke="#E5E7EB"
+                                    strokeWidth={0.5}
+                                  />
+                                );
+                              })}
+                              <polygon
+                                points={polygon}
+                                fill="rgba(129, 140, 248, 0.25)"
+                                stroke="#6366F1"
+                                strokeWidth={1.5}
+                              />
+                              {points.map((p, i) => (
+                                <circle
+                                  key={i}
+                                  cx={p.x}
+                                  cy={p.y}
+                                  r={2.5}
+                                  fill="#6366F1"
+                                />
+                              ))}
+                            </svg>
+                            <ul className="flex-1 space-y-1 text-xs text-slate-600">
+                              {entries.map(([key, v]) => (
+                                <li key={key} className="flex items-center justify-between">
+                                  <span className="truncate mr-2">{key}</span>
+                                  <span className="font-medium text-slate-800">
+                                    {v}
+                                  </span>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {/* 报告摘要（后台简化版） */}
+                  {previewSessionData.result && (
+                    <div className="rounded-lg bg-white border border-slate-100 p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-slate-500">
+                          报告摘要（后台简化版）
+                        </span>
+                      </div>
+                      {(() => {
+                        const r: any = previewSessionData.result;
+                        const report =
+                          r.reportPremium ??
+                          r.reportStandard ??
+                          r.reportBasic ??
+                          null;
+                        if (!report) {
+                          return (
+                            <p className="text-xs text-slate-400">
+                              暂无可用的报告正文。
+                            </p>
+                          );
+                        }
+                        const summary =
+                          report.overallAnalysis?.summary ??
+                          report.summary ??
+                          "";
+                        const strengths: string[] = report.strengths ?? [];
+                        const challenges: string[] = report.challenges ?? [];
+                        const actions: { title?: string; description?: string }[] =
+                          report.actionItems ?? [];
+                        return (
+                          <div className="space-y-3 text-xs text-slate-700">
+                            {summary && (
+                              <p className="leading-relaxed">
+                                {summary}
+                              </p>
+                            )}
+                            {strengths.length > 0 && (
+                              <div>
+                                <div className="text-[11px] font-medium text-emerald-600 mb-1">
+                                  优势亮点
+                                </div>
+                                <ul className="list-disc list-inside space-y-0.5">
+                                  {strengths.slice(0, 4).map((s, i) => (
+                                    <li key={i}>{s}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {challenges.length > 0 && (
+                              <div>
+                                <div className="text-[11px] font-medium text-amber-600 mb-1">
+                                  需要留意
+                                </div>
+                                <ul className="list-disc list-inside space-y-0.5">
+                                  {challenges.slice(0, 4).map((s, i) => (
+                                    <li key={i}>{s}</li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {actions.length > 0 && (
+                              <div>
+                                <div className="text-[11px] font-medium text-violet-600 mb-1">
+                                  行动建议
+                                </div>
+                                <ul className="list-disc list-inside space-y-0.5">
+                                  {actions.slice(0, 4).map((a, i) => (
+                                    <li key={i}>
+                                      {a.title && (
+                                        <span className="font-medium mr-1">
+                                          {a.title}
+                                        </span>
+                                      )}
+                                      {a.description}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+
+                  {previewSessionData.payment && (
+                    <div className="rounded-lg bg-slate-50 border border-slate-100 p-3">
+                      <div className="text-xs font-medium text-slate-500 mb-2">
+                        付费信息
+                      </div>
+                      {previewSessionData.payment.hasPaid ? (
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div>
+                            <div className="text-slate-400 mb-0.5">支付金额</div>
+                            <div className="font-semibold text-emerald-600">
+                              ¥{((previewSessionData.payment.amount ?? 0) / 100).toFixed(2)}
+                            </div>
+                          </div>
+                          <div>
+                            <div className="text-slate-400 mb-0.5">支付方式</div>
+                            <div>
+                              {previewSessionData.payment.paymentMethod === "WECHAT"
+                                ? "微信"
+                                : previewSessionData.payment.paymentMethod === "ALIPAY"
+                                  ? "支付宝"
+                                  : previewSessionData.payment.paymentMethod ?? "—"}
+                            </div>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="text-slate-400 mb-0.5">支付时间</div>
+                            <div>
+                              {previewSessionData.payment.paidAt
+                                ? new Date(previewSessionData.payment.paidAt).toLocaleString("zh-CN")
+                                : "—"}
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="text-xs text-slate-500">
+                          尚未产生已支付订单。
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {toast && (
         <motion.div
