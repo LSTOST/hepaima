@@ -4,11 +4,17 @@ import { requireAdmin } from "@/lib/admin-auth";
 
 const now = () => new Date();
 
+function todayStart(d = now()) {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+
 export async function GET(req: NextRequest) {
   const err = requireAdmin(req);
   if (err) return err;
 
   try {
+    const n = now();
+    const day0 = todayStart(n);
     const [
       total,
       unused,
@@ -16,6 +22,7 @@ export async function GET(req: NextRequest) {
       expired,
       disabled,
       totalUsages,
+      usedToday,
       batchRows,
     ] = await Promise.all([
       prisma.redeemCode.count(),
@@ -30,6 +37,9 @@ export async function GET(req: NextRequest) {
       prisma.redeemCode.count({ where: { expiresAt: { lt: now() } } }),
       prisma.redeemCode.count({ where: { disabled: true } }),
       prisma.redeemCodeUsage.count(),
+      prisma.redeemCodeUsage.count({
+        where: { usedAt: { gte: day0 } },
+      }),
       prisma.redeemCode.findMany({
         where: { batchId: { not: null } },
         select: { batchId: true },
@@ -49,6 +59,7 @@ export async function GET(req: NextRequest) {
       expired,
       disabled,
       totalUsages,
+      usedToday,
       batches,
     });
   } catch (e) {

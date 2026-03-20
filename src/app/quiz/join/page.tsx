@@ -40,7 +40,9 @@ function JoinContent() {
         if (data.stageLabel) setStageLabel(data.stageLabel);
         else setStageLabel(null);
       })
-      .catch(() => setStageLabel(null));
+      .catch(() => {
+        setStageLabel(null);
+      });
     return () => controller.abort();
   }, [inviteCode]);
 
@@ -131,7 +133,7 @@ function JoinContent() {
             className="flex flex-col items-center"
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-pink-100 rounded-full mb-6">
-              <Heart className="w-4 h-4 text-pink-500 fill-pink-500" />
+              <Heart className="w-4 h-4 text-pink-500 fill-pink-500 shrink-0" />
               <span className="text-pink-600 font-medium">
                 {stageLabel ?? "邀请加入"}
               </span>

@@ -5,6 +5,7 @@ import { motion } from "framer-motion";
 import { Heart, Target, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
+import { STAGE_SUBTITLES } from "@/lib/stage-copy";
 
 export function StageSelector() {
   return (
@@ -20,7 +21,7 @@ export function StageSelector() {
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">
             选择测试方式
           </h2>
-          <p className="text-gray-500">每段关系都有独特的旅程</p>
+          <p className="text-gray-500">为情侣打造的契合度测评</p>
         </motion.div>
 
         {/* 通用版大卡片 */}
@@ -45,24 +46,13 @@ export function StageSelector() {
               </span>
             </div>
 
-            <p className="text-gray-800 mb-1 leading-relaxed">
-              不确定关系阶段? 没关系!
-            </p>
-            <p className="text-gray-800 mb-6 leading-relaxed">
-              30题全面测试，适合任何阶段
+            <p className="text-gray-600 mb-4 leading-relaxed text-sm sm:text-base">
+              {STAGE_SUBTITLES.UNIVERSAL}
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 mb-6 text-sm text-gray-800">
-              <div className="flex items-center gap-1.5">
-                <Clock className="w-4 h-4 text-gray-500" />
-                <span>约6分钟</span>
-              </div>
-              <span
-                className="inline-block px-2.5 py-0.5 rounded text-[13px] font-medium"
-                style={{ background: "#D1FAE5", color: "#059669" }}
-              >
-                🎁 限时免费体验
-              </span>
+            <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
+              <Clock className="w-4 h-4" />
+              <span>30题 · 约6分钟</span>
             </div>
 
             <div className="flex justify-end">
@@ -84,8 +74,8 @@ export function StageSelector() {
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <StageCard
-            title="暧昧期"
-            subtitle="还在互相了解"
+            title="了解期"
+            subtitle={STAGE_SUBTITLES.AMBIGUOUS}
             badge="28题 · 约5分钟"
             color="pink"
             stageKey="AMBIGUOUS"
@@ -93,7 +83,7 @@ export function StageSelector() {
           />
           <StageCard
             title="热恋期"
-            subtitle="确定关系中"
+            subtitle={STAGE_SUBTITLES.ROMANCE}
             badge="35题 · 约8分钟"
             color="violet"
             stageKey="ROMANCE"
@@ -102,7 +92,7 @@ export function StageSelector() {
           />
           <StageCard
             title="稳定期"
-            subtitle="1年+/同居/已婚"
+            subtitle={STAGE_SUBTITLES.STABLE}
             badge="40题 · 约10分钟"
             color="purple"
             stageKey="STABLE"
@@ -187,20 +177,14 @@ function StageCard({
       <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
         {title}
       </h3>
-      <p className="text-gray-500 mb-4">{subtitle}</p>
+      <p className="text-gray-500 mb-4 text-sm leading-relaxed">{subtitle}</p>
 
       <div className="flex items-center gap-2 text-sm text-gray-400 mb-6">
         <Clock className="w-4 h-4" />
         <span>{badge}</span>
       </div>
 
-      <div className="flex items-center justify-between">
-        <span
-          className="inline-block px-2.5 py-0.5 rounded text-[13px] font-medium"
-          style={{ background: "#D1FAE5", color: "#059669" }}
-        >
-          🎁 免费体验
-        </span>
+      <div className="flex justify-end">
         <Link href={`/quiz?mode=STAGED&stage=${stageKey}`}>
           <Button className={`rounded-full px-5 shadow-md ${styles.button}`}>
             开始测试

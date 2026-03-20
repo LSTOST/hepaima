@@ -3,6 +3,7 @@
  * 通过 OpenRouter API 调用；若后台配置了 ProductAiTemplate 则优先使用
  */
 import { getAiTemplateForReport } from "./ai-config";
+import { getStageLabel } from "./stage-copy";
 
 const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 /** 报告生成模型：可选 OPENROUTER_REPORT_MODEL，默认用 deepseek-chat 以兼顾速度与质量 */
@@ -349,13 +350,6 @@ export function parseReportJson(raw: string): GeneratedReport {
       : FALLBACK_REPORT.actionItems,
   };
   return result;
-}
-
-function getStageLabel(stage: string): string {
-  if (stage === "AMBIGUOUS") return "暧昧期";
-  if (stage === "ROMANCE") return "热恋期";
-  if (stage === "STABLE") return "稳定期";
-  return stage;
 }
 
 type PayloadData = {
@@ -801,7 +795,7 @@ export async function generatePremiumReport(data: {
 - 总体契合度：${data.overallScore}%
 - 各维度得分：${JSON.stringify(data.dimensions)}
 
-请输出以下 JSON。注意：couplesTasks 必须包含恰好 4 条（第1周、第2周、第3周、第4周），与关系阶段无关（暧昧期、热恋期、稳定期均输出 4 周任务）。
+请输出以下 JSON。注意：couplesTasks 必须包含恰好 4 条（第1周、第2周、第3周、第4周），与关系阶段无关（了解期、热恋期、稳定期均输出 4 周任务）。
 {
   "deepAnalysis": {
     "summary": "深度关系解读总结（80-120字，从心理学角度概括两人的互动模式、关系动力与深层原因，提到依恋理论或 Gottman 研究。）",

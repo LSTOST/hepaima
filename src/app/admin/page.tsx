@@ -110,6 +110,7 @@ export default function AdminDashboardPage() {
     redeemUsedToday: number;
     promoTotal: number;
     promoUsed: number;
+    promoUsedToday?: number;
     daily: { date: string; sessions: number; completed: number; paidOrders: number; revenue: number }[];
     recentOrders?: RecentOrder[];
     redeemPreview?: {
@@ -581,7 +582,17 @@ export default function AdminDashboardPage() {
                         const daily = overviewStats.daily ?? [];
                         const today = daily[daily.length - 1];
                         const yesterday = daily.length >= 2 ? daily[daily.length - 2] : null;
-                        const cards: { id: DetailView; label: string; icon: React.ReactNode; value: string; todayVal: number; yesterdayVal: number; color: string; borderColor: string }[] = [
+                        const cards: {
+                          id: DetailView;
+                          href?: string;
+                          label: string;
+                          icon: React.ReactNode;
+                          value: string;
+                          todayVal: number;
+                          yesterdayVal: number;
+                          color: string;
+                          borderColor: string;
+                        }[] = [
                           {
                             id: "sessions", label: "测评场次", icon: <Users className="w-4 h-4" />,
                             value: String(overviewStats.sessionsTotal),
@@ -607,36 +618,43 @@ export default function AdminDashboardPage() {
                             color: "from-amber-500 to-amber-600", borderColor: "hover:border-amber-300",
                           },
                           {
-                            id: null, label: "兑换码", icon: <Gift className="w-4 h-4" />,
+                            id: null,
+                            href: "/admin/redeem",
+                            label: "兑换码",
+                            icon: <Gift className="w-4 h-4" />,
                             value: `${overviewStats.redeemUsed} / ${overviewStats.redeemTotal}`,
-                            todayVal: overviewStats.redeemUsedToday, yesterdayVal: 0,
-                            color: "from-pink-500 to-pink-600", borderColor: "",
+                            todayVal: overviewStats.redeemUsedToday,
+                            yesterdayVal: 0,
+                            color: "from-pink-500 to-pink-600",
+                            borderColor: "hover:border-pink-300",
                           },
                           {
-                            id: null, label: "优惠码", icon: <Percent className="w-4 h-4" />,
+                            id: null,
+                            href: "/admin/promo",
+                            label: "优惠码",
+                            icon: <Percent className="w-4 h-4" />,
                             value: `${overviewStats.promoUsed} / ${overviewStats.promoTotal}`,
-                            todayVal: 0, yesterdayVal: 0,
-                            color: "from-pink-500 to-violet-500", borderColor: "",
+                            todayVal: overviewStats.promoUsedToday ?? 0,
+                            yesterdayVal: 0,
+                            color: "from-pink-500 to-violet-500",
+                            borderColor: "hover:border-violet-300",
                           },
                         ];
                         return cards.map((c) => {
                           const diff = c.todayVal - c.yesterdayVal;
                           const isRevenue = c.label === "收入";
                           const todayDisplay = isRevenue ? `¥${(c.todayVal / 100).toFixed(2)}` : String(c.todayVal);
-                          const clickable = c.id !== null;
-                          return (
-                            <div
-                              key={c.label}
-                              className={`rounded-xl bg-white border border-slate-200 p-4 relative overflow-hidden transition-all ${clickable ? `cursor-pointer ${c.borderColor} hover:shadow-sm` : ""}`}
-                              onClick={clickable ? () => setDetailView(c.id) : undefined}
-                            >
+                          const clickable = c.id !== null || Boolean(c.href);
+                          const shellClass = `rounded-xl bg-white border border-slate-200 p-4 relative overflow-hidden transition-all block no-underline text-inherit ${clickable ? `cursor-pointer ${c.borderColor} hover:shadow-sm` : ""}`;
+                          const inner = (
+                            <>
                               <div className={`absolute top-0 left-0 w-1 h-full bg-gradient-to-b ${c.color}`} />
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-2 text-slate-500 text-xs mb-1">
                                   {c.icon}
                                   {c.label}
                                 </div>
-                                {clickable && <ChevronRight className="w-3.5 h-3.5 text-slate-300" />}
+                                {clickable && <ChevronRight className="w-3.5 h-3.5 text-slate-300 shrink-0" />}
                               </div>
                               <div className="text-xl font-bold text-slate-800 mb-1">{c.value}</div>
                               <div className="flex items-center gap-2 text-xs">
@@ -647,6 +665,25 @@ export default function AdminDashboardPage() {
                                   </span>
                                 )}
                               </div>
+                            </>
+                          );
+                          if (c.href) {
+                            return (
+                              <Link key={c.label} href={c.href} className={shellClass}>
+                                {inner}
+                              </Link>
+                            );
+                          }
+                          return (
+                            <div
+                              key={c.label}
+                              className={shellClass}
+                              onClick={c.id !== null ? () => setDetailView(c.id) : undefined}
+                              onKeyDown={c.id !== null ? (e) => e.key === "Enter" && setDetailView(c.id) : undefined}
+                              role={c.id !== null ? "button" : undefined}
+                              tabIndex={c.id !== null ? 0 : undefined}
+                            >
+                              {inner}
                             </div>
                           );
                         });
@@ -852,7 +889,7 @@ export default function AdminDashboardPage() {
                       const sessions = overviewStats.recentSessions ?? [];
                       const stageMap: Record<string, string> = {
                         UNIVERSAL: "通用",
-                        AMBIGUOUS: "暧昧期",
+                        AMBIGUOUS: "了解期",
                         ROMANCE: "热恋期",
                         STABLE: "稳定期",
                       };
@@ -980,7 +1017,7 @@ export default function AdminDashboardPage() {
                       });
                       const stageMap: Record<string, string> = {
                         UNIVERSAL: "通用",
-                        AMBIGUOUS: "暧昧期",
+                        AMBIGUOUS: "了解期",
                         ROMANCE: "热恋期",
                         STABLE: "稳定期",
                       };
@@ -1039,7 +1076,7 @@ export default function AdminDashboardPage() {
                                   >
                                     <option value="all">全部阶段</option>
                                     <option value="UNIVERSAL">通用</option>
-                                    <option value="AMBIGUOUS">暧昧期</option>
+                                    <option value="AMBIGUOUS">了解期</option>
                                     <option value="ROMANCE">热恋期</option>
                                     <option value="STABLE">稳定期</option>
                                   </select>

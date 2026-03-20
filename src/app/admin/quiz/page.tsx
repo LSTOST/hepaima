@@ -52,12 +52,12 @@ type Questionnaire = {
 const STAGE_OPTIONS: { value: string; label: string }[] = [
   { value: "", label: "不分阶段" },
   { value: "UNIVERSAL", label: "通用版（30题量表）" },
-  { value: "AMBIGUOUS", label: "暧昧期" },
+  { value: "AMBIGUOUS", label: "了解期" },
   { value: "ROMANCE", label: "热恋期" },
   { value: "STABLE", label: "稳定期" },
 ];
 
-/** 问卷 stage 展示用中文，避免「暧昧期(AMBIGUOUS)」与「通用版(UNIVERSAL)」混淆 */
+/** 问卷 stage 展示用中文，避免「了解期(AMBIGUOUS)」与「通用版(UNIVERSAL)」混淆 */
 function stageDisplayLabel(stage: string | null): string {
   if (stage == null || stage === "") return "不分阶段";
   const opt = STAGE_OPTIONS.find((o) => o.value === stage);

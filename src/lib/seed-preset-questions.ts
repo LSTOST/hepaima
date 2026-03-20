@@ -1,6 +1,6 @@
 /**
  * 将代码内预设题目融入后台：为指定产品确保存在
- * 通用版(UNIVERSAL) + 暧昧期/热恋期/稳定期 问卷并写入预设题目（仅当该问卷尚无题目时写入）。
+ * 通用版(UNIVERSAL) + 了解期/热恋期/稳定期 问卷并写入预设题目（仅当该问卷尚无题目时写入）。
  */
 import { prisma } from "@/lib/db";
 import { getQuestionsByStage } from "@/lib/questions";
@@ -12,7 +12,7 @@ import {
 import { Stage as PrismaStage, QuestionType } from "@prisma/client";
 
 const STAGES: { stage: Stage; prismaStage: PrismaStage; title: string }[] = [
-  { stage: "AMBIGUOUS", prismaStage: "AMBIGUOUS", title: "暧昧期" },
+  { stage: "AMBIGUOUS", prismaStage: "AMBIGUOUS", title: "了解期" },
   { stage: "ROMANCE", prismaStage: "ROMANCE", title: "热恋期" },
   { stage: "STABLE", prismaStage: "STABLE", title: "稳定期" },
 ];

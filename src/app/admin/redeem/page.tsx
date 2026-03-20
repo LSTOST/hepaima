@@ -64,6 +64,7 @@ type Stats = {
   expired: number;
   disabled: number;
   totalUsages: number;
+  usedToday: number;
   batches: string[];
 };
 
@@ -472,7 +473,7 @@ export default function AdminRedeemPage() {
         {/* 统计卡片 */}
         {loading ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {[...Array(6)].map((_, i) => (
+            {[...Array(7)].map((_, i) => (
               <div
                 key={i}
                 className="h-20 rounded-xl bg-white border border-slate-200 animate-pulse"
@@ -480,9 +481,10 @@ export default function AdminRedeemPage() {
             ))}
           </div>
         ) : stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
             {[
               { label: "总兑换码", value: stats.total, color: "text-violet-600" },
+              { label: "今日使用次数", value: stats.usedToday, color: "text-pink-600" },
               { label: "未使用", value: stats.unused, color: "text-emerald-600" },
               { label: "已使用", value: stats.used, color: "text-slate-600" },
               { label: "已过期", value: stats.expired, color: "text-amber-600" },

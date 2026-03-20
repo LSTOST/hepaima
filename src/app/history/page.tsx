@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { getDeviceId } from "@/lib/device";
 import { getCompatibilityLevel } from "@/lib/scoring";
+import { STAGE_LABELS } from "@/lib/stage-copy";
 
 // --- Types ---
 
@@ -26,17 +27,10 @@ interface QuizRecord {
   inviteCode?: string;
 }
 
-// --- Stage Labels ---
-
-const STAGE_LABELS: Record<string, string> = {
-  AMBIGUOUS: "暧昧期",
-  ROMANCE: "热恋期",
-  STABLE: "稳定期",
-};
-
 // --- Stage Badge Colors ---
 
 const STAGE_BADGE_STYLES: Record<string, string> = {
+  UNIVERSAL: "bg-violet-100 text-violet-600 border-violet-200",
   AMBIGUOUS: "bg-pink-100 text-pink-600 border-pink-200",
   ROMANCE: "bg-pink-100 text-pink-600 border-pink-200",
   STABLE: "bg-violet-100 text-violet-600 border-violet-200",

@@ -42,6 +42,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import Link from "next/link";
 import { getCompatibilityLevel } from "@/lib/scoring";
 import { getDeviceId } from "@/lib/device";
+import { STAGE_LABELS } from "@/lib/stage-copy";
 
 type PageState = "loading" | "waiting" | "generating" | "ready" | "error";
 
@@ -151,13 +152,6 @@ interface ResultData {
   purchasedTier?: string;
   reportStatus?: { basic: "ready" | "generating"; premium: "ready" | "generating" };
 }
-
-const STAGE_LABELS: Record<string, string> = {
-  UNIVERSAL: "通用版",
-  AMBIGUOUS: "暧昧期",
-  ROMANCE: "热恋期",
-  STABLE: "稳定期",
-};
 
 /** 注入支付宝表单并自动提交跳转 */
 function AlipayFormInjector({ html }: { html: string }) {
@@ -1601,6 +1595,12 @@ function ReadyReport({
                 </Badge>
               </div>
             </div>
+          </ScrollCard>
+
+          <ScrollCard delay={0.03}>
+            <p className="text-xs sm:text-sm text-gray-500 text-center leading-relaxed px-2 py-1">
+              本报告由本次测评作答自动生成，归纳双方在相处方式与偏好上的差异，供沟通参考。想法与关系状态会变化，报告无法涵盖关系的全貌，也不能替代现实中的相互了解与共同决定。
+            </p>
           </ScrollCard>
 
           <ScrollCard delay={0.05}>

@@ -8,6 +8,11 @@ export async function GET(req: NextRequest) {
 
   try {
     const now = new Date();
+    const todayStart = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+    );
     // 使用本地日期，避免时区导致的日期偏移；含今天在内共 7 天
     const sevenDaysAgo = new Date(
       now.getFullYear(),
@@ -32,6 +37,7 @@ export async function GET(req: NextRequest) {
       redeemUsedToday,
       promoTotal,
       promoUsed,
+      promoUsedToday,
       recentOrders,
       redeemPreviewRaw,
       recentSessions,
@@ -47,18 +53,14 @@ export async function GET(req: NextRequest) {
       }),
       prisma.redeemCode.count(),
       prisma.redeemCode.count({ where: { firstUsedAt: { not: null } } }),
-      (async () => {
-        const todayStart = new Date(
-          now.getFullYear(),
-          now.getMonth(),
-          now.getDate(),
-        );
-        return prisma.redeemCodeUsage.count({
-          where: { usedAt: { gte: todayStart } },
-        });
-      })(),
+      prisma.redeemCodeUsage.count({
+        where: { usedAt: { gte: todayStart } },
+      }),
       prisma.promoCode.count(),
       prisma.promoCode.count({ where: { usedCount: { gt: 0 } } }),
+      prisma.promoCodeUsage.count({
+        where: { usedAt: { gte: todayStart } },
+      }),
       prisma.order.findMany({
         orderBy: { createdAt: "desc" },
         take: 50,
@@ -333,6 +335,7 @@ export async function GET(req: NextRequest) {
       redeemUsedToday,
       promoTotal,
       promoUsed,
+      promoUsedToday,
       daily,
       recentOrders,
       redeemPreview,

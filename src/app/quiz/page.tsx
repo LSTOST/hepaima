@@ -7,6 +7,7 @@ import { motion } from "framer-motion";
 import { Heart, Sparkles, Loader2, Clock, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getDeviceId } from "@/lib/device";
+import { STAGE_LABELS } from "@/lib/stage-copy";
 
 function scrollToTop() {
   if (typeof window === "undefined") return;
@@ -19,10 +20,26 @@ const STAGE_CONFIG: Record<
   string,
   { label: string; totalQuestions: number; minutes: number }
 > = {
-  UNIVERSAL: { label: "通用版", totalQuestions: 30, minutes: 6 },
-  AMBIGUOUS: { label: "暧昧期", totalQuestions: 28, minutes: 5 },
-  ROMANCE: { label: "热恋期", totalQuestions: 35, minutes: 8 },
-  STABLE: { label: "稳定期", totalQuestions: 40, minutes: 10 },
+  UNIVERSAL: {
+    label: STAGE_LABELS.UNIVERSAL,
+    totalQuestions: 30,
+    minutes: 6,
+  },
+  AMBIGUOUS: {
+    label: STAGE_LABELS.AMBIGUOUS,
+    totalQuestions: 28,
+    minutes: 5,
+  },
+  ROMANCE: {
+    label: STAGE_LABELS.ROMANCE,
+    totalQuestions: 35,
+    minutes: 8,
+  },
+  STABLE: {
+    label: STAGE_LABELS.STABLE,
+    totalQuestions: 40,
+    minutes: 10,
+  },
 };
 
 const VALID_MODES = ["UNIVERSAL", "STAGED"] as const;
@@ -48,10 +65,9 @@ function QuizStartContent() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const stageLabel =
-    mode === "UNIVERSAL"
-      ? STAGE_CONFIG.UNIVERSAL.label
-      : STAGE_CONFIG[stage]?.label ?? "热恋期";
+  const stageCfg =
+    mode === "UNIVERSAL" ? STAGE_CONFIG.UNIVERSAL : STAGE_CONFIG[stage];
+  const stageLabel = stageCfg?.label ?? STAGE_LABELS.ROMANCE;
 
   // 移动端从首页点「开始测试」进入时，页面顶部常被遮挡，进入时强制滚到顶部
   useEffect(() => {
@@ -122,7 +138,7 @@ function QuizStartContent() {
             className="flex justify-center mb-6"
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-pink-100 rounded-full">
-              <Heart className="w-4 h-4 text-pink-500 fill-pink-500" />
+              <Heart className="w-4 h-4 text-pink-500 fill-pink-500 shrink-0" />
               <span className="text-pink-600 font-medium">{stageLabel}</span>
             </div>
           </motion.div>

@@ -12,7 +12,7 @@ import { useQuiz } from "@/hooks/useQuiz";
 import { getDeviceId } from "@/lib/device";
 
 const STAGE_CONFIG: Record<string, { label: string; totalQuestions: number }> = {
-  AMBIGUOUS: { label: "暧昧期", totalQuestions: 28 },
+  AMBIGUOUS: { label: "了解期", totalQuestions: 28 },
   ROMANCE: { label: "热恋期", totalQuestions: 35 },
   STABLE: { label: "稳定期", totalQuestions: 40 },
 };
@@ -282,6 +282,16 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
             {progressPercent}%
           </p>
         </div>
+        {(stageKey === "AMBIGUOUS" ||
+          stageKey === "ROMANCE" ||
+          stageKey === "STABLE") && (
+          <p className="max-w-2xl mx-auto px-4 pb-2.5 text-[11px] sm:text-xs text-gray-400 text-center leading-snug">
+            请选<strong className="text-gray-500 font-medium">最接近你们日常</strong>
+            的一项；四选一无法涵盖所有情况时，按
+            <strong className="text-gray-500 font-medium">最常发生</strong>
+            的一种来选即可。
+          </p>
+        )}
       </header>
 
       <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-8 sm:py-12">

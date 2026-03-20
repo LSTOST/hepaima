@@ -10,7 +10,6 @@ const STAGES = [
     key: "UNIVERSAL",
     label: "通用版",
     icon: "🎯",
-    desc: "不确定阶段？全面测评",
     questions: 30,
     time: "约6分钟",
     color: "#8B5CF6",
@@ -18,9 +17,8 @@ const STAGES = [
   },
   {
     key: "AMBIGUOUS",
-    label: "暧昧期",
+    label: "了解期",
     icon: "💗",
-    desc: "还在互相了解",
     questions: 25,
     time: "约5分钟",
     color: "#EC4899",
@@ -30,7 +28,6 @@ const STAGES = [
     key: "ROMANCE",
     label: "热恋期",
     icon: "💕",
-    desc: "确定关系中",
     questions: 32,
     time: "约7分钟",
     color: "#F43F5E",
@@ -40,7 +37,6 @@ const STAGES = [
     key: "STABLE",
     label: "稳定期",
     icon: "💑",
-    desc: "1年+/同居/已婚",
     questions: 40,
     time: "约10分钟",
     color: "#10B981",
@@ -171,9 +167,6 @@ export function StageSelector({
                             }`}
                           >
                             {stage.label}
-                          </p>
-                          <p className="text-sm text-[#6B7280] mt-0.5">
-                            {stage.desc}
                           </p>
                         </div>
                       </div>

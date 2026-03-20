@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-
-const STAGE_LABELS: Record<string, string> = {
-  UNIVERSAL: "通用版",
-  AMBIGUOUS: "暧昧期",
-  ROMANCE: "热恋期",
-  STABLE: "稳定期",
-};
+import { getStageLabel } from "@/lib/stage-copy";
 
 export async function GET(req: NextRequest) {
   try {
@@ -49,7 +43,7 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       stage: session.stage,
-      stageLabel: STAGE_LABELS[session.stage] ?? session.stage,
+      stageLabel: getStageLabel(session.stage),
     });
   } catch (error) {
     console.error("GET /api/v1/quiz/preview error:", error);

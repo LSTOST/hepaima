@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { STAGE_LABELS } from "@/lib/stage-copy";
 
 const ALL_STAGES = ["UNIVERSAL", "AMBIGUOUS", "ROMANCE", "STABLE"] as const;
 type StageValue = (typeof ALL_STAGES)[number];
-
-const STAGE_LABELS: Record<string, string> = {
-  UNIVERSAL: "通用版",
-  AMBIGUOUS: "暧昧期",
-  ROMANCE: "热恋期",
-  STABLE: "稳定期",
-};
 
 function normalizeCode(code: string): string {
   return code.replace(/\s/g, "").toUpperCase();

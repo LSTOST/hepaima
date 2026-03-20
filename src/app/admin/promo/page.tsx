@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Eye,
   EyeOff,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ADMIN_PASSWORD_HEADER_KEY } from "@/lib/admin-auth";
@@ -72,6 +73,7 @@ type Stats = {
   expired: number;
   disabled: number;
   totalUsages: number;
+  usedToday: number;
   batches: string[];
 };
 
@@ -139,6 +141,9 @@ export default function AdminPromoPage() {
   const [genMaxUses, setGenMaxUses] = useState<number | "">("");
   const [generating, setGenerating] = useState(false);
   const [generatedCodes, setGeneratedCodes] = useState<string[] | null>(null);
+  const [editMaxUses, setEditMaxUses] = useState("");
+  const [savingMaxUses, setSavingMaxUses] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -233,6 +238,79 @@ export default function AdminPromoPage() {
   const openDetail = (row: PromoCodeRow) => {
     setSelectedCode(row);
     handleFetchDetail(row.id);
+  };
+
+  useEffect(() => {
+    if (!detailData) {
+      setEditMaxUses("");
+      return;
+    }
+    setEditMaxUses(
+      detailData.maxUses == null ? "" : String(detailData.maxUses),
+    );
+  }, [detailData?.id, detailData?.maxUses]);
+
+  const handleSaveMaxUses = async () => {
+    if (!password || !detailData) return;
+    const raw = editMaxUses.trim();
+    let maxUses: number | null;
+    if (raw === "") {
+      maxUses = null;
+    } else {
+      const n = Number.parseInt(raw, 10);
+      if (!Number.isInteger(n) || n < 1) {
+        showToast("单码上限须为正整数，或留空表示不限制", "error");
+        return;
+      }
+      maxUses = n;
+    }
+    setSavingMaxUses(true);
+    try {
+      const res = await fetch(`/api/v1/admin/promo/${detailData.id}`, {
+        method: "PATCH",
+        headers: authHeaders(password),
+        body: JSON.stringify({ maxUses }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message ?? "保存失败");
+      }
+      showToast("已更新单码上限");
+      setDetailData((d) => (d ? { ...d, maxUses } : d));
+      fetchList();
+      fetchStats();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "保存失败", "error");
+    } finally {
+      setSavingMaxUses(false);
+    }
+  };
+
+  const handleDeleteCode = async (id: string) => {
+    if (!password) return;
+    if (!window.confirm("确定删除该优惠码？仅允许删除从未核销过的码。")) return;
+    setDeletingId(id);
+    try {
+      const res = await fetch(`/api/v1/admin/promo/${id}`, {
+        method: "DELETE",
+        headers: authHeaders(password),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.message ?? "删除失败");
+      }
+      showToast("已删除");
+      if (selectedCode?.id === id) {
+        setSelectedCode(null);
+        setDetailData(null);
+      }
+      fetchList();
+      fetchStats();
+    } catch (e) {
+      showToast(e instanceof Error ? e.message : "删除失败", "error");
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   const handleDisable = async (id: string) => {
@@ -517,8 +595,8 @@ export default function AdminPromoPage() {
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
-            {[...Array(6)].map((_, i) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+            {[...Array(7)].map((_, i) => (
               <div
                 key={i}
                 className="h-20 rounded-xl bg-white border border-slate-200 animate-pulse"
@@ -526,9 +604,10 @@ export default function AdminPromoPage() {
             ))}
           </div>
         ) : stats && (
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
             {[
               { label: "总优惠码", value: stats.total, color: "text-violet-600" },
+              { label: "今日核销次数", value: stats.usedToday, color: "text-pink-600" },
               { label: "未使用", value: stats.unused, color: "text-emerald-600" },
               { label: "已使用", value: stats.used, color: "text-slate-600" },
               { label: "已过期", value: stats.expired, color: "text-amber-600" },
@@ -750,9 +829,20 @@ export default function AdminPromoPage() {
                                   className="h-8 w-8 text-red-600 hover:bg-red-50"
                                   onClick={() => handleDisable(c.id)}
                                   title="禁用"
-                                  disabled={c.status === "USED"}
                                 >
                                   <Ban className="w-3.5 h-3.5" />
+                                </Button>
+                              )}
+                              {c.usedCount === 0 && (
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-8 w-8 text-slate-500 hover:bg-slate-100"
+                                  onClick={() => handleDeleteCode(c.id)}
+                                  title="删除"
+                                  disabled={deletingId === c.id}
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
                                 </Button>
                               )}
                             </div>
@@ -1016,7 +1106,34 @@ export default function AdminPromoPage() {
                       {detailData.maxUses != null ? ` / ${detailData.maxUses}` : ""} 次
                     </p>
                   </div>
-                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    <div className="rounded-lg border border-slate-200 p-3 mb-4">
+                      <div className="text-xs text-slate-400 font-medium mb-2">
+                        单码使用上限（可补设）
+                      </div>
+                      <div className="flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="number"
+                          min={1}
+                          placeholder="留空 = 不限制"
+                          value={editMaxUses}
+                          onChange={(e) => setEditMaxUses(e.target.value)}
+                          className="flex-1 min-w-0 px-3 py-2 rounded-lg border border-slate-200 text-sm"
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          className="rounded-lg shrink-0"
+                          disabled={savingMaxUses}
+                          onClick={() => void handleSaveMaxUses()}
+                        >
+                          保存上限
+                        </Button>
+                      </div>
+                      <p className="text-[11px] text-slate-400 mt-2">
+                        已核销 {detailData.usedCount} 次；上限不可低于该值。不限制时留空即可。
+                      </p>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3 mb-5">
                     <div className="rounded-lg bg-slate-50 p-3">
                       <div className="text-xs text-slate-400">批次号</div>
                       <div className="font-semibold text-slate-800">
@@ -1053,32 +1170,44 @@ export default function AdminPromoPage() {
                       </div>
                     </div>
                   )}
-                  <div className="flex gap-3">
-                    <Button
-                      variant="outline"
-                      className="flex-1 rounded-xl"
-                      onClick={() => handleCopyCode(detailData.code)}
-                    >
-                      <Copy className="w-4 h-4 mr-2" />
-                      复制
-                    </Button>
-                    {detailData.status === "DISABLED" ? (
-                      <Button
-                        className="flex-1 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
-                        onClick={() => handleEnable(detailData.id)}
-                      >
-                        <Check className="w-4 h-4 mr-2" />
-                        启用
-                      </Button>
-                    ) : (
+                  <div className="flex flex-col gap-2">
+                    <div className="flex gap-3">
                       <Button
                         variant="outline"
-                        className="flex-1 rounded-xl text-red-600 border-red-200"
-                        onClick={() => handleDisable(detailData.id)}
-                        disabled={detailData.status === "USED"}
+                        className="flex-1 rounded-xl"
+                        onClick={() => handleCopyCode(detailData.code)}
                       >
-                        <Ban className="w-4 h-4 mr-2" />
-                        禁用
+                        <Copy className="w-4 h-4 mr-2" />
+                        复制
+                      </Button>
+                      {detailData.status === "DISABLED" ? (
+                        <Button
+                          className="flex-1 rounded-xl bg-emerald-100 text-emerald-700 hover:bg-emerald-200"
+                          onClick={() => handleEnable(detailData.id)}
+                        >
+                          <Check className="w-4 h-4 mr-2" />
+                          启用
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          className="flex-1 rounded-xl text-red-600 border-red-200"
+                          onClick={() => handleDisable(detailData.id)}
+                        >
+                          <Ban className="w-4 h-4 mr-2" />
+                          禁用
+                        </Button>
+                      )}
+                    </div>
+                    {detailData.usedCount === 0 && (
+                      <Button
+                        variant="outline"
+                        className="w-full rounded-xl text-slate-600 border-slate-200"
+                        disabled={deletingId === detailData.id}
+                        onClick={() => void handleDeleteCode(detailData.id)}
+                      >
+                        <Trash2 className="w-4 h-4 mr-2" />
+                        删除此码
                       </Button>
                     )}
                   </div>

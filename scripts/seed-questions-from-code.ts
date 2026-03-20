@@ -43,7 +43,7 @@ async function main() {
     const key = stage === "UNIVERSAL" ? "UNIVERSAL" : stage;
     const titleMap: Record<string, string> = {
       UNIVERSAL: "通用版情侣测评问卷",
-      AMBIGUOUS: "暧昧期情侣问卷",
+      AMBIGUOUS: "了解期情侣问卷",
       ROMANCE: "热恋期情侣问卷",
       STABLE: "稳定期情侣问卷",
     };

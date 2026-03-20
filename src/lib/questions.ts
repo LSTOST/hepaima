@@ -46,9 +46,9 @@ export interface Question {
   options: QuestionOption[];
 }
 
-/** 暧昧期 28 题 + 热恋期 35 题 + 稳定期 40 题（每道题只属于一个 stage） */
+/** 了解期(AMBIGUOUS) 28 题 + 热恋期 35 题 + 稳定期 40 题（每道题只属于一个 stage） */
 const ALL_QUESTIONS: Question[] = [
-  // ========== 暧昧期 AMBIGUOUS 1-28 ==========
+  // ========== 了解期 AMBIGUOUS 1-28 ==========
   {
     id: 1,
     stage: "AMBIGUOUS",
@@ -467,7 +467,7 @@ const ALL_QUESTIONS: Question[] = [
   { id: 31, stage: "ROMANCE", category: "values", text: "关于「要不要孩子」，你的态度？", options: [{ key: "A", text: "会和伴侣认真讨论，聊拢了", scores: { values: 4 } }, { key: "B", text: "顺其自然，到时候再说", scores: { values: 3 } }, { key: "C", text: "还没想过，离我太远了", scores: { values: 2 } }, { key: "D", text: "和伴侣想法不一致，先搁着", scores: { values: 1 } }] },
   { id: 32, stage: "ROMANCE", category: "lifestyle", text: "关于家务分工，你的想法是？", options: [{ key: "A", text: "一起做，谁有空谁多做点", scores: { lifestyle: 4 } }, { key: "B", text: "可以分工，但要提前说好", scores: { lifestyle: 3 } }, { key: "C", text: "谁看不下去谁做", scores: { lifestyle: 2 } }, { key: "D", text: "我负责/对方负责，分工明确", scores: { lifestyle: 2 } }] },
 
-  // ========== 暧昧期/热恋期 conflict 冲突处理 ==========
+  // ========== 了解期/热恋期 conflict 冲突处理 ==========
   { id: 98, stage: "AMBIGUOUS", category: "conflict", text: "和对方因为小事闹不愉快，冷静下来之后你一般会咋办？", options: [{ key: "A", text: "主动聊聊，说说各自感受", scores: { conflict: 4 } }, { key: "B", text: "谁错谁先开口，但不会记仇", scores: { conflict: 3 } }, { key: "C", text: "翻篇就行，不想再提", scores: { conflict: 2 } }, { key: "D", text: "心里还有疙瘩，但不说", scores: { conflict: 1 } }] },
   { id: 99, stage: "AMBIGUOUS", category: "conflict", text: "对方说了让你不舒服的话，你会？", options: [{ key: "A", text: "直接说「你这样说我会难受」", scores: { conflict: 4 } }, { key: "B", text: "憋着，等情绪过了再提", scores: { conflict: 2 } }, { key: "C", text: "用开玩笑的方式暗示", scores: { conflict: 3 } }, { key: "D", text: "装作没事，不想破坏气氛", scores: { conflict: 1 } }] },
   { id: 100, stage: "AMBIGUOUS", category: "conflict", text: "和对方意见不合时（比如去哪玩、吃什么），你一般会？", options: [{ key: "A", text: "各让一步，取个中间", scores: { conflict: 4 } }, { key: "B", text: "尽量说服对方，但也会听对方的理由", scores: { conflict: 3 } }, { key: "C", text: "懒得争，你说啥就啥", scores: { conflict: 2 } }, { key: "D", text: "容易情绪上头，争完再说", scores: { conflict: 1 } }] },
@@ -498,21 +498,21 @@ const ALL_QUESTIONS: Question[] = [
   { id: 74, stage: "STABLE", category: "loveLanguage", text: "吵架或冷战和好后，什么最让你感到被在乎？", options: [{ key: "A", text: "对方认真道歉、说清楚想法", scores: { loveLanguage: { words: 4 } } }, { key: "B", text: "对方做点事，比如做顿饭、买吃的", scores: { loveLanguage: { service: 4 } } }, { key: "C", text: "对方送个小东西表示心意", scores: { loveLanguage: { gifts: 4 } } }, { key: "D", text: "对方放下别的事，专心和我聊一会儿", scores: { loveLanguage: { time: 4 } } }] },
   { id: 75, stage: "STABLE", category: "loveLanguage", text: "下班或周末在家，你更喜欢哪种？", options: [{ key: "A", text: "对方夸我、说喜欢我", scores: { loveLanguage: { words: 4 } } }, { key: "B", text: "拥抱、牵手、靠在一起", scores: { loveLanguage: { touch: 4 } } }, { key: "C", text: "对方把饭做好或把事安排好", scores: { loveLanguage: { service: 4 } } }, { key: "D", text: "两个人一起待着，不被打扰", scores: { loveLanguage: { time: 4 } } }] },
   { id: 76, stage: "STABLE", category: "loveLanguage", text: "对方做什么会让你觉得「对方心里一直有我」？", options: [{ key: "A", text: "到哪了会说一声、会分享日常", scores: { loveLanguage: { words: 3 } } }, { key: "B", text: "记得我提过的东西并买给我", scores: { loveLanguage: { gifts: 4 } } }, { key: "C", text: "我累的时候主动分担家务、跑腿", scores: { loveLanguage: { service: 4 } } }, { key: "D", text: "愿意放下手机，专心听我说话", scores: { loveLanguage: { time: 4 } } }] },
-  { id: 77, stage: "STABLE", category: "loveLanguage", text: "你更喜欢收到什么样的心意？", options: [{ key: "A", text: "一条走心的消息或手写卡片", scores: { loveLanguage: { words: 4 } } }, { key: "B", text: "一份用心挑的礼物", scores: { loveLanguage: { gifts: 4 } } }, { key: "C", text: "对方为我做的一顿饭或一件事", scores: { loveLanguage: { service: 4 } } }, { key: "D", text: "对方推掉别的安排，专门留时间陪我", scores: { loveLanguage: { time: 4 } } }] },
+  { id: 77, stage: "STABLE", category: "loveLanguage", text: "累或情绪低落时，哪种关心对你最管用？", options: [{ key: "A", text: "对方说几句暖心话、肯定我", scores: { loveLanguage: { words: 4 } } }, { key: "B", text: "对方静静陪着，或抱抱、靠一会儿", scores: { loveLanguage: { touch: 4 } } }, { key: "C", text: "对方做点具体的，比如倒水、买吃的、跑腿", scores: { loveLanguage: { service: 4 } } }, { key: "D", text: "对方先给我独处空间，等我缓过来再聊", scores: { loveLanguage: { time: 2 } } }] },
   { id: 78, stage: "STABLE", category: "loveLanguage", text: "示好的时候，你更习惯咋做？", options: [{ key: "A", text: "直接说「爱你」「想你」", scores: { loveLanguage: { words: 4 } } }, { key: "B", text: "用拥抱、牵手表达", scores: { loveLanguage: { touch: 4 } } }, { key: "C", text: "帮对方做事、照顾对方", scores: { loveLanguage: { service: 4 } } }, { key: "D", text: "花时间陪对方做对方喜欢的事", scores: { loveLanguage: { time: 4 } } }] },
   { id: 79, stage: "STABLE", category: "loveLanguage", text: "伴侣生病或情绪低落时，你更想做啥？", options: [{ key: "A", text: "陪在身边说「有我在」", scores: { loveLanguage: { words: 4 } } }, { key: "B", text: "买药、做饭、照顾对方", scores: { loveLanguage: { service: 4 } } }, { key: "C", text: "买对方喜欢的水果、吃的", scores: { loveLanguage: { gifts: 4 } } }, { key: "D", text: "握着对方的手陪着", scores: { loveLanguage: { touch: 4 } } }] },
   // 沟通 communication 4 题
   { id: 80, stage: "STABLE", category: "communication", text: "对伴侣有不满时，你一般会？", options: [{ key: "A", text: "找合适时机直接说", scores: { communication: 4 } }, { key: "B", text: "先忍着，攒多了再说", scores: { communication: 2 } }, { key: "C", text: "用玩笑或暗示表达", scores: { communication: 3 } }, { key: "D", text: "很少说，希望对方自己发现", scores: { communication: 1 } }] },
   { id: 81, stage: "STABLE", category: "communication", text: "聊到买房、结婚、要孩子这些大事时，你一般会？", options: [{ key: "A", text: "一起摊开说利弊，一块儿定", scores: { communication: 4 } }, { key: "B", text: "先听对方想法，再说自己想法", scores: { communication: 3 } }, { key: "C", text: "不太想深聊，顺其自然", scores: { communication: 2 } }, { key: "D", text: "容易聊着聊着吵起来", scores: { communication: 1 } }] },
   { id: 82, stage: "STABLE", category: "communication", text: "伴侣工作或家里有事心情不好，你一般会？", options: [{ key: "A", text: "先问对方想聊还是想静静，尊重对方", scores: { communication: 4 } }, { key: "B", text: "陪在身边，等对方愿意说", scores: { communication: 3 } }, { key: "C", text: "给建议、帮分析", scores: { communication: 2 } }, { key: "D", text: "不太会安慰，有时会躲开", scores: { communication: 1 } }] },
-  { id: 83, stage: "STABLE", category: "communication", text: "和伴侣意见不一致时，你一般会？", options: [{ key: "A", text: "各让一步，取个中间", scores: { communication: 4 } }, { key: "B", text: "会说服对方，但也听对方理由", scores: { communication: 3 } }, { key: "C", text: "懒得争，听对方的", scores: { communication: 2 } }, { key: "D", text: "容易上头，吵完再说", scores: { communication: 1 } }] },
+  { id: 83, stage: "STABLE", category: "communication", text: "碰到反复出现的老问题（花钱习惯、作息、家务等），你一般会？", options: [{ key: "A", text: "找时间专门聊，试着约定新规则", scores: { communication: 4 } }, { key: "B", text: "会提出来，但也听对方怎么说", scores: { communication: 3 } }, { key: "C", text: "懒得每次争，多数时候顺着对方", scores: { communication: 2 } }, { key: "D", text: "容易越说越急，最后不欢而散", scores: { communication: 1 } }] },
   // 价值观 values 3 题
   { id: 84, stage: "STABLE", category: "values", text: "关于「结婚」或「领证」，你和伴侣？", options: [{ key: "A", text: "说好了，在打算了或已经排上日程了", scores: { values: 4 } }, { key: "B", text: "顺其自然，不催但也不排斥", scores: { values: 3 } }, { key: "C", text: "两家人的事，要各方面合适再说", scores: { values: 2 } }, { key: "D", text: "觉得形式不重要，在一起就好", scores: { values: 1 } }] },
   { id: 85, stage: "STABLE", category: "values", text: "对于「钱怎么花、谁管钱」，你们？", options: [{ key: "A", text: "一起规划，大额支出会商量，谁管都行", scores: { values: 4 } }, { key: "B", text: "各管各的，共同目标一起存", scores: { values: 3 } }, { key: "C", text: "还没说开，基本各花各的", scores: { values: 2 } }, { key: "D", text: "谁赚得多谁说了算 / 必须 AA，不然不公平", scores: { values: 1 } }] },
   { id: 86, stage: "STABLE", category: "values", text: "关于「要不要孩子、什么时候要」，你们？", options: [{ key: "A", text: "好好聊过，说好了", scores: { values: 4 } }, { key: "B", text: "顺其自然，到时候再说", scores: { values: 3 } }, { key: "C", text: "还没细聊", scores: { values: 2 } }, { key: "D", text: "想法不一致，先搁着，甚至可能谈不拢", scores: { values: 1 } }] },
   // 生活习惯 lifestyle 3 题
   { id: 87, stage: "STABLE", category: "lifestyle", text: "周末早上，你更喜欢哪种？", options: [{ key: "A", text: "和伴侣一起睡懒觉、吃早午餐", scores: { lifestyle: 4 } }, { key: "B", text: "早起运动或做自己的事，中午再一起", scores: { lifestyle: 3 } }, { key: "C", text: "各睡各的，醒了再说", scores: { lifestyle: 2 } }, { key: "D", text: "希望对方配合我作息，不然会不爽", scores: { lifestyle: 1 } }] },
-  { id: 88, stage: "STABLE", category: "lifestyle", text: "家务你们一般是咋分的？", options: [{ key: "A", text: "一起做，谁有空谁多做", scores: { lifestyle: 4 } }, { key: "B", text: "有分工，提前说好", scores: { lifestyle: 3 } }, { key: "C", text: "谁看不下去谁做", scores: { lifestyle: 2 } }, { key: "D", text: "固定谁负责什么，分工明确", scores: { lifestyle: 2 } }] },
+  { id: 88, stage: "STABLE", category: "lifestyle", text: "家务你们一般是咋分的？", options: [{ key: "A", text: "一起做，谁有空谁多做", scores: { lifestyle: 4 } }, { key: "B", text: "提前商量好分工，基本能按约定来", scores: { lifestyle: 3 } }, { key: "C", text: "多半是谁看不下去谁做，心里偶尔会委屈", scores: { lifestyle: 2 } }, { key: "D", text: "常为家务闹别扭，很难谈拢", scores: { lifestyle: 1 } }] },
   { id: 89, stage: "STABLE", category: "lifestyle", text: "日常谁来决定吃什么、去哪玩、买什么？", options: [{ key: "A", text: "一起商量，轮流决定", scores: { lifestyle: 4 } }, { key: "B", text: "谁有想法谁提，另一个配合", scores: { lifestyle: 3 } }, { key: "C", text: "多半一个人说了算", scores: { lifestyle: 2 } }, { key: "D", text: "经常纠结半天定不下来", scores: { lifestyle: 1 } }] },
 
   // ========== 稳定期专属 conflict 8 题 ==========
@@ -532,12 +532,12 @@ const ALL_QUESTIONS: Question[] = [
     id: 91,
     stage: "STABLE",
     category: "conflict",
-    text: "伴侣和你的家人有矛盾时，你会？",
+    text: "伴侣和你原生家庭里的人闹不愉快时，你会？",
     options: [
-      { key: "A", text: "在中间传话，两边都说说", scores: { conflict: 4 } },
-      { key: "B", text: "先站伴侣，私下再和爸妈沟通", scores: { conflict: 3 } },
-      { key: "C", text: "两边都不想得罪，尽量躲开", scores: { conflict: 2 } },
-      { key: "D", text: "让伴侣自己处理，那是对方的事", scores: { conflict: 1 } },
+      { key: "A", text: "两边分别沟通，帮忙传话、缓和气氛", scores: { conflict: 4 } },
+      { key: "B", text: "先照顾伴侣感受，再和自己父母家人单独聊", scores: { conflict: 3 } },
+      { key: "C", text: "两边都不想得罪，能躲就躲", scores: { conflict: 2 } },
+      { key: "D", text: "觉得主要是对方的事，我尽量少介入", scores: { conflict: 1 } },
     ],
   },
   {
@@ -556,12 +556,12 @@ const ALL_QUESTIONS: Question[] = [
     id: 93,
     stage: "STABLE",
     category: "conflict",
-    text: "关于「过年回谁家」这类问题，你和伴侣？",
+    text: "春节、中秋等要探望长辈、回哪边家庭时，你们怎么安排？",
     options: [
-      { key: "A", text: "提前商量好，轮流或各回各家", scores: { conflict: 4 } },
-      { key: "B", text: "每年都会讨论，有时会吵", scores: { conflict: 3 } },
-      { key: "C", text: "暂时回避，还没到那步", scores: { conflict: 2 } },
-      { key: "D", text: "必须回我家/对方家，没得商量", scores: { conflict: 1 } },
+      { key: "A", text: "提前商量，轮流探望、各陪各家或折中方案都能接受", scores: { conflict: 4 } },
+      { key: "B", text: "每年都要讨论，有时会争执", scores: { conflict: 3 } },
+      { key: "C", text: "还没认真聊过，先拖着", scores: { conflict: 2 } },
+      { key: "D", text: "必须按某一方的规矩来，很难商量", scores: { conflict: 1 } },
     ],
   },
   {
@@ -616,7 +616,7 @@ const ALL_QUESTIONS: Question[] = [
 
 /**
  * 根据阶段筛选题目
- * - 暧昧期：28 题
+ * - 了解期：28 题
  * - 热恋期：35 题
  * - 稳定期：40 题（专属 32 题 + 冲突处理 8 题）
  */
