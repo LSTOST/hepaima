@@ -21,7 +21,7 @@ export function StageSelector() {
           <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-3">
             选择测试方式
           </h2>
-          <p className="text-gray-500">为情侣打造的契合度测评</p>
+          <p className="text-gray-500">每段关系都有独特的旅程</p>
         </motion.div>
 
         {/* 通用版大卡片 */}

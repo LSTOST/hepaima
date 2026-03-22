@@ -30,6 +30,7 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loadingQuestions, setLoadingQuestions] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [hintOpen, setHintOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -116,6 +117,10 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
         });
     },
   });
+
+  useEffect(() => {
+    setHintOpen(false);
+  }, [currentQuestion?.id]);
 
   const stage = STAGE_CONFIG[stageKey] ?? STAGE_CONFIG.ROMANCE;
   const [direction, setDirection] = useState(1);
@@ -285,12 +290,37 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
         {(stageKey === "AMBIGUOUS" ||
           stageKey === "ROMANCE" ||
           stageKey === "STABLE") && (
-          <p className="max-w-2xl mx-auto px-4 pb-2.5 text-[11px] sm:text-xs text-gray-400 text-center leading-snug">
-            请选<strong className="text-gray-500 font-medium">最接近你们日常</strong>
-            的一项；四选一无法涵盖所有情况时，按
-            <strong className="text-gray-500 font-medium">最常发生</strong>
-            的一种来选即可。
-          </p>
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 pb-2.5 flex flex-col items-center gap-1.5">
+            <button
+              type="button"
+              id="quiz-hint-trigger"
+              onClick={() => setHintOpen((v) => !v)}
+              aria-expanded={hintOpen}
+              aria-controls="quiz-answer-hint"
+              className="text-[11px] sm:text-xs text-gray-400 hover:text-gray-600 text-center"
+            >
+              没有想选的选项？
+            </button>
+            <AnimatePresence initial={false}>
+              {hintOpen && (
+                <motion.p
+                  id="quiz-answer-hint"
+                  role="region"
+                  aria-labelledby="quiz-hint-trigger"
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                  className="text-[11px] sm:text-xs text-gray-400 text-center leading-snug"
+                >
+                  请选<strong className="text-gray-500 font-medium">最接近你们日常</strong>
+                  的一项；四选一无法涵盖所有情况时，按
+                  <strong className="text-gray-500 font-medium">最常发生</strong>
+                  的一种来选即可。
+                </motion.p>
+              )}
+            </AnimatePresence>
+          </div>
         )}
       </header>
 

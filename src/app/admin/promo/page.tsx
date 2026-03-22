@@ -105,6 +105,20 @@ function typeDisplay(type: string, value: number): string {
   }
 }
 
+const PROMO_GEN_COUNT_MAX = 500;
+
+function clampPromoGenCountInput(raw: string): string {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return "1";
+  return String(Math.min(PROMO_GEN_COUNT_MAX, Math.max(1, n)));
+}
+
+function clampGenExpiryDaysInput(raw: string): string {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return "90";
+  return String(Math.min(365, Math.max(1, n)));
+}
+
 export default function AdminPromoPage() {
   const {
     password,
@@ -135,15 +149,24 @@ export default function AdminPromoPage() {
 
   const [genType, setGenType] = useState<"FREE_UNLOCK" | "FIXED_OFF" | "PERCENT_OFF">("FREE_UNLOCK");
   const [genValue, setGenValue] = useState(0);
-  const [genCount, setGenCount] = useState(50);
+  const [genCountInput, setGenCountInput] = useState("50");
   const [genBatch, setGenBatch] = useState("");
-  const [genExpiry, setGenExpiry] = useState(90);
+  const [genExpiryInput, setGenExpiryInput] = useState("90");
   const [genMaxUses, setGenMaxUses] = useState<number | "">("");
   const [generating, setGenerating] = useState(false);
   const [generatedCodes, setGeneratedCodes] = useState<string[] | null>(null);
   const [editMaxUses, setEditMaxUses] = useState("");
   const [savingMaxUses, setSavingMaxUses] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+
+  const promoGenCountParsed = parseInt(genCountInput, 10);
+  const promoGenCountDisplay = Number.isFinite(promoGenCountParsed)
+    ? Math.min(PROMO_GEN_COUNT_MAX, Math.max(1, promoGenCountParsed))
+    : null;
+  const promoGenExpiryParsed = parseInt(genExpiryInput, 10);
+  const promoGenExpiryDisplay = Number.isFinite(promoGenExpiryParsed)
+    ? Math.min(365, Math.max(1, promoGenExpiryParsed))
+    : null;
 
   const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -460,6 +483,16 @@ export default function AdminPromoPage() {
       return;
     }
     if (genType === "FIXED_OFF") value = Math.round(value * 100);
+    const count = parseInt(genCountInput.trim(), 10);
+    if (!Number.isFinite(count) || count < 1 || count > PROMO_GEN_COUNT_MAX) {
+      showToast(`生成数量需在 1～${PROMO_GEN_COUNT_MAX} 之间`, "error");
+      return;
+    }
+    const expiresInDays = parseInt(genExpiryInput.trim(), 10);
+    if (!Number.isFinite(expiresInDays) || expiresInDays < 1 || expiresInDays > 365) {
+      showToast("有效期需在 1～365 天", "error");
+      return;
+    }
     setGenerating(true);
     setGeneratedCodes(null);
     try {
@@ -469,9 +502,9 @@ export default function AdminPromoPage() {
         body: JSON.stringify({
           type: genType,
           value: genType === "FREE_UNLOCK" ? 0 : value,
-          count: genCount,
+          count,
           batchId: genBatch.trim() || undefined,
-          expiresInDays: genExpiry,
+          expiresInDays,
           maxUses: genMaxUses === "" ? undefined : Number(genMaxUses),
         }),
       });
@@ -932,16 +965,17 @@ export default function AdminPromoPage() {
                   <input
                     type="number"
                     min={1}
-                    max={500}
-                    value={genCount}
-                    onChange={(e) =>
-                      setGenCount(
-                        Math.min(500, Math.max(1, Number(e.target.value) || 0)),
-                      )
+                    max={PROMO_GEN_COUNT_MAX}
+                    value={genCountInput}
+                    onChange={(e) => setGenCountInput(e.target.value)}
+                    onBlur={() =>
+                      setGenCountInput((s) => clampPromoGenCountInput(s))
                     }
                     className="w-full px-3 py-2 rounded-lg border border-slate-200"
                   />
-                  <p className="text-xs text-slate-400 mt-1">单次最多 500 个</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    单次最多 {PROMO_GEN_COUNT_MAX} 个
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">
@@ -963,8 +997,11 @@ export default function AdminPromoPage() {
                     type="number"
                     min={1}
                     max={365}
-                    value={genExpiry}
-                    onChange={(e) => setGenExpiry(Number(e.target.value))}
+                    value={genExpiryInput}
+                    onChange={(e) => setGenExpiryInput(e.target.value)}
+                    onBlur={() =>
+                      setGenExpiryInput((s) => clampGenExpiryDaysInput(s))
+                    }
                     className="w-full px-3 py-2 rounded-lg border border-slate-200"
                   />
                 </div>
@@ -985,9 +1022,10 @@ export default function AdminPromoPage() {
                   />
                 </div>
                 <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-                  将生成 <strong>{genCount}</strong> 个优惠码（
+                  将生成{" "}
+                  <strong>{promoGenCountDisplay ?? "—"}</strong> 个优惠码（
                   {typeDisplay(genType, genType === "FIXED_OFF" ? genValue * 100 : genType === "PERCENT_OFF" ? genValue : 0)}
-                  ），有效期 <strong>{genExpiry}</strong> 天。
+                  ），有效期 <strong>{promoGenExpiryDisplay ?? "—"}</strong> 天。
                 </div>
                 <Button
                   className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white rounded-xl py-3"
@@ -1002,7 +1040,7 @@ export default function AdminPromoPage() {
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      生成 {genCount} 个优惠码
+                      生成 {promoGenCountDisplay ?? genCountInput} 个优惠码
                     </>
                   )}
                 </Button>

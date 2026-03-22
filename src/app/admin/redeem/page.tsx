@@ -83,6 +83,20 @@ function statusStyle(status: string): { label: string; className: string } {
   }
 }
 
+const REDEEM_GEN_COUNT_MAX = 1000;
+
+function clampRedeemGenCountInput(raw: string): string {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return "1";
+  return String(Math.min(REDEEM_GEN_COUNT_MAX, Math.max(1, n)));
+}
+
+function clampGenExpiryDaysInput(raw: string): string {
+  const n = parseInt(raw, 10);
+  if (!Number.isFinite(n)) return "90";
+  return String(Math.min(365, Math.max(1, n)));
+}
+
 export default function AdminRedeemPage() {
   const {
     password,
@@ -110,11 +124,20 @@ export default function AdminRedeemPage() {
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailData, setDetailData] = useState<RedeemCodeRow | null>(null);
 
-  const [genCount, setGenCount] = useState(100);
+  const [genCountInput, setGenCountInput] = useState("100");
   const [genBatch, setGenBatch] = useState("");
-  const [genExpiry, setGenExpiry] = useState(90);
+  const [genExpiryInput, setGenExpiryInput] = useState("90");
   const [generating, setGenerating] = useState(false);
   const [generatedCodes, setGeneratedCodes] = useState<string[] | null>(null);
+
+  const redeemGenCountParsed = parseInt(genCountInput, 10);
+  const redeemGenCountDisplay = Number.isFinite(redeemGenCountParsed)
+    ? Math.min(REDEEM_GEN_COUNT_MAX, Math.max(1, redeemGenCountParsed))
+    : null;
+  const redeemGenExpiryParsed = parseInt(genExpiryInput, 10);
+  const redeemGenExpiryDisplay = Number.isFinite(redeemGenExpiryParsed)
+    ? Math.min(365, Math.max(1, redeemGenExpiryParsed))
+    : null;
 
   const showToast = useCallback((msg: string, type: "success" | "error" = "success") => {
     setToast({ msg, type });
@@ -346,6 +369,16 @@ export default function AdminRedeemPage() {
 
   const handleGenerate = async () => {
     if (!password) return;
+    const count = parseInt(genCountInput.trim(), 10);
+    if (!Number.isFinite(count) || count < 1 || count > REDEEM_GEN_COUNT_MAX) {
+      showToast(`生成数量需在 1～${REDEEM_GEN_COUNT_MAX} 之间`, "error");
+      return;
+    }
+    const expiresInDays = parseInt(genExpiryInput.trim(), 10);
+    if (!Number.isFinite(expiresInDays) || expiresInDays < 1 || expiresInDays > 365) {
+      showToast("有效期需在 1～365 天", "error");
+      return;
+    }
     setGenerating(true);
     setGeneratedCodes(null);
     try {
@@ -353,9 +386,9 @@ export default function AdminRedeemPage() {
         method: "POST",
         headers: authHeaders(password),
         body: JSON.stringify({
-          count: genCount,
+          count,
           batchId: genBatch.trim() || undefined,
-          expiresInDays: genExpiry,
+          expiresInDays,
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -745,16 +778,17 @@ export default function AdminRedeemPage() {
                   <input
                     type="number"
                     min={1}
-                    max={1000}
-                    value={genCount}
-                    onChange={(e) =>
-                      setGenCount(
-                        Math.min(1000, Math.max(1, Number(e.target.value) || 0)),
-                      )
+                    max={REDEEM_GEN_COUNT_MAX}
+                    value={genCountInput}
+                    onChange={(e) => setGenCountInput(e.target.value)}
+                    onBlur={() =>
+                      setGenCountInput((s) => clampRedeemGenCountInput(s))
                     }
                     className="w-full px-3 py-2 rounded-lg border border-slate-200"
                   />
-                  <p className="text-xs text-slate-400 mt-1">单次最多 1000 个</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    单次最多 {REDEEM_GEN_COUNT_MAX} 个
+                  </p>
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-slate-600 mb-1.5">
@@ -776,14 +810,17 @@ export default function AdminRedeemPage() {
                     type="number"
                     min={1}
                     max={365}
-                    value={genExpiry}
-                    onChange={(e) => setGenExpiry(Number(e.target.value))}
+                    value={genExpiryInput}
+                    onChange={(e) => setGenExpiryInput(e.target.value)}
+                    onBlur={() =>
+                      setGenExpiryInput((s) => clampGenExpiryDaysInput(s))
+                    }
                     className="w-full px-3 py-2 rounded-lg border border-slate-200"
                   />
                 </div>
                 <div className="rounded-lg bg-amber-50 border border-amber-200 p-3 text-sm text-amber-800">
-                  将生成 <strong>{genCount}</strong> 个兑换码，有效期{" "}
-                  <strong>{genExpiry}</strong> 天。
+                  将生成 <strong>{redeemGenCountDisplay ?? "—"}</strong> 个兑换码，有效期{" "}
+                  <strong>{redeemGenExpiryDisplay ?? "—"}</strong> 天。
                 </div>
                 <Button
                   className="w-full bg-gradient-to-r from-pink-500 to-violet-500 hover:from-pink-600 hover:to-violet-600 text-white rounded-xl py-3"
@@ -798,7 +835,7 @@ export default function AdminRedeemPage() {
                   ) : (
                     <>
                       <Plus className="w-4 h-4 mr-2" />
-                      生成 {genCount} 个兑换码
+                      生成 {redeemGenCountDisplay ?? genCountInput} 个兑换码
                     </>
                   )}
                 </Button>

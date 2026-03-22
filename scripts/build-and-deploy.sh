@@ -7,7 +7,8 @@
 #   export DEPLOY_REMOTE_DIR="/www/wwwroot/hepaima.kyx123.com"  # 可选，默认即此路径
 
 set -e
-cd "$(dirname "$0")/.."
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
 
 DEPLOY_SSH="${DEPLOY_SSH:-}"
 REMOTE_DIR="${DEPLOY_REMOTE_DIR:-/www/wwwroot/hepaima.kyx123.com}"
@@ -28,12 +29,19 @@ fi
 echo ">>> 2. 上传构建结果与必要文件到服务器..."
 ssh "$DEPLOY_SSH" "mkdir -p $REMOTE_DIR"
 # 先本地打 tar 包再 scp，避免管道传输时 SSH 断开导致 Broken pipe
-TARBALL=".deploy-next.tar.gz"
-trap "rm -f $TARBALL" EXIT
-COPYFILE_DISABLE=1 tar -czf "$TARBALL" -C . .next
+# 使用绝对路径，避免 ssh/scp 或环境改变 cwd 后相对路径找不到包
+TARBALL="$ROOT/.deploy-next.tar.gz"
+cleanup_tarball() { rm -f "$TARBALL"; }
+trap cleanup_tarball EXIT
+echo ">>> 2.0 正在打包 .next（可能需要几十秒）..."
+COPYFILE_DISABLE=1 tar -czf "$TARBALL" -C "$ROOT" .next
+if [ ! -s "$TARBALL" ]; then
+  echo "错误：本地打包失败，未生成或非空文件: $TARBALL"
+  exit 1
+fi
 ssh "$DEPLOY_SSH" "rm -rf $REMOTE_DIR/.next"
 scp -q "$TARBALL" "$DEPLOY_SSH:$REMOTE_DIR/"
-ssh "$DEPLOY_SSH" "cd $REMOTE_DIR && tar -xzf $(basename $TARBALL) && rm -f $(basename $TARBALL)"
+ssh "$DEPLOY_SSH" "cd $REMOTE_DIR && tar -xzf $(basename "$TARBALL") && rm -f $(basename "$TARBALL")"
 # 上传其余目录和文件（含 src、scripts，供 seed 用代码里的题目更新数据库）
 scp -r -q public "$DEPLOY_SSH:$REMOTE_DIR/"
 scp -r -q prisma "$DEPLOY_SSH:$REMOTE_DIR/"
