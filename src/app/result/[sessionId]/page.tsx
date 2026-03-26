@@ -1198,6 +1198,7 @@ function ReadyReport({
   const [premiumTipIndex, setPremiumTipIndex] = useState(0);
   const [basicReportTipIndex, setBasicReportTipIndex] = useState(0);
   const [reportProgress, setReportProgress] = useState(0);
+  const [premiumReportProgress, setPremiumReportProgress] = useState(0);
   const PREMIUM_GENERATING_TIPS = [
     "AI 正在分析你们的依恋模式...",
     "正在模拟你们的日常互动场景...",
@@ -1495,6 +1496,35 @@ function ReadyReport({
     return () => clearInterval(t);
   }, [hasReport, reportPollTimeout]);
 
+  // 深度报告生成中：模拟进度条（与基础报告节奏一致，就绪后随内容切换卸载）
+  useEffect(() => {
+    if (!unlocked) {
+      setPremiumReportProgress(0);
+      return;
+    }
+    if (hasPremiumReport) {
+      setPremiumReportProgress(100);
+      return;
+    }
+    setPremiumReportProgress(0);
+    const start = Date.now();
+    const t = setInterval(() => {
+      const elapsed = (Date.now() - start) / 1000;
+      let p: number;
+      if (elapsed < 3) {
+        p = (elapsed / 3) * 40;
+      } else if (elapsed < 8) {
+        p = 40 + ((elapsed - 3) / 5) * 25;
+      } else if (elapsed < 15) {
+        p = 65 + ((elapsed - 8) / 7) * 17;
+      } else {
+        p = 82 + Math.min((elapsed - 15) / 30, 1) * 10;
+      }
+      setPremiumReportProgress(Math.min(Math.round(p), 92));
+    }, 300);
+    return () => clearInterval(t);
+  }, [unlocked, hasPremiumReport]);
+
   const handleOpenShareDialog = useCallback(() => {
     setShareDialogOpen(true);
     setShareLinkCopied(false);
@@ -1595,12 +1625,6 @@ function ReadyReport({
                 </Badge>
               </div>
             </div>
-          </ScrollCard>
-
-          <ScrollCard delay={0.03}>
-            <p className="text-xs sm:text-sm text-gray-500 text-center leading-relaxed px-2 py-1">
-              本报告由本次测评作答自动生成，归纳双方在相处方式与偏好上的差异，供沟通参考。想法与关系状态会变化，报告无法涵盖关系的全貌，也不能替代现实中的相互了解与共同决定。
-            </p>
           </ScrollCard>
 
           <ScrollCard delay={0.05}>
@@ -1961,48 +1985,7 @@ function ReadyReport({
             </div>
           )}
 
-          {/* 服务号关注引导 */}
-          <ScrollCard delay={0.05}>
-            <div className="rounded-2xl overflow-hidden border border-emerald-100/60 bg-gradient-to-r from-emerald-50/60 via-white to-pink-50/40">
-              <div className="flex items-center gap-4 p-4 sm:p-5">
-                <Image
-                  src="/qrcode_for_258.jpg"
-                  alt="知我实验室"
-                  width={80}
-                  height={80}
-                  className="rounded-xl flex-shrink-0 border border-gray-100"
-                />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 mb-1">关注「知我实验室」</p>
-                  <p className="text-xs text-gray-500 leading-relaxed">解锁更多趣味测试，从性格、职业到关系，全方位认识自己</p>
-                  <p className="text-[11px] text-emerald-600 mt-2 flex items-center gap-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-                    截图或长按识别二维码关注
-                  </p>
-                </div>
-              </div>
-            </div>
-          </ScrollCard>
-
           {!unlocked ? (
-            <div className="flex flex-col">
-              <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-gray-50/80" style={{ minHeight: 100 }}>
-                <div className="absolute inset-0 flex items-center justify-center z-10">
-                  <div className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/90 shadow-sm border border-gray-100">
-                    <Lock className="w-4 h-4 flex-shrink-0" style={{ color: "#EC4899" }} />
-                    <span className="text-sm font-medium text-gray-700">深度解读内容预览 · 解锁后可查看</span>
-                  </div>
-                </div>
-                <div className="select-none pointer-events-none opacity-60" style={{ filter: "blur(6px)", padding: "14px 16px" }}>
-                  <p className="text-sm text-gray-500">
-                    根据依恋理论和 Gottman 研究发现，你们的关系呈现出独特的互动模式。双方在依恋类型上的差异既是吸引的来源，也可能成为需要磨合的地方。安全型伴侣能为关系提供稳定基础，而焦虑型或回避型若能在关系中逐渐获得安全感，也能与伴侣建立更深的联结。
-                  </p>
-                </div>
-                <div
-                  className="absolute bottom-0 left-0 right-0 pointer-events-none"
-                  style={{ height: 48, background: "linear-gradient(to bottom, transparent, rgba(249,250,251,0.98))" }}
-                />
-              </div>
               <ScrollCard delay={0.05} className="mt-6">
                 <div
                   className="bg-white rounded-2xl border border-gray-100 shadow-sm mx-auto text-center"
@@ -2035,11 +2018,27 @@ function ReadyReport({
                         setPromoUnlockStatusMessage(null);
                         if (!promoExpanded) setPromoApplied(null);
                       }}
-                      className="text-xs text-gray-400 hover:text-gray-500 transition-colors"
+                      className={
+                        promoExpanded
+                          ? "text-xs text-gray-400 hover:text-gray-500 transition-colors"
+                          : "text-sm font-semibold bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] bg-clip-text text-transparent hover:opacity-90 transition-opacity"
+                      }
                     >
                       {promoExpanded ? "收起优惠码" : "有优惠码？"}
                     </button>
+                    {!promoExpanded && (
+                      <p className="mt-1 text-[10px] text-gray-400 max-w-[280px] mx-auto leading-relaxed">
+                        关注「知我实验室」公众号，回复「优惠码」获取
+                      </p>
+                    )}
                     {promoExpanded && (
+                      <>
+                      <div className="mt-2 mb-2 text-[11px] sm:text-xs text-gray-500 leading-relaxed max-w-[280px] mx-auto text-center space-y-0.5">
+                        <p className="m-0">
+                          微信搜索「<span className="text-gray-700">知我实验室</span>」关注并回复「<span className="text-gray-700">优惠码</span>」
+                        </p>
+                        <p className="m-0 text-gray-600">会自动发送优惠码</p>
+                      </div>
                       <div className="mt-2 flex flex-col sm:flex-row gap-2 items-stretch sm:items-center max-w-[280px] mx-auto">
                         <input
                           type="text"
@@ -2064,6 +2063,7 @@ function ReadyReport({
                           )}
                         </Button>
                       </div>
+                      </>
                     )}
                     {promoError && (
                       <p className="mt-1.5 text-xs text-red-500 max-w-[280px] mx-auto">{promoError}</p>
@@ -2101,7 +2101,6 @@ function ReadyReport({
                   </p>
                 </div>
               </ScrollCard>
-            </div>
           ) : !hasPremiumReport ? (
             <ScrollCard delay={0.05}>
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 sm:p-12 text-center">
@@ -2117,6 +2116,20 @@ function ReadyReport({
                 <p className="text-base font-medium text-gray-800 mb-3" style={{ fontSize: 16 }}>
                   正在为你们生成深度报告...
                 </p>
+                <div className="w-full max-w-[200px] sm:max-w-[260px] mx-auto mb-5 flex items-center gap-2">
+                  <div className="flex-1 min-w-0 h-1.5 rounded-full bg-pink-100/80 overflow-hidden">
+                    <motion.div
+                      className="h-full rounded-full"
+                      style={{ background: "linear-gradient(90deg, #EC4899, #8B5CF6)" }}
+                      initial={{ width: "0%" }}
+                      animate={{ width: `${premiumReportProgress}%` }}
+                      transition={{ duration: 0.5, ease: "easeOut" }}
+                    />
+                  </div>
+                  <span className="text-xs font-medium tabular-nums shrink-0" style={{ color: "#EC4899" }}>
+                    {premiumReportProgress}%
+                  </span>
+                </div>
                 <div className="min-h-[24px] flex items-center justify-center">
                   <AnimatePresence mode="wait">
                     <motion.p
@@ -2468,21 +2481,21 @@ function ReadyReport({
           )}
 
           <ScrollCard delay={0.05}>
-            <div className="flex flex-col sm:flex-row gap-3 pt-2 pb-4 mt-4">
-              <Link href="/" className="flex-1">
+            <div className="flex flex-row gap-3 pt-2 pb-4 mt-4">
+              <Link href="/" className="min-w-0 flex-1">
                 <Button
                   variant="outline"
                   className="w-full rounded-xl py-5 text-base text-gray-600 border-gray-200 hover:bg-gray-50 bg-transparent"
                 >
-                  <RotateCcw className="w-4.5 h-4.5 mr-2" />
+                  <RotateCcw className="w-4.5 h-4.5 mr-2 shrink-0" />
                   重新测试
                 </Button>
               </Link>
               <Button
                 onClick={handleOpenShareDialog}
-                className="flex-1 bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white rounded-xl py-5 text-base font-medium shadow-lg shadow-pink-500/10 transition-all duration-200"
+                className="min-w-0 flex-1 bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white rounded-xl py-5 text-base font-medium shadow-lg shadow-pink-500/10 transition-all duration-200"
               >
-                <Share2 className="w-4.5 h-4.5 mr-2" />
+                <Share2 className="w-4.5 h-4.5 mr-2 shrink-0" />
                 分享结果
               </Button>
             </div>
