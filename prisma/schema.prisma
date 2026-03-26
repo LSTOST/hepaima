@@ -26,6 +26,9 @@ model Session {
   stage               Stage
   status              SessionStatus @default(WAITING_PARTNER)
 
+  productId           String
+  product             Product       @relation(fields: [productId], references: [id])
+
   initiatorId         String?
   initiator           User?         @relation("Initiator", fields: [initiatorId], references: [id])
   initiatorDeviceId   String
@@ -45,6 +48,8 @@ model Session {
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
   expiresAt           DateTime
+
+  @@index([productId])
 }
 
 model Result {
@@ -221,6 +226,7 @@ model Product {
   aiTemplates     ProductAiTemplate[]
   questionnaires  Questionnaire[]
   traits          QuizTrait[]
+  sessions        Session[]
 
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

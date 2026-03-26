@@ -8,6 +8,8 @@ type ModeValue = (typeof VALID_MODES)[number];
 const VALID_STAGES = ["UNIVERSAL", "AMBIGUOUS", "ROMANCE", "STABLE"] as const;
 type StageValue = (typeof VALID_STAGES)[number];
 
+const DEFAULT_PRODUCT_SLUG = "couple-compatibility";
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
@@ -17,6 +19,11 @@ export async function POST(req: NextRequest) {
     const stageRaw = body?.stage as string | undefined;
     const nickname = body?.nickname as string | undefined;
     const usageId = body?.usageId as string | undefined;
+    const productSlugRaw = body?.productSlug as string | undefined;
+    const productSlug =
+      typeof productSlugRaw === "string" && productSlugRaw.trim().length > 0
+        ? productSlugRaw.trim()
+        : DEFAULT_PRODUCT_SLUG;
 
     if (!deviceId || !nickname) {
       return NextResponse.json(
@@ -40,6 +47,19 @@ export async function POST(req: NextRequest) {
           ? (stageRaw as StageValue)
           : "ROMANCE";
 
+    const product = await prisma.product.findFirst({
+      where: { slug: productSlug, isActive: true },
+      select: { id: true },
+    });
+    if (!product) {
+      return NextResponse.json(
+        {
+          message: `找不到或未启用的测评产品：${productSlug}。请在后台创建 slug 为 couple-compatibility 的产品，或执行数据库迁移与种子数据。`,
+        },
+        { status: 400 },
+      );
+    }
+
     // 保证邀请码在合理范围内唯一（冲突概率极低）
     let inviteCode = generateInviteCode();
     for (let i = 0; i < 4; i++) {
@@ -59,6 +79,7 @@ export async function POST(req: NextRequest) {
         mode,
         stage,
         status: "WAITING_PARTNER",
+        productId: product.id,
         initiatorDeviceId: deviceId,
         initiatorName: nickname,
         expiresAt,
