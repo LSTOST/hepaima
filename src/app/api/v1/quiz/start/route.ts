@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { generateInviteCode } from "@/lib/invite";
+import { isValidScenarioSlug } from "@/lib/scenario-quizzes";
 
-const VALID_MODES = ["UNIVERSAL", "STAGED"] as const;
+const VALID_MODES = ["UNIVERSAL", "STAGED", "SCENARIO"] as const;
 type ModeValue = (typeof VALID_MODES)[number];
 
 const VALID_STAGES = ["UNIVERSAL", "AMBIGUOUS", "ROMANCE", "STABLE"] as const;
@@ -17,6 +18,7 @@ export async function POST(req: NextRequest) {
     const deviceId = body?.deviceId as string | undefined;
     const mode = (body?.mode as ModeValue | undefined) ?? "STAGED";
     const stageRaw = body?.stage as string | undefined;
+    const scenarioSlugRaw = body?.scenarioSlug as string | undefined;
     const nickname = body?.nickname as string | undefined;
     const usageId = body?.usageId as string | undefined;
     const productSlugRaw = body?.productSlug as string | undefined;
@@ -39,13 +41,31 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (mode === "SCENARIO") {
+      const slug =
+        typeof scenarioSlugRaw === "string" ? scenarioSlugRaw.trim() : "";
+      if (!slug || !isValidScenarioSlug(slug)) {
+        return NextResponse.json(
+          { message: "专题测评需提供合法的 scenarioSlug" },
+          { status: 400 },
+        );
+      }
+    }
+
     const stage: StageValue =
       mode === "UNIVERSAL"
         ? "UNIVERSAL"
-        : VALID_STAGES.includes(stageRaw as StageValue) &&
-            stageRaw !== "UNIVERSAL"
-          ? (stageRaw as StageValue)
-          : "ROMANCE";
+        : mode === "SCENARIO"
+          ? "ROMANCE"
+          : VALID_STAGES.includes(stageRaw as StageValue) &&
+              stageRaw !== "UNIVERSAL"
+            ? (stageRaw as StageValue)
+            : "ROMANCE";
+
+    const scenarioSlug =
+      mode === "SCENARIO" && typeof scenarioSlugRaw === "string"
+        ? scenarioSlugRaw.trim()
+        : null;
 
     const product = await prisma.product.findFirst({
       where: { slug: productSlug, isActive: true },
@@ -73,11 +93,14 @@ export async function POST(req: NextRequest) {
 
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
 
+    // 仅在专题测评时写入 scenarioSlug；为 null 时不传该字段，避免旧版 Prisma Client
+    // （未执行 prisma generate / 库表未迁移）将 `scenarioSlug: null` 当成未知参数报错。
     const session = await prisma.session.create({
       data: {
         inviteCode,
         mode,
         stage,
+        ...(scenarioSlug != null ? { scenarioSlug } : {}),
         status: "WAITING_PARTNER",
         productId: product.id,
         initiatorDeviceId: deviceId,

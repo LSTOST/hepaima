@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { getScenarioBySlug } from "@/lib/scenario-quizzes";
 
 export async function GET(
   _req: NextRequest,
@@ -19,9 +20,17 @@ export async function GET(
       );
     }
 
+    const scenarioMeta = session.scenarioSlug
+      ? getScenarioBySlug(session.scenarioSlug)
+      : null;
+
     return NextResponse.json({
       status: session.status,
+      mode: session.mode,
       stage: session.stage,
+      scenarioSlug: session.scenarioSlug,
+      scenarioTitle: scenarioMeta?.title ?? null,
+      scenarioSubtitle: scenarioMeta?.subtitle ?? null,
       inviteCode: session.inviteCode,
       initiatorName: session.initiatorName,
       partnerName: session.partnerName,

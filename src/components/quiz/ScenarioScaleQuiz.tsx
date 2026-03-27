@@ -8,51 +8,58 @@ import { ChevronLeft, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { QuizTestTitleChip } from "@/components/quiz/QuizTestTitleChip";
 import { getQuizTestChipMeta } from "@/lib/quiz-test-chip";
-import type { UniversalQuestion } from "@/lib/questions-universal";
+import type { ScenarioQuestion } from "@/lib/scenario-quizzes";
 
-export type UniversalAnswerItem = { questionId: number; value: number };
+export type ScenarioAnswerItem = { questionId: number; value: number };
 
-const AUTO_NEXT_DELAY_MS = 500;
-const UNIVERSAL_STORAGE_KEY = (sessionId: string) => `quiz_universal_${sessionId}`;
+const AUTO_NEXT_DELAY_MS = 450;
+const SCENARIO_STORAGE_KEY = (sessionId: string) => `quiz_scenario_${sessionId}`;
 
-interface UniversalQuizProps {
+interface ScenarioScaleQuizProps {
   sessionId: string;
-  onComplete: (answers: UniversalAnswerItem[]) => void;
+  onComplete: (answers: ScenarioAnswerItem[]) => void;
   isSubmitting: boolean;
   submitError: string | null;
   onRetry: () => void;
 }
 
-export function UniversalQuiz({
+export function ScenarioScaleQuiz({
   sessionId,
   onComplete,
   isSubmitting,
   submitError,
   onRetry,
-}: UniversalQuizProps) {
+}: ScenarioScaleQuizProps) {
+  const [scenarioTitle, setScenarioTitle] = useState<string>("测评");
+  const [scenarioSlug, setScenarioSlug] = useState<string | null>(null);
+  const [questions, setQuestions] = useState<ScenarioQuestion[]>([]);
+  const [loadingQuestions, setLoadingQuestions] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<UniversalAnswerItem[]>([]);
+  const [answers, setAnswers] = useState<ScenarioAnswerItem[]>([]);
   const [direction, setDirection] = useState(1);
   const [transitioning, setTransitioning] = useState(false);
   const hasSubmittedRef = useRef(false);
   const hasRestoredRef = useRef(false);
   const isTransitioning = useRef(false);
-  const [questions, setQuestions] = useState<UniversalQuestion[]>([]);
-  const [loadingQuestions, setLoadingQuestions] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    const fetchQuestions = async () => {
+    const run = async () => {
       setLoadingQuestions(true);
       setLoadError(null);
       try {
-        const res = await fetch("/api/v1/quiz/universal-questions");
+        const res = await fetch(
+          `/api/v1/quiz/scenario-questions?sessionId=${encodeURIComponent(sessionId)}`,
+        );
         const data = await res.json().catch(() => ({}));
         if (!res.ok) {
           throw new Error(data.message ?? "获取题目失败");
         }
         if (!cancelled) {
+          if (typeof data.title === "string") setScenarioTitle(data.title);
+          if (typeof data.slug === "string") setScenarioSlug(data.slug);
           setQuestions(Array.isArray(data.questions) ? data.questions : []);
         }
       } catch (e) {
@@ -62,16 +69,14 @@ export function UniversalQuiz({
           );
         }
       } finally {
-        if (!cancelled) {
-          setLoadingQuestions(false);
-        }
+        if (!cancelled) setLoadingQuestions(false);
       }
     };
-    fetchQuestions();
+    run();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [sessionId]);
 
   const total = questions.length;
   const currentQuestion = total > 0 ? questions[currentIndex] : null;
@@ -82,14 +87,19 @@ export function UniversalQuiz({
     ? answers.find((a) => a.questionId === currentQuestion.id)?.value
     : undefined;
 
-  // 页面加载时从 sessionStorage 恢复进度
   useEffect(() => {
     if (typeof window === "undefined" || total === 0) return;
     try {
-      const raw = sessionStorage.getItem(UNIVERSAL_STORAGE_KEY(sessionId));
+      const raw = sessionStorage.getItem(SCENARIO_STORAGE_KEY(sessionId));
       if (!raw) return;
-      const { answers: savedAnswers, currentIndex: savedIndex } = JSON.parse(raw);
-      if (Array.isArray(savedAnswers) && typeof savedIndex === "number" && savedIndex >= 0 && savedIndex < total) {
+      const { answers: savedAnswers, currentIndex: savedIndex } =
+        JSON.parse(raw);
+      if (
+        Array.isArray(savedAnswers) &&
+        typeof savedIndex === "number" &&
+        savedIndex >= 0 &&
+        savedIndex < total
+      ) {
         setAnswers(savedAnswers);
         setCurrentIndex(savedIndex);
       }
@@ -100,14 +110,13 @@ export function UniversalQuiz({
     }
   }, [sessionId, total]);
 
-  // 每次答题后保存进度
   useEffect(() => {
     if (typeof window === "undefined" || !hasRestoredRef.current) return;
     if (answers.length === 0 && currentIndex === 0) return;
     try {
       sessionStorage.setItem(
-        UNIVERSAL_STORAGE_KEY(sessionId),
-        JSON.stringify({ answers, currentIndex })
+        SCENARIO_STORAGE_KEY(sessionId),
+        JSON.stringify({ answers, currentIndex }),
       );
     } catch {
       /* ignore */
@@ -125,7 +134,9 @@ export function UniversalQuiz({
       const existingIdx = answers.findIndex((a) => a.questionId === questionId);
       const newAnswers =
         existingIdx >= 0
-          ? answers.map((a, i) => (i === existingIdx ? { questionId, value } : a))
+          ? answers.map((a, i) =>
+              i === existingIdx ? { questionId, value } : a,
+            )
           : [...answers, { questionId, value }];
       setAnswers(newAnswers);
 
@@ -143,7 +154,7 @@ export function UniversalQuiz({
         isTransitioning.current = false;
       }, AUTO_NEXT_DELAY_MS);
     },
-    [currentQuestion, isLastQuestion, answers, onComplete]
+    [currentQuestion, isLastQuestion, answers, onComplete],
   );
 
   const handlePrev = useCallback(() => {
@@ -158,9 +169,14 @@ export function UniversalQuiz({
       if (isTransitioning.current || hasSubmittedRef.current) return;
       isTransitioning.current = true;
       hasSubmittedRef.current = true;
-      const finalAnswers = answers.find((a) => a.questionId === currentQuestion?.id)
+      const finalAnswers = answers.find(
+        (a) => a.questionId === currentQuestion?.id,
+      )
         ? answers
-        : [...answers, { questionId: currentQuestion!.id, value: currentAnswer }];
+        : [
+            ...answers,
+            { questionId: currentQuestion!.id, value: currentAnswer },
+          ];
       onComplete(finalAnswers);
     } else if (!isLastQuestion) {
       setDirection(1);
@@ -168,7 +184,11 @@ export function UniversalQuiz({
     }
   }, [isLastQuestion, currentAnswer, currentQuestion, answers, onComplete]);
 
-  const universalChip = getQuizTestChipMeta({ mode: "UNIVERSAL" });
+  const scenarioChip = getQuizTestChipMeta({
+    mode: "SCENARIO",
+    scenarioSlug: scenarioSlug ?? undefined,
+  });
+  const scenarioHeaderLabel = scenarioSlug ? scenarioTitle : scenarioChip.label;
 
   const slideVariants = {
     enter: (dir: number) => ({ x: dir > 0 ? 200 : -200, opacity: 0 }),
@@ -190,7 +210,9 @@ export function UniversalQuiz({
         >
           {submitError ? (
             <>
-              <p className="text-lg font-medium text-red-600 mb-4">{submitError}</p>
+              <p className="text-lg font-medium text-red-600 mb-4">
+                {submitError}
+              </p>
               <Button
                 onClick={onRetry}
                 className="rounded-full bg-gradient-to-r from-pink-500 to-violet-500 text-white"
@@ -200,27 +222,8 @@ export function UniversalQuiz({
             </>
           ) : (
             <>
-              <motion.div
-                className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-br from-pink-50 to-violet-50 shadow-lg shadow-pink-100/50 mb-5"
-                animate={{ scale: [1, 1.02, 1], boxShadow: ["0 10px 40px -10px rgba(236,72,153,0.2)", "0 14px 50px -10px rgba(236,72,153,0.3)", "0 10px 40px -10px rgba(236,72,153,0.2)"] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              >
-                <Loader2 className="w-8 h-8 text-pink-500 animate-spin" />
-              </motion.div>
-              <p className="text-lg font-medium text-gray-800 mb-1">
-                正在提交...
-              </p>
-              <p className="text-sm text-gray-500 mb-5">提交成功后即将跳转</p>
-              <motion.div className="flex justify-center gap-1.5" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}>
-                {[0, 1, 2].map((i) => (
-                  <motion.span
-                    key={i}
-                    className="w-2 h-2 rounded-full bg-pink-300"
-                    animate={{ opacity: [0.4, 1, 0.4], scale: [0.9, 1.1, 0.9] }}
-                    transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
-                  />
-                ))}
-              </motion.div>
+              <Loader2 className="w-10 h-10 text-pink-500 animate-spin mx-auto mb-4" />
+              <p className="text-lg font-medium text-gray-800">正在提交...</p>
             </>
           )}
         </motion.div>
@@ -243,12 +246,7 @@ export function UniversalQuiz({
           {loadError ?? "题目加载失败，请稍后重试"}
         </p>
         <Button
-          onClick={() => {
-            // 简单粗暴刷新页面重新拉题
-            if (typeof window !== "undefined") {
-              window.location.reload();
-            }
-          }}
+          onClick={() => window.location.reload()}
           className="rounded-full bg-gradient-to-r from-pink-500 to-violet-500 text-white"
         >
           重新加载
@@ -265,16 +263,16 @@ export function UniversalQuiz({
       </div>
 
       <header className="relative z-10 bg-white/70 backdrop-blur-lg border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-          <Link href="/" className="flex items-center">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-2">
+          <Link href="/" className="flex items-center shrink-0">
             <Logo size="md" />
           </Link>
           <QuizTestTitleChip
-            label={universalChip.label}
-            icon={universalChip.Icon}
-            className="min-w-0 shrink"
+            label={scenarioHeaderLabel}
+            icon={scenarioChip.Icon}
+            className="max-w-[min(240px,48vw)] shrink"
           />
-          <span className="text-sm font-semibold text-gray-500 tabular-nums min-w-[3rem] text-right">
+          <span className="text-sm font-semibold text-gray-500 tabular-nums shrink-0 min-w-[3rem] text-right">
             <span className="text-gray-800">{currentIndex + 1}</span>
             <span className="text-gray-300 mx-0.5">/</span>
             {total}
@@ -285,7 +283,7 @@ export function UniversalQuiz({
             className="h-full bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] rounded-r-full"
             initial={{ width: 0 }}
             animate={{ width: `${progress}%` }}
-            transition={{ duration: 0.5, ease: "easeOut" }}
+            transition={{ duration: 0.45, ease: "easeOut" }}
           />
         </div>
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-1.5 flex items-center justify-between">
@@ -298,14 +296,12 @@ export function UniversalQuiz({
               首页
             </button>
           </Link>
-          <p className="text-xs text-gray-400 tabular-nums">
-            {progressPercent}%
-          </p>
+          <p className="text-xs text-gray-400 tabular-nums">{progressPercent}%</p>
         </div>
       </header>
 
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-4 sm:px-6 py-10 sm:py-16">
-        <div className="w-full max-w-lg">
+      <main className="relative z-10 flex-1 flex flex-col px-4 sm:px-6 py-8 sm:py-12">
+        <div className="w-full max-w-lg mx-auto flex-1 flex flex-col justify-center">
           <AnimatePresence mode="wait" custom={direction}>
             <motion.div
               key={currentQuestion.id}
@@ -314,50 +310,63 @@ export function UniversalQuiz({
               initial="enter"
               animate="center"
               exit="exit"
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="flex flex-col items-center"
+              transition={{ duration: 0.28, ease: "easeInOut" }}
+              className="flex flex-col"
             >
-              <div className="text-center mb-10 sm:mb-12">
-                <span className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-br from-pink-50 to-violet-50 text-sm font-bold text-[#EC4899] mb-4">
+              <div className="text-center mb-8 sm:mb-10">
+                <span className="inline-flex items-center justify-center w-9 h-9 rounded-full bg-gradient-to-br from-pink-50 to-violet-50 text-sm font-bold text-[#EC4899] mb-4">
                   {currentIndex + 1}
                 </span>
-                <h2 className="text-xl sm:text-2xl font-semibold text-gray-800 leading-relaxed text-balance">
+                <h2 className="text-lg sm:text-xl font-semibold text-[#1F2937] leading-relaxed text-balance">
                   {currentQuestion.text}
                 </h2>
               </div>
 
-              <div className="w-full">
-                <div
-                  className={`flex items-center justify-between gap-2 sm:gap-3 mb-3 ${transitioning ? "pointer-events-none" : ""}`}
-                >
-                  {[1, 2, 3, 4, 5, 6, 7].map((value) => {
+              <div
+                className={`space-y-4 ${transitioning ? "pointer-events-none opacity-70" : ""}`}
+              >
+                <div className="grid grid-cols-5 gap-2 sm:gap-3">
+                  {[1, 2, 3, 4, 5].map((value) => {
                     const isSelected = currentAnswer === value;
                     return (
                       <motion.button
                         key={value}
                         type="button"
+                        aria-label={
+                          value === 1
+                            ? "1 分，完全不符合"
+                            : value === 5
+                              ? "5 分，完全符合"
+                              : `${value} 分`
+                        }
                         onClick={() => selectValue(currentQuestion.id, value)}
-                        whileTap={{ scale: 0.9 }}
-                        animate={isSelected ? { scale: 1.15 } : { scale: 1 }}
-                        transition={{
-                          type: "spring",
-                          stiffness: 400,
-                          damping: 15,
-                        }}
-                        className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-sm font-semibold border-2 transition-colors duration-200 cursor-pointer select-none ${
+                        whileTap={{ scale: 0.96 }}
+                        className={`flex items-center justify-center rounded-2xl border-2 py-4 sm:py-5 transition-colors duration-200 cursor-pointer ${
                           isSelected
-                            ? "bg-gradient-to-br from-[#EC4899] to-[#8B5CF6] text-white border-transparent shadow-lg shadow-pink-300/30"
-                            : "bg-white text-gray-500 border-gray-200 hover:border-[#EC4899] hover:text-[#EC4899]"
+                            ? "border-pink-400 bg-pink-50 shadow-sm"
+                            : "border-gray-100 bg-white hover:border-pink-200"
                         }`}
                       >
-                        {value}
+                        <span
+                          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-full flex items-center justify-center text-base sm:text-lg font-bold ${
+                            isSelected
+                              ? "bg-gradient-to-br from-[#EC4899] to-[#8B5CF6] text-white"
+                              : "bg-gray-50 text-gray-500"
+                          }`}
+                        >
+                          {value}
+                        </span>
                       </motion.button>
                     );
                   })}
                 </div>
-                <div className="flex items-center justify-between px-1">
-                  <span className="text-xs text-gray-400">完全不符合</span>
-                  <span className="text-xs text-gray-400">完全符合</span>
+                <div className="flex items-center justify-between gap-2 px-0.5 text-xs sm:text-sm text-[#6B7280]">
+                  <span className="text-left leading-snug max-w-[42%]">
+                    完全不符合
+                  </span>
+                  <span className="text-right leading-snug max-w-[42%]">
+                    完全符合
+                  </span>
                 </div>
               </div>
             </motion.div>
@@ -368,28 +377,24 @@ export function UniversalQuiz({
       <div className="relative z-10 pb-8 px-4 sm:px-6">
         <div className="max-w-lg mx-auto flex items-center justify-center gap-4">
           {currentIndex > 0 && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Button
-                variant="ghost"
-                onClick={handlePrev}
-                className="text-gray-400 hover:text-gray-600 hover:bg-white/60 rounded-xl cursor-pointer"
-              >
-                <ChevronLeft className="w-4 h-4 mr-1" />
-                上一题
-              </Button>
-            </motion.div>
+            <Button
+              variant="ghost"
+              onClick={handlePrev}
+              className="text-gray-400 hover:text-gray-600 hover:bg-white/60 rounded-xl"
+            >
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              上一题
+            </Button>
           )}
           {isLastQuestion && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-              <Button
-                onClick={handleNext}
-                disabled={currentAnswer === undefined}
-                className="bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-pink-600 hover:to-violet-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white rounded-xl px-6 shadow-md cursor-pointer"
-              >
-                提交
-                <ChevronRight className="w-4 h-4 ml-1" />
-              </Button>
-            </motion.div>
+            <Button
+              onClick={handleNext}
+              disabled={currentAnswer === undefined}
+              className="bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-pink-600 hover:to-violet-600 disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white rounded-xl px-6 shadow-md"
+            >
+              提交
+              <ChevronRight className="w-4 h-4 ml-1" />
+            </Button>
           )}
         </div>
       </div>

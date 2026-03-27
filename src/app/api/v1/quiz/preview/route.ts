@@ -16,7 +16,13 @@ export async function GET(req: NextRequest) {
 
     const session = await prisma.session.findUnique({
       where: { inviteCode: code.toUpperCase() },
-      select: { stage: true, expiresAt: true, partnerDeviceId: true },
+      select: {
+        stage: true,
+        mode: true,
+        scenarioSlug: true,
+        expiresAt: true,
+        partnerDeviceId: true,
+      },
     });
 
     if (!session) {
@@ -43,6 +49,8 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       stage: session.stage,
+      mode: session.mode,
+      scenarioSlug: session.scenarioSlug,
       stageLabel: getStageLabel(session.stage),
     });
   } catch (error) {

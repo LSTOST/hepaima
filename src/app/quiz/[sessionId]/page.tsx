@@ -6,6 +6,7 @@ import { getDeviceId } from "@/lib/device";
 import type { Stage } from "@/lib/questions";
 import { UniversalQuiz } from "@/components/quiz/UniversalQuiz";
 import type { UniversalAnswerItem } from "@/components/quiz/UniversalQuiz";
+import { ScenarioScaleQuiz } from "@/components/quiz/ScenarioScaleQuiz";
 import { StagedQuizUI } from "@/components/quiz/StagedQuizUI";
 
 const VALID_STAGES: Stage[] = ["AMBIGUOUS", "ROMANCE", "STABLE"];
@@ -22,7 +23,6 @@ function QuizContent() {
   const searchParams = useSearchParams();
   const sessionId = params.sessionId as string;
 
-  // 移动端从昵称页跳转过来时，有时滚动位置未重置，导致顶部被遮挡；进入答题页时强制滚到顶部
   useEffect(() => {
     scrollToTop();
     const raf = requestAnimationFrame(() => scrollToTop());
@@ -32,20 +32,22 @@ function QuizContent() {
       clearTimeout(timeout);
     };
   }, []);
-  const mode = (searchParams.get("mode") ?? "STAGED") as string;
+
+  const mode = (searchParams.get("mode") ?? "STAGED").toUpperCase();
   const stageFromUrl = searchParams.get("stage") ?? "ROMANCE";
   const stageKey = VALID_STAGES.includes(stageFromUrl as Stage)
     ? (stageFromUrl as Stage)
     : "ROMANCE";
 
   const isUniversal = mode === "UNIVERSAL";
+  const isScenario = mode === "SCENARIO";
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const lastUniversalAnswersRef = useRef<UniversalAnswerItem[] | null>(null);
+  const lastValueAnswersRef = useRef<UniversalAnswerItem[] | null>(null);
   const isSubmittingRef = useRef(false);
 
-  const submitUniversalAnswers = useCallback(
+  const submitValueAnswers = useCallback(
     async (answers: UniversalAnswerItem[]) => {
       const deviceId = getDeviceId();
       const res = await fetch("/api/v1/quiz/submit", {
@@ -64,16 +66,17 @@ function QuizContent() {
     (answers: UniversalAnswerItem[]) => {
       if (isSubmittingRef.current) return;
       isSubmittingRef.current = true;
-      lastUniversalAnswersRef.current = answers;
+      lastValueAnswersRef.current = answers;
       setSubmitError(null);
       setSubmitting(true);
-      submitUniversalAnswers(answers)
+      submitValueAnswers(answers)
         .then((data) => {
           if (typeof window !== "undefined") {
             sessionStorage.removeItem(`quiz_universal_${sessionId}`);
             const ready = data?.bothCompleted ? "?ready=1" : "";
-            const targetPath = `/result/${sessionId}${ready}`;
-            window.location.assign(`${window.location.origin}${targetPath}`);
+            window.location.assign(
+              `${window.location.origin}/result/${sessionId}${ready}`,
+            );
           }
         })
         .catch((err) => {
@@ -82,22 +85,51 @@ function QuizContent() {
           isSubmittingRef.current = false;
         });
     },
-    [sessionId, submitUniversalAnswers]
+    [sessionId, submitValueAnswers]
   );
 
-  const handleUniversalRetry = useCallback(() => {
-    const ans = lastUniversalAnswersRef.current;
+  const handleScenarioComplete = useCallback(
+    (answers: UniversalAnswerItem[]) => {
+      if (isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
+      lastValueAnswersRef.current = answers;
+      setSubmitError(null);
+      setSubmitting(true);
+      submitValueAnswers(answers)
+        .then((data) => {
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem(`quiz_scenario_${sessionId}`);
+            const ready = data?.bothCompleted ? "?ready=1" : "";
+            window.location.assign(
+              `${window.location.origin}/result/${sessionId}${ready}`,
+            );
+          }
+        })
+        .catch((err) => {
+          setSubmitError(err instanceof Error ? err.message : "提交失败，请重试");
+          setSubmitting(false);
+          isSubmittingRef.current = false;
+        });
+    },
+    [sessionId, submitValueAnswers]
+  );
+
+  const handleValueRetry = useCallback(() => {
+    const ans = lastValueAnswersRef.current;
     if (!ans) return;
     if (isSubmittingRef.current) return;
     isSubmittingRef.current = true;
     setSubmitError(null);
     setSubmitting(true);
-    submitUniversalAnswers(ans)
+    submitValueAnswers(ans)
       .then((data) => {
         if (typeof window !== "undefined") {
           sessionStorage.removeItem(`quiz_universal_${sessionId}`);
+          sessionStorage.removeItem(`quiz_scenario_${sessionId}`);
           const ready = data?.bothCompleted ? "?ready=1" : "";
-          window.location.assign(`${window.location.origin}/result/${sessionId}${ready}`);
+          window.location.assign(
+            `${window.location.origin}/result/${sessionId}${ready}`,
+          );
         }
       })
       .catch((err) => {
@@ -105,7 +137,7 @@ function QuizContent() {
         setSubmitting(false);
         isSubmittingRef.current = false;
       });
-  }, [sessionId, submitUniversalAnswers]);
+  }, [sessionId, submitValueAnswers]);
 
   if (isUniversal) {
     return (
@@ -114,7 +146,19 @@ function QuizContent() {
         onComplete={handleUniversalComplete}
         isSubmitting={submitting}
         submitError={submitError}
-        onRetry={handleUniversalRetry}
+        onRetry={handleValueRetry}
+      />
+    );
+  }
+
+  if (isScenario) {
+    return (
+      <ScenarioScaleQuiz
+        sessionId={sessionId}
+        onComplete={handleScenarioComplete}
+        isSubmitting={submitting}
+        submitError={submitError}
+        onRetry={handleValueRetry}
       />
     );
   }

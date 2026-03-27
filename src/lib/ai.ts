@@ -362,11 +362,19 @@ type PayloadData = {
   partnerLoveLanguage: string;
   overallScore: number;
   dimensions: Record<string, number>;
+  scenarioTitle?: string;
+  scenarioSubtitle?: string;
 };
 
 function buildPayloadStr(data: PayloadData): string {
   const stageLabel = getStageLabel(data.stage);
-  return `- 关系阶段：${stageLabel}
+  const scenarioBlock =
+    data.scenarioTitle != null && data.scenarioTitle !== ""
+      ? `- 测评形式：现实场景专题量表（1–5 分自陈）
+- 专题名称：${data.scenarioTitle}
+${data.scenarioSubtitle ? `- 专题侧重：${data.scenarioSubtitle}\n` : ""}- 写作：以该场景为主线解读；依恋与爱的语言为量表内相关题目推算，表述为「在该场景中的倾向」；避免「完整阶段测评」式泛化结论。\n`
+      : "";
+  return `${scenarioBlock}- 关系阶段（参考）：${stageLabel}
 - ${data.initiatorName}：依恋类型 ${data.initiatorAttachment}，爱的语言 ${data.initiatorLoveLanguage}
 - ${data.partnerName}：依恋类型 ${data.partnerAttachment}，爱的语言 ${data.partnerLoveLanguage}
 - 总体契合度：${data.overallScore}%
@@ -383,6 +391,8 @@ export async function generateReport(data: {
   partnerLoveLanguage: string;
   overallScore: number;
   dimensions: Record<string, number>;
+  scenarioTitle?: string;
+  scenarioSubtitle?: string;
 }): Promise<GeneratedReport> {
   console.log("===== 开始调用 AI =====");
 
@@ -408,7 +418,6 @@ export async function generateReport(data: {
     temperature = tpl.temperature;
     maxTokens = tpl.maxTokens;
   } else {
-    const stageLabel = getStageLabel(data.stage);
     systemPrompt = `你是一位专业的关系心理咨询师，拥有丰富的依恋理论和爱的语言领域经验。
 请根据情侣测试数据，生成一份专业、温暖、有洞察力的关系分析报告。
 语气要亲切自然，像朋友一样给出建议，避免过于学术化。
@@ -419,11 +428,7 @@ overallAnalysis 是一个对象，包含：
 - advice：一句温暖的总结建议（20-30字）。
 请严格按照 JSON 格式输出，不要包含 markdown 代码块标记。`;
     userPrompt = `## 测试数据
-- 关系阶段：${stageLabel}
-- ${data.initiatorName}：依恋类型 ${data.initiatorAttachment}，爱的语言 ${data.initiatorLoveLanguage}
-- ${data.partnerName}：依恋类型 ${data.partnerAttachment}，爱的语言 ${data.partnerLoveLanguage}
-- 总体契合度：${data.overallScore}%
-- 各维度得分：${JSON.stringify(data.dimensions)}
+${buildPayloadStr(data)}
 
 请输出以下 JSON。overallAnalysis 必须是对象（见下方结构），包含 summary、highlights（恰好4条）、advice。
 
@@ -536,13 +541,21 @@ export type ReportStreamPayload = {
   partnerLoveLanguage: string;
   overallScore: number;
   dimensions: Record<string, number>;
+  scenarioTitle?: string;
+  scenarioSubtitle?: string;
 };
 
 function buildReportPrompts(data: ReportStreamPayload) {
   const stageLabel = getStageLabel(data.stage);
+  const scenarioNote =
+    data.scenarioTitle != null && data.scenarioTitle !== ""
+      ? `本测评为**现实场景专题量表**（1–5 分），专题：「${data.scenarioTitle}」${
+          data.scenarioSubtitle ? `（${data.scenarioSubtitle}）` : ""
+        }。请围绕该生活场景解读契合度与相处建议，summary/highlights/actionItems 须明显回扣本专题；兼顾六维得分；依恋与爱的语言为量表推算，写「在该场景中的倾向」而非完整诊断；避免写成「关系阶段全套测评」口吻。\n`
+      : "";
   const systemPrompt = `你是关系心理咨询师，根据情侣测试数据生成温暖、有洞察力的关系分析报告。用中文、亲切语气。overallAnalysis 为对象：summary(60-80字)、highlights(恰好4条: emoji+title+detail)、advice(20-30字)。只输出 JSON，无 markdown 标记。`;
   const userPrompt = `## 测试数据
-- 关系阶段：${stageLabel}
+${scenarioNote}- 关系阶段（参考）：${stageLabel}
 - ${data.initiatorName}：依恋 ${data.initiatorAttachment}，爱的语言 ${data.initiatorLoveLanguage}
 - ${data.partnerName}：依恋 ${data.partnerAttachment}，爱的语言 ${data.partnerLoveLanguage}
 - 契合度：${data.overallScore}%，维度：${JSON.stringify(data.dimensions)}
@@ -769,6 +782,8 @@ export async function generatePremiumReport(data: {
   partnerLoveLanguage: string;
   overallScore: number;
   dimensions: Record<string, number>;
+  scenarioTitle?: string;
+  scenarioSubtitle?: string;
 }): Promise<GeneratedPremiumReport> {
   console.log("===== 开始调用 AI 生成深度报告 =====");
 
@@ -779,6 +794,12 @@ export async function generatePremiumReport(data: {
   }
 
   const stageLabel = getStageLabel(data.stage);
+  const scenarioBlock =
+    data.scenarioTitle != null && data.scenarioTitle !== ""
+      ? `\n- 测评形式：现实场景专题量表（1–5 分）\n- 专题名称：${data.scenarioTitle}${
+          data.scenarioSubtitle ? `\n- 专题侧重：${data.scenarioSubtitle}` : ""
+        }\n（深度报告须以服务本生活场景为主线：deepAnalysis、dailyScenarios、四周任务与沟通建议优先回扣该专题；关系展望可写在该场景下的互动趋势，避免空泛「长期关系」套话。）`
+      : "";
 
   const systemPrompt = `你是一位资深的关系心理咨询师，拥有 15 年以上的依恋理论研究和婚姻咨询经验。
 请根据情侣测试数据，生成一份深度、专业、有温度的关系分析报告。
@@ -789,7 +810,7 @@ export async function generatePremiumReport(data: {
 重要格式要求：报告中不要使用英文单引号「'」或双引号「"」「"」来强调；需要强调的词语一律用加粗，在 JSON 字符串中用 **文字** 表示（例如 "这是**重点**内容"）。`;
 
   const userPrompt = `## 测试数据
-- 关系阶段：${stageLabel}
+- 关系阶段（参考）：${stageLabel}${scenarioBlock}
 - ${data.initiatorName}：依恋类型 ${data.initiatorAttachment}，爱的语言 ${data.initiatorLoveLanguage}
 - ${data.partnerName}：依恋类型 ${data.partnerAttachment}，爱的语言 ${data.partnerLoveLanguage}
 - 总体契合度：${data.overallScore}%

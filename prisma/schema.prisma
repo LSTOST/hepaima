@@ -24,6 +24,8 @@ model Session {
   inviteCode          String        @unique
   mode                TestMode      @default(STAGED)
   stage               Stage
+  /// 专题量表测评标识（mode 为 SCENARIO 时使用）
+  scenarioSlug        String?
   status              SessionStatus @default(WAITING_PARTNER)
 
   productId           String
@@ -388,6 +390,7 @@ enum QuestionType {
 enum TestMode {
   UNIVERSAL
   STAGED
+  SCENARIO
 }
 
 enum Stage {

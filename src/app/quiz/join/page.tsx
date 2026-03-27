@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { Heart, ArrowLeft, Loader2, Sparkles } from "lucide-react";
+import { ArrowLeft, Loader2, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Link from "next/link";
 import { getDeviceId } from "@/lib/device";
+import { QuizTestTitleChip } from "@/components/quiz/QuizTestTitleChip";
+import { getQuizTestChipMeta } from "@/lib/quiz-test-chip";
 
 function JoinContent() {
   const searchParams = useSearchParams();
@@ -18,7 +20,12 @@ function JoinContent() {
   const [nickname, setNickname] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [stageLabel, setStageLabel] = useState<string | null>(null);
+  type QuizPreview = {
+    mode: string;
+    stage: string;
+    scenarioSlug: string | null;
+  };
+  const [preview, setPreview] = useState<QuizPreview | null>(null);
 
   useEffect(() => {
     if (codeFromUrl) {
@@ -28,23 +35,44 @@ function JoinContent() {
 
   useEffect(() => {
     if (inviteCode.length !== 6) {
-      setStageLabel(null);
+      setPreview(null);
       return;
     }
     const controller = new AbortController();
     fetch(`/api/v1/quiz/preview?code=${encodeURIComponent(inviteCode)}`, {
       signal: controller.signal,
     })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.stageLabel) setStageLabel(data.stageLabel);
-        else setStageLabel(null);
+      .then(async (res) => {
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          setPreview(null);
+          return;
+        }
+        setPreview({
+          mode: String(data.mode ?? "STAGED").toUpperCase(),
+          stage: String(data.stage ?? "ROMANCE").toUpperCase(),
+          scenarioSlug:
+            typeof data.scenarioSlug === "string" && data.scenarioSlug
+              ? data.scenarioSlug
+              : null,
+        });
       })
       .catch(() => {
-        setStageLabel(null);
+        setPreview(null);
       });
     return () => controller.abort();
   }, [inviteCode]);
+
+  const testChip = useMemo(() => {
+    if (!preview) {
+      return getQuizTestChipMeta({ fallbackLabel: "邀请加入" });
+    }
+    return getQuizTestChipMeta({
+      mode: preview.mode,
+      stage: preview.stage,
+      scenarioSlug: preview.scenarioSlug,
+    });
+  }, [preview]);
 
   const handleCodeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const raw = e.target.value.replace(/[^a-zA-Z0-9]/g, "").slice(0, 6).toUpperCase();
@@ -102,7 +130,12 @@ function JoinContent() {
         return;
       }
 
-      router.push(`/quiz/${data.sessionId}?mode=${data.mode ?? "STAGED"}&stage=${data.stage}`);
+      const mode = (data.mode ?? "STAGED") as string;
+      const qs =
+        mode === "SCENARIO"
+          ? "mode=SCENARIO"
+          : `mode=${mode}&stage=${data.stage}`;
+      router.push(`/quiz/${data.sessionId}?${qs}`);
     } catch {
       setError("网络错误，请稍后重试");
     } finally {
@@ -113,12 +146,12 @@ function JoinContent() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-pink-50/50 to-white">
       <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-start">
           <Link
             href="/"
-            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+            className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors text-sm font-medium -ml-0.5"
           >
-            <ArrowLeft className="w-5 h-5" />
+            <ArrowLeft className="w-4 h-4 shrink-0" />
             <span>首页</span>
           </Link>
         </div>
@@ -132,11 +165,8 @@ function JoinContent() {
             transition={{ duration: 0.5 }}
             className="flex flex-col items-center"
           >
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-pink-100 rounded-full mb-6">
-              <Heart className="w-4 h-4 text-pink-500 fill-pink-500 shrink-0" />
-              <span className="text-pink-600 font-medium">
-                {stageLabel ?? "邀请加入"}
-              </span>
+            <div className="mb-6 flex w-full justify-center px-1">
+              <QuizTestTitleChip label={testChip.label} icon={testChip.Icon} />
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-2">加入测试</h1>

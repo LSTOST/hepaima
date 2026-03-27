@@ -18,6 +18,8 @@ import {
   calculateUniversalDimensions,
 } from "@/lib/scoring-universal";
 import { getUniversalQuestionsFromDb, getStagedQuestionsFromDb } from "@/lib/quiz-config";
+import { getScenarioBySlug } from "@/lib/scenario-quizzes";
+import { scoreScenarioPair } from "@/lib/scoring-scenario";
 
 interface AnswerPayloadStaged {
   questionId: number;
@@ -105,7 +107,7 @@ export async function POST(req: NextRequest) {
       !!updated.initiatorCompletedAt && !!updated.partnerCompletedAt;
 
     let resultReady = false;
-    const sessionMode = (session as { mode?: string }).mode ?? "STAGED";
+    const sessionMode = (updated as { mode?: string }).mode ?? "STAGED";
 
     if (bothCompleted && updated.status !== "COMPLETED") {
       console.log("===== 双方完成，开始处理 =====");
@@ -121,6 +123,8 @@ export async function POST(req: NextRequest) {
         partnerLoveLanguage: string;
         overallScore: number;
         dimensions: Record<string, number>;
+        scenarioTitle?: string;
+        scenarioSubtitle?: string;
       };
       let reportPayload: ReportPayload | null = null;
       let createdResultId: string | null = null;
@@ -192,6 +196,59 @@ export async function POST(req: NextRequest) {
           partnerLoveLanguage: LOVE_LANGUAGE_LABELS[partnerLoveLanguage] ?? partnerLoveLanguage,
           overallScore,
           dimensions: dimensionsRecord,
+        };
+      } else if (sessionMode === "SCENARIO") {
+        const slug = updated.scenarioSlug;
+        if (!slug || !getScenarioBySlug(slug)) {
+          console.error("SCENARIO session missing scenarioSlug:", sessionId);
+          return NextResponse.json(
+            { message: "专题测评数据异常，请重新发起测试" },
+            { status: 500 },
+          );
+        }
+        const initiatorAns = toUniversalAnswerItems(updated.initiatorAnswers);
+        const partnerAns = toUniversalAnswerItems(updated.partnerAnswers);
+        const scored = scoreScenarioPair(initiatorAns, partnerAns, slug);
+        const scenarioMeta = getScenarioBySlug(slug)!;
+        const mergedDimensionsRecord =
+          scored.dimensions as unknown as Record<string, number>;
+
+        const resultStart = Date.now();
+        const result = await prisma.result.create({
+          data: {
+            sessionId,
+            overallScore: scored.overallScore,
+            dimensions: mergedDimensionsRecord,
+            initiatorAttachment: scored.initiatorAttachment,
+            partnerAttachment: scored.partnerAttachment,
+            initiatorLoveLanguage: scored.initiatorLoveLanguage,
+            partnerLoveLanguage: scored.partnerLoveLanguage,
+          },
+        });
+        createdResultId = result.id;
+        console.log("专题量表计分完成，耗时:", Date.now() - scoreStart, "ms");
+        console.log("Result 创建完成，耗时:", Date.now() - resultStart, "ms");
+
+        reportPayload = {
+          stage: updated.stage as string,
+          initiatorName: updated.initiatorName,
+          partnerName: updated.partnerName ?? "TA",
+          initiatorAttachment:
+            ATTACHMENT_LABELS[scored.initiatorAttachment] ??
+            scored.initiatorAttachment,
+          partnerAttachment:
+            ATTACHMENT_LABELS[scored.partnerAttachment] ??
+            scored.partnerAttachment,
+          initiatorLoveLanguage:
+            LOVE_LANGUAGE_LABELS[scored.initiatorLoveLanguage] ??
+            scored.initiatorLoveLanguage,
+          partnerLoveLanguage:
+            LOVE_LANGUAGE_LABELS[scored.partnerLoveLanguage] ??
+            scored.partnerLoveLanguage,
+          overallScore: scored.overallScore,
+          dimensions: mergedDimensionsRecord,
+          scenarioTitle: scenarioMeta.title,
+          scenarioSubtitle: scenarioMeta.subtitle,
         };
       } else {
         const initiatorAnswers = toAnswerItems(updated.initiatorAnswers);

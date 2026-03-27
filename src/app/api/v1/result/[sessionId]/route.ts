@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { ATTACHMENT_LABELS, LOVE_LANGUAGE_LABELS } from "@/lib/resultGenerator";
+import { getScenarioBySlug } from "@/lib/scenario-quizzes";
 
 export async function GET(
   _req: NextRequest,
@@ -36,11 +37,17 @@ export async function GET(
     }
 
     const r = session.result;
+    const scenarioMeta = session.scenarioSlug
+      ? getScenarioBySlug(session.scenarioSlug)
+      : null;
 
     const body = {
       status: "ready" as const,
       result: {
         id: r.id,
+        scenarioSlug: session.scenarioSlug,
+        scenarioTitle: scenarioMeta?.title ?? null,
+        scenarioSubtitle: scenarioMeta?.subtitle ?? null,
         overallScore: r.overallScore,
         initiatorAttachment: ATTACHMENT_LABELS[r.initiatorAttachment] ?? r.initiatorAttachment,
         partnerAttachment: ATTACHMENT_LABELS[r.partnerAttachment] ?? r.partnerAttachment,

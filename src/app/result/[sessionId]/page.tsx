@@ -41,6 +41,12 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import Link from "next/link";
 import { getCompatibilityLevel } from "@/lib/scoring";
+import {
+  getScenarioBySlug,
+  getScenarioDimensionQuestionCounts,
+  type ScenarioDimension,
+} from "@/lib/scenario-quizzes";
+import { getScenarioDimensionStems } from "@/lib/scenario-report-sections";
 import { getDeviceId } from "@/lib/device";
 import { STAGE_LABELS } from "@/lib/stage-copy";
 
@@ -48,7 +54,11 @@ type PageState = "loading" | "waiting" | "generating" | "ready" | "error";
 
 interface SessionStatus {
   status: string;
+  mode?: string;
   stage: string;
+  scenarioSlug?: string | null;
+  scenarioTitle?: string | null;
+  scenarioSubtitle?: string | null;
   inviteCode?: string;
   initiatorName?: string;
   partnerName?: string;
@@ -137,6 +147,9 @@ interface PremiumReportData {
 
 interface ResultData {
   id?: string;
+  scenarioSlug?: string | null;
+  scenarioTitle?: string | null;
+  scenarioSubtitle?: string | null;
   overallScore: number;
   initiatorAttachment: string;
   partnerAttachment: string;
@@ -262,6 +275,14 @@ const GENERATING_TIPS = [
   "正在解读爱的语言匹配…",
   "正在撰写关系建议…",
   "正在整理行动清单…",
+  "即将完成，再等一下下…",
+];
+
+const SCENARIO_GENERATING_TIPS = [
+  "正在汇总你们在现实场景中的打分…",
+  "正在对照沟通、价值观与冲突处理等维度…",
+  "正在撰写贴合该场景的建议…",
+  "正在生成场景化行动清单…",
   "即将完成，再等一下下…",
 ];
 
@@ -788,8 +809,12 @@ function ResultPageContent() {
   // 生成报告中轮播提示文案 + 进度条
   useEffect(() => {
     if (pageState !== "generating") return;
+    const tips =
+      sessionData?.mode === "SCENARIO" || sessionData?.scenarioSlug
+        ? SCENARIO_GENERATING_TIPS
+        : GENERATING_TIPS;
     const tipTimer = setInterval(() => {
-      setGeneratingTipIndex((i) => (i + 1) % GENERATING_TIPS.length);
+      setGeneratingTipIndex((i) => (i + 1) % tips.length);
     }, 2500);
     setGeneratingProgress(0);
     const start = Date.now();
@@ -803,7 +828,7 @@ function ResultPageContent() {
       setGeneratingProgress(Math.min(Math.round(p), 95));
     }, 250);
     return () => { clearInterval(tipTimer); clearInterval(progressTimer); };
-  }, [pageState]);
+  }, [pageState, sessionData?.mode, sessionData?.scenarioSlug]);
 
   if (pageState === "loading") {
     return (
@@ -848,6 +873,10 @@ function ResultPageContent() {
   }
 
   if (pageState === "generating") {
+    const generatingTipsList =
+      sessionData?.mode === "SCENARIO" || sessionData?.scenarioSlug
+        ? SCENARIO_GENERATING_TIPS
+        : GENERATING_TIPS;
     return (
       <div className="min-h-screen bg-gradient-to-br from-pink-50/80 via-[#FAFAFA] to-violet-50/80 flex items-center justify-center px-4 overflow-hidden">
         <div className="absolute inset-0 pointer-events-none">
@@ -876,7 +905,11 @@ function ResultPageContent() {
             <Loader2 className="w-10 h-10 text-pink-500 animate-spin" />
           </motion.div>
           <h1 className="text-xl font-bold text-gray-800 mb-2">正在生成你们的专属报告</h1>
-          <p className="text-gray-500 text-sm mb-4">AI 正在为你们分析契合度，会自动跳转</p>
+          <p className="text-gray-500 text-sm mb-4">
+            {sessionData?.mode === "SCENARIO" || sessionData?.scenarioSlug
+              ? "AI 正在结合所选现实场景撰写报告，完成后会自动跳转"
+              : "AI 正在为你们分析契合度，会自动跳转"}
+          </p>
           <div className="w-full max-w-[260px] mx-auto mb-4">
             <div className="flex items-center justify-between mb-1.5">
               <span className="text-xs text-gray-400">生成进度</span>
@@ -904,7 +937,7 @@ function ResultPageContent() {
                 transition={{ duration: 0.3 }}
                 className="text-gray-500 text-sm"
               >
-                {GENERATING_TIPS[generatingTipIndex]}
+                {generatingTipsList[generatingTipIndex % generatingTipsList.length]}
               </motion.p>
             </AnimatePresence>
           </div>
@@ -1199,20 +1232,41 @@ function ReadyReport({
   const [basicReportTipIndex, setBasicReportTipIndex] = useState(0);
   const [reportProgress, setReportProgress] = useState(0);
   const [premiumReportProgress, setPremiumReportProgress] = useState(0);
-  const PREMIUM_GENERATING_TIPS = [
-    "AI 正在分析你们的依恋模式...",
-    "正在模拟你们的日常互动场景...",
-    "正在生成 4 周成长计划...",
-    "正在撰写专属沟通指南...",
-    "快好了，深度报告即将呈现...",
-  ];
-  const BASIC_REPORT_ANALYSIS_TIPS = [
-    "正在分析你们的依恋类型…",
-    "正在解读爱的语言匹配…",
-    "正在撰写关系建议…",
-    "正在整理行动清单…",
-    "即将完成…",
-  ];
+
+  const isScenarioReport =
+    sessionData.mode === "SCENARIO" || Boolean(resultData.scenarioSlug);
+
+  const premiumGeneratingTips = isScenarioReport
+    ? [
+        "正在结合所选现实场景做深度分析…",
+        "正在撰写贴合该场景的互动演练…",
+        "正在生成围绕本主题的四周练习…",
+        "正在整理场景化的沟通话术…",
+        "快好了，深度报告即将呈现…",
+      ]
+    : [
+        "AI 正在分析你们的依恋模式...",
+        "正在模拟你们的日常互动场景...",
+        "正在生成 4 周成长计划...",
+        "正在撰写专属沟通指南...",
+        "快好了，深度报告即将呈现...",
+      ];
+
+  const basicReportAnalysisTips = isScenarioReport
+    ? [
+        "正在汇总你们在现实场景中的打分…",
+        "正在对照沟通、价值观、冲突处理等维度…",
+        "正在撰写贴合该场景的建议…",
+        "正在整理可执行的小行动…",
+        "即将完成…",
+      ]
+    : [
+        "正在分析你们的依恋类型…",
+        "正在解读爱的语言匹配…",
+        "正在撰写关系建议…",
+        "正在整理行动清单…",
+        "即将完成…",
+      ];
 
   const [shareLinkCopied, setShareLinkCopied] = useState(false);
 
@@ -1456,7 +1510,7 @@ function ReadyReport({
   useEffect(() => {
     if (!unlocked || hasPremiumReport) return;
     const t = setInterval(() => {
-      setPremiumTipIndex((i) => (i + 1) % PREMIUM_GENERATING_TIPS.length);
+      setPremiumTipIndex((i) => (i + 1) % premiumGeneratingTips.length);
     }, 3000);
     return () => clearInterval(t);
   }, [unlocked, hasPremiumReport]);
@@ -1464,7 +1518,7 @@ function ReadyReport({
   useEffect(() => {
     if (hasReport || reportPollTimeout) return;
     const t = setInterval(() => {
-      setBasicReportTipIndex((i) => (i + 1) % BASIC_REPORT_ANALYSIS_TIPS.length);
+      setBasicReportTipIndex((i) => (i + 1) % basicReportAnalysisTips.length);
     }, 2500);
     return () => clearInterval(t);
   }, [hasReport, reportPollTimeout]);
@@ -1529,7 +1583,14 @@ function ReadyReport({
     setShareDialogOpen(true);
     setShareLinkCopied(false);
   }, []);
-  const stageLabel = STAGE_LABELS[sessionData.stage] ?? "热恋期";
+  const stageLabel =
+    sessionData.scenarioTitle != null && sessionData.scenarioTitle !== ""
+      ? sessionData.scenarioTitle
+      : STAGE_LABELS[sessionData.stage] ?? "热恋期";
+  const scenarioSubtitleText =
+    (resultData.scenarioSubtitle ?? sessionData.scenarioSubtitle ?? "").trim() || null;
+  const scenarioReportTitle =
+    (resultData.scenarioTitle ?? sessionData.scenarioTitle ?? stageLabel).trim();
   const nameA = sessionData.initiatorName ?? "TA";
   const nameB = sessionData.partnerName ?? "TA";
 
@@ -1570,10 +1631,16 @@ function ReadyReport({
   ];
   const dims = resultData.dimensions as Record<string, number>;
   const dimensions = dimOrder.map((key) => ({
+    key,
     name: DIMENSION_NAMES[key] ?? key,
     // 通用版返回 personality，分阶段返回 lifestyle，统一在「生活习惯」下展示
     score: dims[key] ?? (key === "lifestyle" ? dims["personality"] : undefined) ?? 0,
   }));
+
+  const scenarioSlugResolved =
+    resultData.scenarioSlug ?? sessionData.scenarioSlug ?? null;
+  const scenarioDimCounts = getScenarioDimensionQuestionCounts(scenarioSlugResolved);
+  const scenarioDef = getScenarioBySlug(scenarioSlugResolved);
 
   const scoreCounter = useCounter(resultData.overallScore, 1600);
   const ratingLabel = getCompatibilityLevel(resultData.overallScore);
@@ -1585,55 +1652,238 @@ function ReadyReport({
   }, []);
 
   return (
+    <>
       <div className="min-h-screen bg-[#FAFAFA]">
         <nav className="sticky top-0 z-50 backdrop-blur-lg bg-white/70 border-b border-white/20">
-          <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
-            <Link href="/" className="flex flex-col items-start hover:opacity-90 transition-opacity">
-              <span className="font-[family-name:var(--font-brand)] text-xl font-bold bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] bg-clip-text text-transparent leading-tight tracking-widest">
-                合拍吗
-              </span>
-              <span className="font-[family-name:var(--font-brand)] text-[10px] text-gray-400 tracking-widest">
-                hepaima.com
-              </span>
-            </Link>
+          <div className="max-w-[1000px] mx-auto px-4 sm:px-6 py-4 flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <Link href="/" className="flex flex-col items-start hover:opacity-90 transition-opacity shrink-0">
+                <span className="font-[family-name:var(--font-brand)] text-xl font-bold bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] bg-clip-text text-transparent leading-tight tracking-widest">
+                  合拍吗
+                </span>
+                <span className="font-[family-name:var(--font-brand)] text-[10px] text-gray-400 tracking-widest">
+                  hepaima.com
+                </span>
+              </Link>
+              {isScenarioReport ? (
+                <span className="hidden sm:inline text-[10px] sm:text-[11px] font-semibold px-2 py-0.5 rounded-full bg-gradient-to-r from-pink-500/12 to-violet-500/12 text-pink-700 border border-pink-200/70 whitespace-nowrap">
+                  现实场景测评
+                </span>
+              ) : null}
+            </div>
             <Button
               variant="ghost"
               onClick={handleOpenShareDialog}
-              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full"
+              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full shrink-0"
             >
               <Share2 className="w-5 h-5" />
             </Button>
           </div>
         </nav>
 
-        <main className="max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-4">
-          <ScrollCard delay={0}>
-            <div className="relative rounded-2xl bg-gradient-to-br from-[#EC4899] to-[#8B5CF6] p-6 sm:p-8 text-center overflow-hidden shadow-xl shadow-pink-500/10">
-              <div className="absolute -top-16 -left-16 w-48 h-48 bg-white/10 rounded-full blur-2xl" />
-              <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-white/10 rounded-full blur-2xl" />
-              <div className="relative z-10">
-                <p className="text-white/80 text-lg mb-6">
-                  {nameA} <Heart className="inline w-4 h-4 mx-1 fill-white/80" /> {nameB}
-                </p>
-                <p className="text-[56px] sm:text-[64px] font-bold text-white leading-none mb-2">
-                  {scoreCounter.count}
-                  <span className="text-3xl sm:text-4xl">%</span>
-                </p>
-                <p className="text-white/90 text-lg font-medium mb-5">{ratingLabel}</p>
-                <Badge className="bg-white/20 text-white border-white/30 hover:bg-white/30 px-3 py-1 text-sm">
-                  {stageLabel}
-                </Badge>
+        <main
+          className={
+            isScenarioReport
+              ? "max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-5"
+              : "max-w-[1000px] mx-auto px-4 sm:px-6 py-6 sm:py-8 flex flex-col gap-4"
+          }
+        >
+          {isScenarioReport ? (
+            <ScrollCard delay={0}>
+              <div className="relative rounded-[28px] overflow-hidden shadow-2xl shadow-pink-500/20 bg-gradient-to-b from-[#5B4FD9] via-[#8B5CF6] to-[#EC4899] px-6 pt-8 pb-7 sm:px-10 sm:pt-10 sm:pb-9 text-center isolate">
+                <div
+                  className="pointer-events-none absolute inset-0 opacity-50"
+                  style={{
+                    background:
+                      "radial-gradient(ellipse 80% 55% at 50% -10%, rgba(255,255,255,0.35), transparent), radial-gradient(circle at 100% 100%, rgba(255,255,255,0.12), transparent 50%)",
+                  }}
+                  aria-hidden
+                />
+                <div className="relative z-10 flex flex-col items-center max-w-md mx-auto">
+                  <p className="font-[family-name:var(--font-brand)] text-[11px] text-white/50 mb-4">
+                    合拍吗 · 现实场景
+                  </p>
+                  <h1 className="text-lg sm:text-xl font-bold text-white leading-tight tracking-tight px-1">
+                    {scenarioReportTitle}
+                  </h1>
+                  {scenarioSubtitleText ? (
+                    <p className="mt-2 text-xs sm:text-sm text-white/70 line-clamp-2 leading-snug px-2">
+                      {scenarioSubtitleText}
+                    </p>
+                  ) : null}
+                  <p className="mt-5 text-[15px] text-white/90 font-medium">
+                    {nameA}
+                    <Heart className="inline w-3.5 h-3.5 mx-1.5 fill-white/90 text-white/90 align-middle" />
+                    {nameB}
+                  </p>
+                  <p
+                    className="mt-6 text-[4.5rem] sm:text-[5.5rem] font-black text-white leading-none tabular-nums tracking-tight drop-shadow-sm"
+                    style={{ textShadow: "0 4px 24px rgba(0,0,0,0.12)" }}
+                  >
+                    {scoreCounter.count}
+                    <span className="text-[40%] font-bold align-super ml-0.5">%</span>
+                  </p>
+                  <p className="mt-3 text-lg sm:text-xl font-semibold text-white/95">{ratingLabel}</p>
+                  <div className="mt-8 pt-5 w-full border-t border-white/20">
+                    <p className="text-[10px] sm:text-[11px] text-white/45 tracking-widest">场景合拍指数 · hepaima.com</p>
+                  </div>
+                </div>
               </div>
-            </div>
-          </ScrollCard>
+            </ScrollCard>
+          ) : (
+            <ScrollCard delay={0}>
+              <div className="relative rounded-2xl bg-gradient-to-br from-[#EC4899] to-[#8B5CF6] p-6 sm:p-8 text-center overflow-hidden shadow-xl shadow-pink-500/10">
+                <div className="absolute -top-16 -left-16 w-48 h-48 bg-white/10 rounded-full blur-2xl" />
+                <div className="absolute -bottom-16 -right-16 w-48 h-48 bg-white/10 rounded-full blur-2xl" />
+                <div className="relative z-10">
+                  <p className="text-white/80 text-lg mb-6">
+                    {nameA} <Heart className="inline w-4 h-4 mx-1 fill-white/80" /> {nameB}
+                  </p>
+                  <p className="text-[56px] sm:text-[64px] font-bold text-white leading-none mb-2">
+                    {scoreCounter.count}
+                    <span className="text-3xl sm:text-4xl">%</span>
+                  </p>
+                  <p className="text-white/90 text-lg font-medium mb-5">{ratingLabel}</p>
+                  <Badge className="bg-white/20 text-white border-white/30 hover:bg-white/30 px-3 py-1 text-sm">
+                    {stageLabel}
+                  </Badge>
+                </div>
+              </div>
+            </ScrollCard>
+          )}
 
+          {isScenarioReport && scenarioDef ? (
+            <ScrollCard delay={0.04}>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-pink-50 to-violet-50 flex items-center justify-center border border-pink-100/80 shrink-0">
+                    <ClipboardList className="w-5 h-5 text-[#8B5CF6]" />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-lg font-bold text-gray-800">本题场上焦点</h2>
+                    <p className="text-xs text-gray-500 mt-1 leading-relaxed">
+                      {scenarioDef.subtitle} · 共 {scenarioDef.questions.length}{" "}
+                      道陈述，得分反映你们在这些具体情境上的合拍程度（非泛化性格标签）。
+                    </p>
+                  </div>
+                </div>
+                <p className="text-xs text-pink-700/90 font-medium mb-3">
+                  下列文字即答题时见到的题干原文，便于你对照报告里的维度得分。
+                </p>
+                <ol className="space-y-2.5 text-sm text-gray-700 leading-relaxed list-decimal pl-4 marker:text-pink-500 marker:font-semibold">
+                  {scenarioDef.questions.map((q) => (
+                    <li key={q.id} className="pl-1">
+                      {q.text}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </ScrollCard>
+          ) : null}
+
+          {isScenarioReport ? (
+            <ScrollCard delay={0.06}>
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
+                    <BarChart3 className="w-4.5 h-4.5 text-[#EC4899]" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-gray-800">六维题脉</h2>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                      每条得分来自上表中标为该维度的题目；「本题未测」表示本专题未包含该维陈述，条上为占位勿解读。
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-5 mt-5">
+                  {dimOrder.map((dimKey, i) => {
+                    const dimName = DIMENSION_NAMES[dimKey] ?? dimKey;
+                    const score =
+                      dims[dimKey] ??
+                      (dimKey === "lifestyle" ? dims["personality"] : undefined) ??
+                      0;
+                    const nInScenario =
+                      scenarioDimCounts?.[dimKey as keyof NonNullable<typeof scenarioDimCounts>] ?? 0;
+                    const measured = nInScenario > 0;
+                    const stems = getScenarioDimensionStems(scenarioSlugResolved, dimKey as ScenarioDimension);
+                    const stemsShow = stems.slice(0, 2);
+                    const stemsMore = stems.length - stemsShow.length;
+                    return (
+                      <div
+                        key={dimKey}
+                        className={measured ? "" : "opacity-75"}
+                      >
+                        <div className="flex items-center justify-between mb-1.5 gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span
+                              className={`text-sm truncate ${measured ? "text-gray-700 font-medium" : "text-gray-400"}`}
+                            >
+                              {dimName}
+                            </span>
+                            {!measured ? (
+                              <Badge
+                                variant="secondary"
+                                className="shrink-0 text-[10px] font-normal px-1.5 py-0 h-5 bg-gray-100 text-gray-500 border-gray-200"
+                              >
+                                本题未测
+                              </Badge>
+                            ) : null}
+                          </div>
+                          {measured ? (
+                            <span className="text-sm font-semibold text-gray-800 tabular-nums shrink-0">
+                              {score}%
+                            </span>
+                          ) : (
+                            <span className="text-sm text-gray-400 shrink-0 tabular-nums">—</span>
+                          )}
+                        </div>
+                        {measured ? (
+                          <AnimatedBar score={score} delay={i * 0.08} />
+                        ) : (
+                          <div
+                            className="h-2 w-full rounded-full bg-gray-100 border border-dashed border-gray-200"
+                            aria-hidden
+                          />
+                        )}
+                        {measured && stemsShow.length > 0 ? (
+                          <ul className="mt-2.5 space-y-1.5 pl-0">
+                            {stemsShow.map((s) => (
+                              <li
+                                key={s}
+                                className="text-[11px] sm:text-xs text-gray-500 leading-relaxed flex gap-2"
+                              >
+                                <span className="text-pink-400 shrink-0 font-bold" aria-hidden>
+                                  ·
+                                </span>
+                                <span>{s}</span>
+                              </li>
+                            ))}
+                            {stemsMore > 0 ? (
+                              <li className="text-[11px] text-violet-600/90 pl-4">
+                                另有 {stemsMore} 题同属该维，略
+                              </li>
+                            ) : null}
+                          </ul>
+                        ) : null}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </ScrollCard>
+          ) : null}
+
+          {!isScenarioReport ? (
+          <>
           <ScrollCard delay={0.05}>
             <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
               <div className="flex items-center gap-2 mb-5">
                 <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
                   <Heart className="w-4.5 h-4.5 text-[#EC4899]" />
                 </div>
-                <h2 className="text-lg font-bold text-gray-800">依恋类型配对</h2>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">依恋类型配对</h2>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-5">
                 <div className="text-center p-4 bg-gray-50 rounded-xl">
@@ -1685,9 +1935,11 @@ function ReadyReport({
                 <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
                   <MessageCircle className="w-4.5 h-4.5 text-[#EC4899]" />
                 </div>
-                <h2 className="text-lg font-bold text-gray-800">
-                  {report?.loveLanguageAnalysis?.title ?? "爱的语言"}
-                </h2>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800">
+                    {report?.loveLanguageAnalysis?.title ?? "爱的语言"}
+                  </h2>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-4 mb-5">
                 <div className="text-center p-4 bg-gray-50 rounded-xl">
@@ -1725,37 +1977,39 @@ function ReadyReport({
           </ScrollCard>
 
           <ScrollCard delay={0.05}>
-            <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
-              <div className="flex items-center gap-2 mb-5">
-                <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
-                  <BarChart3 className="w-4.5 h-4.5 text-[#EC4899]" />
-                </div>
-                <h2 className="text-lg font-bold text-gray-800">六维契合度</h2>
-              </div>
-              <div className="flex flex-col gap-4">
-                {dimensions.map((dim, i) => (
-                  <div key={dim.name}>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <span className="text-sm text-gray-600">{dim.name}</span>
-                      <span className="text-sm font-semibold text-gray-800">
-                        {dim.score}%
-                      </span>
-                    </div>
-                    <AnimatedBar score={dim.score} delay={i * 0.1} />
+              <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 sm:p-6">
+                <div className="flex items-center gap-2 mb-5">
+                  <div className="w-8 h-8 rounded-lg bg-pink-50 flex items-center justify-center">
+                    <BarChart3 className="w-4.5 h-4.5 text-[#EC4899]" />
                   </div>
-                ))}
+                  <h2 className="text-lg font-bold text-gray-800">六维契合度</h2>
+                </div>
+                <div className="flex flex-col gap-4">
+                  {dimensions.map((dim, i) => (
+                    <div key={dim.key}>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span className="text-sm text-gray-600">{dim.name}</span>
+                        <span className="text-sm font-semibold text-gray-800">
+                          {dim.score}%
+                        </span>
+                      </div>
+                      <AnimatedBar score={dim.score} delay={i * 0.1} />
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </ScrollCard>
+            </ScrollCard>
+          </>
+          ) : null}
 
           {hasReport ? (
             <motion.div
-              className="flex flex-col gap-4"
+              className={isScenarioReport ? "flex flex-col gap-5" : "flex flex-col gap-4"}
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
-              {/* 契合解读版块 */}
+              {/* 阶段：契合解读；场景：AI 场景复盘（与阶段不同的内容版块顺序见上方「场上焦点」「六维题脉」） */}
               <div className="rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm border border-pink-100/50 shadow-sm">
                 <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex items-center gap-3">
                   <div
@@ -1764,9 +2018,17 @@ function ReadyReport({
                   />
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">契合解读</h2>
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                        {isScenarioReport ? "AI 场景复盘" : "契合解读"}
+                      </h2>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">基于你们的答题数据生成的契合分析</p>
+                    <p className="text-xs text-gray-400 mt-0.5 leading-relaxed">
+                      {isScenarioReport
+                        ? "结合上方真实题干与六维得分（仅本题已测维度），解读你们在这个生活现场里的合拍与摩擦；下滑可解锁场景深度包"
+                        : resultData.scenarioTitle
+                          ? "简版 AI 解读（专题量表）；下滑可解锁与完整测评相同的深度报告"
+                          : "基于你们的答题数据生成的契合分析"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-col gap-3 px-5 sm:px-6 pb-5 sm:pb-6">
@@ -1774,7 +2036,7 @@ function ReadyReport({
                 <div className="rounded-xl bg-gradient-to-br from-pink-50/60 to-violet-50/40 p-4 sm:p-5">
                   <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <Sparkles className="w-4 h-4 text-[#EC4899]" />
-                    整体分析
+                    {isScenarioReport ? "现场整体节奏" : "整体分析"}
                   </p>
                   {report?.overallAnalysis != null ? (
                     typeof report.overallAnalysis === "string" ? (
@@ -1837,7 +2099,7 @@ function ReadyReport({
                       <div className="rounded-xl bg-emerald-50/70 p-4">
                         <p className="text-sm font-semibold text-emerald-700 mb-3 flex items-center gap-1.5">
                           <ThumbsUp className="w-3.5 h-3.5" />
-                          你们的优势
+                          {isScenarioReport ? "场上默契时刻" : "你们的优势"}
                         </p>
                         <ul className="space-y-2">
                           {report.strengths.map((s, i) => (
@@ -1853,7 +2115,7 @@ function ReadyReport({
                       <div className="rounded-xl bg-amber-50/70 p-4">
                         <p className="text-sm font-semibold text-amber-700 mb-3 flex items-center gap-1.5">
                           <AlertTriangle className="w-3.5 h-3.5" />
-                          需要注意
+                          {isScenarioReport ? "容易卡住的点" : "需要注意"}
                         </p>
                         <ul className="space-y-2">
                           {report.challenges.map((c, i) => (
@@ -1874,7 +2136,7 @@ function ReadyReport({
                   <div className="rounded-xl bg-violet-50/50 p-4 sm:p-5">
                     <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                       <Target className="w-4 h-4 text-[#8B5CF6]" />
-                      成长任务
+                      {isScenarioReport ? "下次可以试一小步" : "成长任务"}
                     </p>
                     <div className="space-y-2.5">
                       {report.actionItems.map((item, i) => (
@@ -1899,7 +2161,9 @@ function ReadyReport({
               <div className="rounded-lg bg-gray-50 px-3.5 py-2.5 flex items-start gap-2">
                 <ShieldAlert className="w-3.5 h-3.5 text-gray-400 mt-0.5 flex-shrink-0" />
                 <p className="text-[11px] leading-relaxed text-gray-400">
-                  本报告基于问卷结果与 AI 分析生成，仅供自我觉察和关系参考，不构成专业心理咨询、医疗或法律建议。
+                  {isScenarioReport
+                    ? "简版分析结合本专题得分与 AI 生成，解读仅围绕本题已测维度；仅供自我觉察与沟通参考，不构成专业心理咨询、医疗或法律建议。"
+                    : "本报告基于问卷结果与 AI 分析生成，仅供自我觉察和关系参考，不构成专业心理咨询、医疗或法律建议。"}
                 </p>
               </div>
                 </div>
@@ -1913,8 +2177,14 @@ function ReadyReport({
                   style={{ background: "linear-gradient(180deg, #EC4899, #8B5CF6)" }}
                 />
                 <div>
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">契合解读</h2>
-                  <p className="text-xs text-gray-400 mt-0.5">基于你们的答题数据生成的契合分析</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                    {isScenarioReport ? "AI 场景复盘" : "契合解读"}
+                  </h2>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    {isScenarioReport
+                      ? "正在根据本专题题干与作答生成简版复盘…"
+                      : "基于你们的答题数据生成的契合分析"}
+                  </p>
                 </div>
               </div>
               <div className="flex flex-col gap-3 px-5 sm:px-6 pb-5 sm:pb-6">
@@ -1965,7 +2235,7 @@ function ReadyReport({
                               className="text-xs text-gray-500"
                               style={{ margin: 0 }}
                             >
-                              {BASIC_REPORT_ANALYSIS_TIPS[basicReportTipIndex]}
+                              {basicReportAnalysisTips[basicReportTipIndex]}
                             </motion.p>
                           </AnimatePresence>
                         </div>
@@ -1992,15 +2262,29 @@ function ReadyReport({
                   style={{ padding: 32, maxWidth: 400 }}
                 >
                   <Lock className="w-12 h-12 mx-auto mb-4" style={{ color: "#EC4899" }} />
-                  <h2 className="text-xl font-semibold text-gray-800 mb-2">解锁深度报告</h2>
-                  <p className="text-sm mb-5" style={{ color: "#888888" }}>更深入的分析，更具体的建议</p>
+                  <h2 className="text-xl font-semibold text-gray-800 mb-2">
+                    {isScenarioReport ? "解锁场景深度包" : "解锁深度报告"}
+                  </h2>
+                  <p className="text-sm mb-5" style={{ color: "#888888" }}>
+                    {isScenarioReport
+                      ? "在简版解读之上，把本专题练透、说清楚"
+                      : "更深入的分析，更具体的建议"}
+                  </p>
                   <ul className="space-y-3 mb-5 text-left inline-block">
-                    {[
-                      "你们最容易在哪些事上产生矛盾",
-                      "基于你们性格的专属沟通方式",
-                      "量身定制的 4 周关系提升计划",
-                      "吵架后如何快速修复关系",
-                    ].map((item) => (
+                    {(isScenarioReport
+                      ? [
+                          "专题向长文：卡点、差异与可执行建议",
+                          "3～5 则本主题情景演练（误解何来、怎么接话）",
+                          "4 周只围绕本专题的微行动清单",
+                          "给双方的沟通话术与冲突暂停步骤",
+                        ]
+                      : [
+                          "你们最容易在哪些事上产生矛盾",
+                          "基于你们性格的专属沟通方式",
+                          "量身定制的 4 周关系提升计划",
+                          "吵架后如何快速修复关系",
+                        ]
+                    ).map((item) => (
                       <li key={item} className="flex items-center gap-2" style={{ fontSize: 15, color: "#333333" }}>
                         <Check className="w-4 h-4 flex-shrink-0" style={{ color: "#10B981" }} />
                         {item}
@@ -2087,6 +2371,9 @@ function ReadyReport({
                       <><span className="line-through opacity-60 text-sm mr-1.5">¥29.90</span>¥9.90 立即解锁</>
                     )}
                   </Button>
+                  <p className="mt-3 text-[11px] sm:text-xs leading-relaxed text-gray-400 max-w-[280px] mx-auto">
+                    支持微信与支付宝；支付完成后返回本页即可查看。
+                  </p>
                   {promoUnlockStatusMessage && (
                     <p className="mt-3 flex items-center justify-center gap-2 text-sm text-emerald-600 max-w-[280px] mx-auto">
                       <Loader2 className="w-4 h-4 animate-spin flex-shrink-0" />
@@ -2096,9 +2383,6 @@ function ReadyReport({
                   {promoUnlockError && (
                     <p className="mt-2 text-xs text-red-500 max-w-[280px] mx-auto">{promoUnlockError}</p>
                   )}
-                  <p className="mt-3 text-[11px] leading-relaxed text-gray-400">
-                    限时优惠中 · 深度报告仅供自我觉察和关系参考
-                  </p>
                 </div>
               </ScrollCard>
           ) : !hasPremiumReport ? (
@@ -2141,7 +2425,7 @@ function ReadyReport({
                       className="text-sm"
                       style={{ color: "#888888", fontSize: 14 }}
                     >
-                      {PREMIUM_GENERATING_TIPS[premiumTipIndex]}
+                      {premiumGeneratingTips[premiumTipIndex]}
                     </motion.p>
                   </AnimatePresence>
                 </div>
@@ -2154,7 +2438,7 @@ function ReadyReport({
               animate={{ opacity: 1 }}
               transition={{ duration: 0.4 }}
             >
-              {/* 深度解读版块 */}
+              {/* 深度解读版块（场景为「场景深度包」，与阶段标题不同；版块内容均为 PRO 深度，非简版六维） */}
               <div className="rounded-2xl overflow-hidden bg-white/80 backdrop-blur-sm border border-violet-100/50 shadow-sm">
                 <div className="px-5 sm:px-6 pt-5 sm:pt-6 pb-3 flex items-center gap-3">
                   <div
@@ -2163,10 +2447,18 @@ function ReadyReport({
                   />
                   <div>
                     <div className="flex items-center gap-2">
-                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">深度解读</h2>
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 tracking-wider">PRO</span>
+                      <h2 className="text-lg sm:text-xl font-bold text-gray-900">
+                        {isScenarioReport ? "场景深度包" : "深度解读"}
+                      </h2>
+                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded bg-violet-100 text-violet-600 tracking-wider">
+                        PRO
+                      </span>
                     </div>
-                    <p className="text-xs text-gray-400 mt-0.5">更深入的专业分析与个性化建议</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      {isScenarioReport
+                        ? "延伸分析、情景演练与专题练习；不等同完整依恋或关系阶段测评"
+                        : "更深入的专业分析与个性化建议"}
+                    </p>
                   </div>
                 </div>
                 <div className="flex flex-col gap-3 px-5 sm:px-6 pb-5 sm:pb-6">
@@ -2174,7 +2466,7 @@ function ReadyReport({
                 <div className="rounded-xl bg-gradient-to-br from-violet-50/60 to-pink-50/40 p-4 sm:p-5">
                   <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                     <Brain className="w-4 h-4 text-[#8B5CF6]" />
-                    深度分析
+                    {isScenarioReport ? "专题深度分析" : "深度分析"}
                   </p>
                   {typeof premiumReport.deepAnalysis === "object" && premiumReport.deepAnalysis !== null && "summary" in premiumReport.deepAnalysis ? (
                     <>
@@ -2203,7 +2495,7 @@ function ReadyReport({
                 </div>
               </ScrollCard>
 
-              {premiumReport.attachmentDeep && (
+              {!isScenarioReport && premiumReport.attachmentDeep && (
                 <ScrollCard delay={0.05}>
                   <div className="rounded-xl bg-pink-50/50 p-4 sm:p-5">
                     <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -2257,11 +2549,15 @@ function ReadyReport({
                   <div className="rounded-xl bg-gradient-to-br from-pink-50/50 to-violet-50/30 p-4 sm:p-5">
                     <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                       <MessageCircleHeart className="w-4 h-4 text-[#EC4899]" />
-                      {premiumReport.loveLanguageDeep.title ?? "爱的语言日常场景"}
+                      {isScenarioReport
+                        ? "本主题情景演练"
+                        : (premiumReport.loveLanguageDeep.title ?? "爱的语言日常场景")}
                     </p>
+                    {!isScenarioReport && (premiumReport.loveLanguageDeep.mismatchAnalysis ?? "").trim() ? (
                     <p className="text-sm text-gray-600 leading-relaxed mb-4">
                       <ReportText text={premiumReport.loveLanguageDeep.mismatchAnalysis ?? ""} />
                     </p>
+                    ) : null}
                     <div className="space-y-3">
                       {premiumReport.loveLanguageDeep.dailyScenarios?.map((s, i) => (
                         <div key={i} className="rounded-lg p-4" style={{ backgroundColor: "#FDF2F8" }}>
@@ -2281,7 +2577,7 @@ function ReadyReport({
                 </ScrollCard>
               )}
 
-              {premiumReport.relationshipForecast && (
+              {!isScenarioReport && premiumReport.relationshipForecast && (
                 <ScrollCard delay={0.05}>
                   <div className="rounded-xl bg-violet-50/50 p-4 sm:p-5">
                     <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
@@ -2333,7 +2629,7 @@ function ReadyReport({
                   <div className="rounded-xl bg-gradient-to-br from-pink-50/40 to-violet-50/40 p-4 sm:p-5">
                     <p className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
                       <Calendar className="w-4 h-4 text-[#EC4899]" />
-                      4周成长任务
+                      {isScenarioReport ? "4 周专题小步练习" : "4周成长任务"}
                     </p>
                     <div className="relative pl-1">
                       {/* 时间线连接线：贯穿所有周次 */}
@@ -2529,6 +2825,7 @@ function ReadyReport({
             进行反馈
           </p>
         </main>
+      </div>
 
         <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
           <DialogContent className="sm:max-w-md">
@@ -2538,7 +2835,9 @@ function ReadyReport({
               id="share-card"
               className="relative w-[300px] h-[400px] mx-auto rounded-[28px] p-6 text-white overflow-hidden"
               style={{
-                background: "linear-gradient(140deg, #EC4899, #8B5CF6)",
+                background: isScenarioReport
+                  ? "linear-gradient(140deg, #4F46E5, #A855F7 45%, #EC4899)"
+                  : "linear-gradient(140deg, #EC4899, #8B5CF6)",
               }}
             >
                 {/* 渐变装饰层 */}
@@ -2557,7 +2856,9 @@ function ReadyReport({
 <span className="inline-block px-3 py-1 rounded-full bg-white text-sm font-bold tracking-wider shadow-sm">
                         <span className="bg-gradient-to-r from-pink-500 to-violet-500 bg-clip-text text-transparent">合拍吗</span>
                       </span>
-                    <p className="mt-1.5 text-[11px] font-medium text-white/90">超级准的情侣契合度测试</p>
+                    <p className="mt-1.5 text-[11px] font-medium text-white/90">
+                      {isScenarioReport ? "现实生活场景 · 情侣契合" : "超级准的情侣契合度测试"}
+                    </p>
                   </div>
 
                   {/* 情侣名字与阶段标签同一行，标签紧挨名字、缩小 */}
@@ -2567,9 +2868,13 @@ function ReadyReport({
                       <Heart className="inline w-4 h-4 mx-1 fill-white text-white align-middle" />{" "}
                       {nameB}
                     </p>
-                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] shrink-0">
-                      <Heart className="w-3 h-3 fill-white text-white" />
-                      <span>{stageLabel}</span>
+                    <span className="inline-flex items-center gap-1 rounded-full bg-white/15 px-2 py-0.5 text-[10px] shrink-0 max-w-[120px]">
+                      {isScenarioReport ? (
+                        <ClipboardList className="w-3 h-3 shrink-0 text-white" />
+                      ) : (
+                        <Heart className="w-3 h-3 fill-white text-white shrink-0" />
+                      )}
+                      <span className="truncate">{isScenarioReport ? scenarioReportTitle : stageLabel}</span>
                     </span>
                   </div>
 
@@ -2582,38 +2887,55 @@ function ReadyReport({
                       <p className="text-base font-medium">{ratingLabel}</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2 mt-1 text-[11px]">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-                        <Brain className="w-3.5 h-3.5 text-amber-100" />
-                        <span>深度解读</span>
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-                        <TrendingUp className="w-3.5 h-3.5 text-amber-100" />
-                        <span>关系趋势预测</span>
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-                        <Calendar className="w-3.5 h-3.5 text-amber-100" />
-                        <span>4周成长任务</span>
-                      </span>
-                      <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
-                        <MessagesSquare className="w-3.5 h-3.5 text-amber-100" />
-                        <span>专属沟通指南</span>
-                      </span>
+                      {isScenarioReport ? (
+                        <>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+                            <BarChart3 className="w-3.5 h-3.5 text-amber-100" />
+                            <span>场景契合得分</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+                            <BarChart3 className="w-3.5 h-3.5 text-amber-100" />
+                            <span>六维画像</span>
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+                            <Brain className="w-3.5 h-3.5 text-amber-100" />
+                            <span>深度解读</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+                            <TrendingUp className="w-3.5 h-3.5 text-amber-100" />
+                            <span>关系趋势预测</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+                            <Calendar className="w-3.5 h-3.5 text-amber-100" />
+                            <span>4周成长任务</span>
+                          </span>
+                          <span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-3 py-1">
+                            <MessagesSquare className="w-3.5 h-3.5 text-amber-100" />
+                            <span>专属沟通指南</span>
+                          </span>
+                        </>
+                      )}
                     </div>
                   </div>
 
                   {/* 底部引导文案 + 二维码（两行文案） */}
                   <div className="pt-3 mt-2 border-t border-white/25 flex items-end justify-between gap-3">
                     <div className="text-[11px] leading-relaxed text-white/85 space-y-1">
-                      <p>我们的爱情密码已解锁</p>
+                      <p>{isScenarioReport ? "我们的场景测评报告出炉啦" : "我们的爱情密码已解锁"}</p>
                       <p>你们也来试试？</p>
                       <p className="font-semibold text-white">访问 hepaima.com</p>
-                      <p className="text-white/70">测一测「你们有多合拍」？</p>
+                      <p className="text-white/70">
+                        {isScenarioReport ? "选一个生活场景，测测你们有多合拍" : "测一测「你们有多合拍」？"}
+                      </p>
                     </div>
                     <div className="shrink-0">
                       <div className="rounded-2xl bg-white/90 p-1.5">
                         <Image
                           src="/qr-hepaima.png"
-                          alt="扫码测测你们有多合拍"
+                          alt={isScenarioReport ? "扫码体验现实场景测评" : "扫码测测你们有多合拍"}
                           width={64}
                           height={64}
                           className="block rounded-xl"
@@ -2740,7 +3062,7 @@ function ReadyReport({
             )}
           </DialogContent>
         </Dialog>
-      </div>
+    </>
     );
 }
 

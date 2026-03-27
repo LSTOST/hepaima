@@ -4,18 +4,13 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { Logo } from "@/components/Logo";
-import { Heart, ChevronLeft, Loader2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { QuizTestTitleChip } from "@/components/quiz/QuizTestTitleChip";
+import { getQuizTestChipMeta } from "@/lib/quiz-test-chip";
 import type { Question, Stage } from "@/lib/questions";
 import { useQuiz } from "@/hooks/useQuiz";
 import { getDeviceId } from "@/lib/device";
-
-const STAGE_CONFIG: Record<string, { label: string; totalQuestions: number }> = {
-  AMBIGUOUS: { label: "了解期", totalQuestions: 28 },
-  ROMANCE: { label: "热恋期", totalQuestions: 35 },
-  STABLE: { label: "稳定期", totalQuestions: 40 },
-};
 
 interface StagedQuizUIProps {
   sessionId: string;
@@ -122,7 +117,6 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
     setHintOpen(false);
   }, [currentQuestion?.id]);
 
-  const stage = STAGE_CONFIG[stageKey] ?? STAGE_CONFIG.ROMANCE;
   const [direction, setDirection] = useState(1);
   const progressPercent = Math.round(progress);
 
@@ -156,6 +150,8 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
     setDirection(-1);
     goBack();
   };
+
+  const stagedChip = getQuizTestChipMeta({ mode: "STAGED", stage: stageKey });
 
   const slideVariants = {
     enter: (dir: number) => ({ x: dir > 0 ? 260 : -260, opacity: 0 }),
@@ -251,14 +247,15 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
       </div>
 
       <header className="relative z-10 bg-white/70 backdrop-blur-lg border-b border-gray-100">
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-4 flex items-center justify-between">
           <Link href="/" className="flex items-center">
-            <Logo size="sm" />
+            <Logo size="md" />
           </Link>
-          <Badge className="bg-pink-50 text-pink-600 border-pink-200 hover:bg-pink-50 px-3 py-1 text-sm font-medium rounded-full gap-1.5">
-            <Heart className="w-3.5 h-3.5 fill-pink-400 text-pink-400" />
-            {stage.label}
-          </Badge>
+          <QuizTestTitleChip
+            label={stagedChip.label}
+            icon={stagedChip.Icon}
+            className="min-w-0 shrink"
+          />
           <span className="text-sm font-semibold text-gray-500 tabular-nums min-w-[3rem] text-right">
             <span className="text-gray-800">{currentIndex + 1}</span>
             <span className="text-gray-300 mx-0.5">/</span>
@@ -273,7 +270,7 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
             transition={{ duration: 0.5, ease: "easeOut" }}
           />
         </div>
-        <div className="max-w-2xl mx-auto px-4 sm:px-6 py-1.5 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-1.5 flex items-center justify-between">
           <Link href="/">
             <button
               type="button"
@@ -290,7 +287,7 @@ export function StagedQuizUI({ sessionId, stageKey }: StagedQuizUIProps) {
         {(stageKey === "AMBIGUOUS" ||
           stageKey === "ROMANCE" ||
           stageKey === "STABLE") && (
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 pb-2.5 flex flex-col items-center gap-1.5">
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-2.5 flex flex-col items-center gap-1.5">
             <button
               type="button"
               id="quiz-hint-trigger"

@@ -6,6 +6,7 @@ import {
   parseReportJson,
   type ReportStreamPayload,
 } from "@/lib/ai";
+import { getScenarioBySlug } from "@/lib/scenario-quizzes";
 
 export async function GET(
   _req: NextRequest,
@@ -48,6 +49,10 @@ export async function GET(
       }
     }
 
+    const scenarioMeta = session.scenarioSlug
+      ? getScenarioBySlug(session.scenarioSlug)
+      : null;
+
     const payload: ReportStreamPayload = {
       stage: (session as { stage?: string }).stage ?? "STAGED",
       initiatorName: session.initiatorName ?? "你",
@@ -64,6 +69,8 @@ export async function GET(
         result.partnerLoveLanguage,
       overallScore: result.overallScore,
       dimensions: (result.dimensions as Record<string, number>) ?? {},
+      scenarioTitle: scenarioMeta?.title,
+      scenarioSubtitle: scenarioMeta?.subtitle,
     };
 
     const rawStream = await generateReportStream(payload);

@@ -2,6 +2,9 @@
   "name": "hepaima",
   "version": "0.1.0",
   "private": true,
+  "prisma": {
+    "seed": "tsx scripts/seed-questions-from-code.ts"
+  },
   "scripts": {
     "dev": "next dev --webpack",
     "build": "next build --webpack",
