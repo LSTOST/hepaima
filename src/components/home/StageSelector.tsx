@@ -148,7 +148,6 @@ export function StageSelector() {
           >
             试试通用版测评
           </Link>
-          <span className="text-[#9CA3AF]">（30 题 · 约 6 分钟）</span>
         </p>
 
         <SectionHeadingWithRules
