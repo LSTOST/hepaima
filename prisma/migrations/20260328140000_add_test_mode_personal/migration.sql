@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "TestMode" ADD VALUE 'PERSONAL';

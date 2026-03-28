@@ -23,6 +23,9 @@ importers:
       framer-motion:
         specifier: ^12.33.0
         version: 12.33.0(react-dom@19.2.3(react@19.2.3))(react@19.2.3)
+      html-to-image:
+        specifier: ^1.11.13
+        version: 1.11.13
       html2canvas:
         specifier: ^1.4.1
         version: 1.4.1
@@ -2337,6 +2340,9 @@ packages:
 
   hermes-parser@0.25.1:
     resolution: {integrity: sha512-6pEjquH3rqaI6cYAXYPcz9MS4rY6R4ngRgrgfDshRptUZIc3lw0MCIJIGDj9++mfySOuPTHB4nrSW99BCvOPIA==}
+
+  html-to-image@1.11.13:
+    resolution: {integrity: sha512-cuOPoI7WApyhBElTTb9oqsawRvZ0rHhaHwghRLlTuffoD1B2aDemlCruLeZrUIIdvG7gs9xeELEPm6PhuASqrg==}
 
   html2canvas-oklch@1.5.0-alpha.0:
     resolution: {integrity: sha512-7cp1ODcbd+lkwi+t3igDIMf7TzV8YIRgG7Nt3XzjSkVCxUDUB94m/RPtb/wO2/EhX80tUTFFbVf0Ap75uQQx8w==}
@@ -5684,6 +5690,8 @@ snapshots:
   hermes-parser@0.25.1:
     dependencies:
       hermes-estree: 0.25.1
+
+  html-to-image@1.11.13: {}
 
   html2canvas-oklch@1.5.0-alpha.0:
     dependencies:

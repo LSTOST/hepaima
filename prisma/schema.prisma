@@ -26,6 +26,8 @@ model Session {
   stage               Stage
   /// 专题量表测评标识（mode 为 SCENARIO 时使用）
   scenarioSlug        String?
+  /// 第一幕个人自测子类型（mode 为 PERSONAL 时使用，如 trust_connect）
+  personalSlug        String?
   status              SessionStatus @default(WAITING_PARTNER)
 
   productId           String
@@ -391,6 +393,8 @@ enum TestMode {
   UNIVERSAL
   STAGED
   SCENARIO
+  /// 进入关系前 · 个人自测（单人，无需对方）
+  PERSONAL
 }
 
 enum Stage {

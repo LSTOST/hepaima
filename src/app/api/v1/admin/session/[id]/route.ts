@@ -54,7 +54,10 @@ export async function GET(
     return NextResponse.json({
       session: {
         id: session.id,
+        mode: session.mode,
         stage: session.stage,
+        scenarioSlug: session.scenarioSlug,
+        personalSlug: session.personalSlug,
         createdAt: session.createdAt,
         initiatorName: session.initiatorName,
         partnerName: session.partnerName,

@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { generateInviteCode } from "@/lib/invite";
 import { isValidScenarioSlug } from "@/lib/scenario-quizzes";
+import { isValidPersonalSlug } from "@/lib/personal-readiness/tracks";
 
-const VALID_MODES = ["UNIVERSAL", "STAGED", "SCENARIO"] as const;
+const VALID_MODES = ["UNIVERSAL", "STAGED", "SCENARIO", "PERSONAL"] as const;
 type ModeValue = (typeof VALID_MODES)[number];
 
 const VALID_STAGES = ["UNIVERSAL", "AMBIGUOUS", "ROMANCE", "STABLE"] as const;
@@ -19,6 +20,7 @@ export async function POST(req: NextRequest) {
     const mode = (body?.mode as ModeValue | undefined) ?? "STAGED";
     const stageRaw = body?.stage as string | undefined;
     const scenarioSlugRaw = body?.scenarioSlug as string | undefined;
+    const personalSlugRaw = body?.personalSlug as string | undefined;
     const nickname = body?.nickname as string | undefined;
     const usageId = body?.usageId as string | undefined;
     const productSlugRaw = body?.productSlug as string | undefined;
@@ -52,8 +54,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    if (mode === "PERSONAL") {
+      const ps =
+        typeof personalSlugRaw === "string" ? personalSlugRaw.trim() : "";
+      if (!ps || !isValidPersonalSlug(ps)) {
+        return NextResponse.json(
+          { message: "个人自测需提供合法的 personalSlug（三条独立测评之一）" },
+          { status: 400 },
+        );
+      }
+    }
+
     const stage: StageValue =
-      mode === "UNIVERSAL"
+      mode === "UNIVERSAL" || mode === "PERSONAL"
         ? "UNIVERSAL"
         : mode === "SCENARIO"
           ? "ROMANCE"
@@ -65,6 +78,11 @@ export async function POST(req: NextRequest) {
     const scenarioSlug =
       mode === "SCENARIO" && typeof scenarioSlugRaw === "string"
         ? scenarioSlugRaw.trim()
+        : null;
+
+    const personalSlug =
+      mode === "PERSONAL" && typeof personalSlugRaw === "string"
+        ? personalSlugRaw.trim()
         : null;
 
     const product = await prisma.product.findFirst({
@@ -101,7 +119,8 @@ export async function POST(req: NextRequest) {
         mode,
         stage,
         ...(scenarioSlug != null ? { scenarioSlug } : {}),
-        status: "WAITING_PARTNER",
+        ...(personalSlug != null ? { personalSlug } : {}),
+        status: mode === "PERSONAL" ? "IN_PROGRESS" : "WAITING_PARTNER",
         productId: product.id,
         initiatorDeviceId: deviceId,
         initiatorName: nickname,

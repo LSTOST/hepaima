@@ -20,6 +20,12 @@ import {
 import { getUniversalQuestionsFromDb, getStagedQuestionsFromDb } from "@/lib/quiz-config";
 import { getScenarioBySlug } from "@/lib/scenario-quizzes";
 import { scoreScenarioPair } from "@/lib/scoring-scenario";
+import { generatePersonalReadinessAiSupplement } from "@/lib/personal-readiness/ai-personal";
+import { scorePersonalReadinessFull } from "@/lib/personal-readiness/scoring";
+import {
+  isValidPersonalSlug,
+  PERSONAL_TRACK_CARD_COPY,
+} from "@/lib/personal-readiness/tracks";
 
 interface AnswerPayloadStaged {
   questionId: number;
@@ -87,6 +93,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (session.mode === "PERSONAL" && role !== "initiator") {
+      return NextResponse.json(
+        { message: "个人自测仅可由发起设备提交答案" },
+        { status: 403 },
+      );
+    }
+
     const now = new Date();
     const data: Record<string, unknown> = {};
 
@@ -103,13 +116,61 @@ export async function POST(req: NextRequest) {
       data,
     });
 
+    const sessionMode = updated.mode;
     const bothCompleted =
-      !!updated.initiatorCompletedAt && !!updated.partnerCompletedAt;
+      sessionMode === "PERSONAL"
+        ? !!updated.initiatorCompletedAt
+        : !!updated.initiatorCompletedAt && !!updated.partnerCompletedAt;
 
     let resultReady = false;
-    const sessionMode = (updated as { mode?: string }).mode ?? "STAGED";
 
     if (bothCompleted && updated.status !== "COMPLETED") {
+      if (sessionMode === "PERSONAL") {
+        const initiatorItems = toUniversalAnswerItems(updated.initiatorAnswers);
+        const pSlug = updated.personalSlug;
+        const { overallScore, dimensions, reportBasic } =
+          scorePersonalReadinessFull(initiatorItems, pSlug);
+        const trackTitle =
+          pSlug && isValidPersonalSlug(pSlug)
+            ? PERSONAL_TRACK_CARD_COPY[pSlug].title
+            : "个人自测";
+        const aiSupplement = await generatePersonalReadinessAiSupplement({
+          overallScore0to100: overallScore,
+          trackTitle,
+          trackSlug:
+            pSlug && isValidPersonalSlug(pSlug) ? pSlug : null,
+          dimensionBreakdown: reportBasic.dimensionBreakdown,
+        });
+        const reportStored = {
+          ...reportBasic,
+          personalSlug:
+            pSlug && isValidPersonalSlug(pSlug) ? pSlug : null,
+          ...(aiSupplement
+            ? {
+                aiSynthesis: aiSupplement.synthesis,
+                aiAdvice: aiSupplement.advice,
+              }
+            : {}),
+        };
+
+        await prisma.result.create({
+          data: {
+            sessionId,
+            overallScore,
+            dimensions: dimensions as unknown as Record<string, number>,
+            initiatorAttachment: "SECURE",
+            partnerAttachment: "SECURE",
+            initiatorLoveLanguage: "WORDS",
+            partnerLoveLanguage: "WORDS",
+            reportBasic: JSON.parse(JSON.stringify(reportStored)),
+          },
+        });
+        await prisma.session.update({
+          where: { id: sessionId },
+          data: { status: "COMPLETED" },
+        });
+        resultReady = true;
+      } else {
       console.log("===== 双方完成，开始处理 =====");
       console.log("时间:", new Date().toISOString());
 
@@ -374,6 +435,7 @@ export async function POST(req: NextRequest) {
       }
 
       resultReady = true;
+      }
     }
 
     return NextResponse.json({

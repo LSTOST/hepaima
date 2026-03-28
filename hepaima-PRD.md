@@ -1,1011 +1,269 @@
-# 合拍吗 - 产品需求文档 (PRD)
+# 合拍吗 · 产品需求文档（PRD）
 
-## 项目概述
+## 文档信息
 
-**产品名称**：合拍吗
-**域名**：hepaima.com
-**定位**：基于心理学的情侣契合度测评工具
-
-### 技术栈
-- 前端：Next.js 15 (App Router) + TypeScript + Shadcn UI + Tailwind CSS + Framer Motion
-- 后端：Next.js Route Handlers
-- 数据库：PostgreSQL + Prisma ORM
-- AI：DeepSeek API
-- 部署：Zeabur / 阿里云
-
-### 多端规划
-- 当前：Web 版（设备ID识别用户）
-- 后续：微信小程序、App（需要用户登录）
-- API 设计需考虑多端复用
+| 项目 | 说明 |
+|------|------|
+| 产品名称 | 合拍吗 |
+| 域名 | hepaima.com |
+| 定位 | 基于心理学的亲密关系自我觉察与双人契合测评工具 |
+| 文档版本 | v3.0 |
+| 最后更新 | 2026 年 3 月 |
 
 ---
 
-## 产品模式
+## 一、产品愿景与三幕用户旅程
 
-### 双模式设计
+### 1.1 核心设想
 
-| 维度 | 通用版 | 阶段版 |
-|------|--------|--------|
-| **定位** | 入门首选，降低决策门槛 | 精准匹配，深度分析 |
-| **适合用户** | 不确定阶段、刚认识、好奇尝试 | 明确知道关系阶段 |
-| **题目数量** | 38题 | 25/32/40题 |
-| **答题方式** | 1-7 李克特量表 | A/B/C/D 选项 |
-| **价格** | ¥12.9起 | ¥9.9/14.9/19.9起 |
-| **报告特点** | 全面通用分析 | 阶段针对性建议 |
+产品按时间线组织为 **三幕**，使用户路径完整、自然：
 
-### 用户选择流程
+| 幕 | 用户问题 | 产品回答 | 与现有能力的关系 |
+|----|----------|----------|------------------|
+| **第一幕：进入关系前** | 我是否大致准备好进入一段认真的亲密关系？我在亲密、沟通、冲突里通常是什么模式？ | **个人向**自测与解读（自我觉察，非诊断、非评判「能不能谈恋爱」） | **已上线 MVP**（`PERSONAL`）：首页三卡 → `/quiz?mode=PERSONAL&personalSlug=…` 昵称页（与第二幕同版式）→ `/quiz/[sessionId]?mode=PERSONAL` → `/ready/result/[sessionId]`；三条各 5 题 1–5 分、模板化 `reportBasic`、全免费 |
+| **第二幕：进入关系后** | 我们合不合拍？在依恋、爱的语言、多维度上如何互补或张力在哪？ | **双人**通用版 / 阶段版测评 + 简版 AI + 付费深度报告 | **已上线**（`UNIVERSAL` / `STAGED`） |
+| **第三幕：在一起之后** | 在具体生活场景里（沟通、钱、家务、争吵修复等）卡在哪？可以怎么练？ | **双人**现实场景专题量表（1–5 分）+ 场景向报告与「场景深度包」 | **已上线**（`SCENARIO` + `scenarioSlug`） |
+
+叙事一句话：
+
+> **先更了解自己 → 再一起看合拍 → 再按场景练对接与修复。**
+
+引流可以是副产品；**完整性**来自三幕因果链本身。第一幕上线后，首页与文案宜明确这条时间线，避免三个入口看起来像互不相关的产品。
+
+### 1.2 设计原则（第一幕规划用）
+
+- **自我觉察优先**：避免「没准备好就别谈」类羞辱性表述；强调模式与选择，而非道德打分。
+- **理论对齐**：尽量与第二幕共用或可对照的心理学语言（如依恋、沟通、冲突脚本），便于用户从「我的模式」过渡到「我们的配对」。
+- **合规**：不构成心理咨询、医疗或法律意见；显著免责。
+
+---
+
+## 二、技术栈与工程现状
+
+| 层级 | 技术选型（以仓库为准） |
+|------|------------------------|
+| 前端 | Next.js 16（App Router）+ TypeScript + Tailwind CSS 4 + Shadcn UI（New York）+ Framer Motion + Lucide |
+| 后端 | Next.js Route Handlers（`/api/v1/...`） |
+| 数据库 | PostgreSQL + Prisma ORM |
+| AI | DeepSeek API（报告生成，见 `src/lib/ai.ts` 等） |
+| 支付 | 微信支付、支付宝（订单与回调以 `src/app/api/v1/orders/` 等为准） |
+| 部署 | 以实际上线环境为准（文档历史版本曾记 Zeabur / 阿里云；亦可使用 Vercel 等） |
+
+### 多端规划（不变）
+
+- **当前**：Web，以 `deviceId` 区分设备（见 `src/lib/device.ts`）。
+- **后续**：微信小程序、App（需账号体系）；API 设计保持可复用。
+
+**权威数据源**：数据库结构与枚举以 `prisma/schema.prisma` 为准；题目与计分以 `src/lib/` 下对应模块为准。本文档中的代码块仅为说明性摘录，若与仓库不一致，以仓库为准。
+
+---
+
+## 三、产品模式与测评类型
+
+### 3.1 测评 `mode`（已实现）
+
+| `mode` | 名称 | 说明 | 题目来源（代码） |
+|--------|------|------|------------------|
+| `PERSONAL` | 第一幕 · 个人自测（三条独立测评） | 单人 1–5 分；`Session.personalSlug` 区分子测评：`trust_connect`（亲密与连接）、`conflict_boundary`（冲突与边界）、`commit_readiness`（承诺与心理准备）；各 5 题、独立计分与报告；`stage` 固定 `UNIVERSAL`；无需对方加入 | `src/lib/personal-readiness/`（`tracks.ts` + `questions.ts`） |
+| `UNIVERSAL` | 通用版 | 不区分关系阶段，1–7 李克特量表 | `src/lib/questions-universal.ts` |
+| `STAGED` | 阶段版 | 暧昧 / 热恋 / 稳定，选择题 | `src/lib/questions.ts` 等 |
+| `SCENARIO` | 现实场景专题 | 按生活场景选题，双人各答同一套 1–5 分量表；`stage` 在实现中固定映射为 `ROMANCE`，以 `scenarioSlug` 区分专题 | `src/lib/scenario-quizzes.ts`、`src/lib/scoring-scenario.ts` |
+
+专题示例（slug）：`daily_communication`、`conflict_repair`、`trust_boundaries`、`intimacy_rhythm`、`money_values`、`chores_division` 等，详见 `SCENARIO_DEFINITIONS`。
+
+### 3.2 用户主路径（当前线上）
 
 ```
 首页
   │
-  ├─→ 选择【通用版】 ─→ 输入昵称 ─→ 38题(1-7量表) ─→ 等待对方 ─→ 结果
+  ├─→ 第一幕（PERSONAL）→ 首页三卡 → `/quiz` 填昵称（`mode=PERSONAL&personalSlug`）→ 答题 → `/ready/result`（按子测评自测指数 + 模板解读）
   │
-  └─→ 选择【阶段版】
-        │
-        ├─→ 暧昧期 ─→ 输入昵称 ─→ 25题(ABCD) ─→ 等待对方 ─→ 结果
-        ├─→ 热恋期 ─→ 输入昵称 ─→ 32题(ABCD) ─→ 等待对方 ─→ 结果
-        └─→ 稳定期 ─→ 输入昵称 ─→ 40题(ABCD) ─→ 等待对方 ─→ 结果
+  ├─→ 通用版（UNIVERSAL）────→ 昵称 → 答题 → 等待对方 → 双人结果 / 报告
+  │
+  ├─→ 阶段版（STAGED）────────→ 选阶段 → 昵称 → 答题 → 等待对方 → 双人结果 / 报告
+  │
+  └─→ 现实场景（SCENARIO）────→ 选专题 → 昵称 → 答题 → 等待对方 → 场景结果页（含题干对照「场上焦点」、六维题脉、AI 场景复盘等）
 ```
+
+### 3.3 第一幕实现说明
+
+- 与双人共用 `Session` / `Result`，`TestMode.PERSONAL` + `Session.personalSlug` + `status` 单人闭环（发起即 `IN_PROGRESS`，提交后 `COMPLETED`）。新建个人会话须传合法 `personalSlug`；历史无 `slug` 的旧数据仍按 15 题全套兼容。  
+- 邀请码加入对个人会话返回 400；历史记录与结果 API 按 `mode` / `personalSlug` 区分展示与跳转。
 
 ---
 
-## 数据库设计 (Prisma Schema)
+## 四、数据库设计（摘要）
 
-```prisma
-// prisma/schema.prisma
+完整定义见 **`prisma/schema.prisma`**。与早期 PRD 相比的主要增量：
 
-generator client {
-  provider = "prisma-client-js"
-}
+- `Session.mode` 含 **`SCENARIO`** / **`PERSONAL`**；`Session.scenarioSlug` 表示专题；`Session.personalSlug` 表示第一幕子测评。
+- `Session` 关联 **`Product`**（`productId`），产品数据来自库内配置而非硬编码。
+- **订单 / 优惠码 / 兑换码**（`Order`、`PromoCode`、`RedeemCode` 等）支持支付与营销，以 schema 为准。
+- `Result` 存 `dimensions`（JSON）、`reportBasic` / `reportStandard` / `reportPremium`、`purchasedTier` 等。
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
-}
-
-// 用户表 - 预留多端登录
-model User {
-  id            String    @id @default(cuid())
-  phone         String?   @unique
-  wechatOpenId  String?   @unique
-  deviceIds     String[]
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  initiatedSessions Session[] @relation("Initiator")
-  joinedSessions    Session[] @relation("Partner")
-}
-
-// 测评会话
-model Session {
-  id            String    @id @default(cuid())
-  inviteCode    String    @unique
-  
-  // 测评模式
-  mode          TestMode
-  stage         Stage
-  status        SessionStatus @default(WAITING_PARTNER)
-  
-  // 发起者
-  initiatorId   String?
-  initiator     User?     @relation("Initiator", fields: [initiatorId], references: [id])
-  initiatorDeviceId String
-  initiatorName String
-  initiatorAnswers Json?
-  initiatorCompletedAt DateTime?
-  
-  // 参与者
-  partnerId     String?
-  partner       User?     @relation("Partner", fields: [partnerId], references: [id])
-  partnerDeviceId String?
-  partnerName   String?
-  partnerAnswers Json?
-  partnerCompletedAt DateTime?
-  
-  // 结果
-  result        Result?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  expiresAt     DateTime
-}
-
-// 测评结果
-model Result {
-  id            String    @id @default(cuid())
-  sessionId     String    @unique
-  session       Session   @relation(fields: [sessionId], references: [id])
-  
-  overallScore  Int
-  dimensions    Json
-  
-  initiatorAttachment AttachmentType
-  partnerAttachment   AttachmentType
-  
-  initiatorLoveLanguage LoveLanguage
-  partnerLoveLanguage   LoveLanguage
-  
-  // 通用版额外维度
-  initiatorTraits Json?    // 性格特质得分
-  partnerTraits   Json?
-  
-  reportBasic   Json?
-  reportStandard Json?
-  reportPremium Json?
-  
-  purchasedTier ReportTier @default(FREE)
-  
-  createdAt     DateTime  @default(now())
-}
-
-// 订单表
-model Order {
-  id            String    @id @default(cuid())
-  resultId      String
-  deviceId      String
-  userId        String?
-  
-  tier          ReportTier
-  amount        Int
-  status        OrderStatus @default(PENDING)
-  
-  paymentMethod PaymentMethod?
-  paymentId     String?
-  paidAt        DateTime?
-  
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-}
-
-// 枚举定义
-enum TestMode {
-  UNIVERSAL     // 通用版
-  STAGED        // 阶段版
-}
-
-enum Stage {
-  UNIVERSAL     // 通用
-  AMBIGUOUS     // 暧昧期
-  ROMANCE       // 热恋期
-  STABLE        // 稳定期
-}
-
-enum SessionStatus {
-  WAITING_PARTNER
-  IN_PROGRESS
-  COMPLETED
-  EXPIRED
-}
-
-enum AttachmentType {
-  SECURE
-  ANXIOUS
-  AVOIDANT
-  FEARFUL
-}
-
-enum LoveLanguage {
-  WORDS
-  TIME
-  GIFTS
-  SERVICE
-  TOUCH
-}
-
-enum ReportTier {
-  FREE
-  STANDARD
-  PREMIUM
-}
-
-enum OrderStatus {
-  PENDING
-  PAID
-  FAILED
-  REFUNDED
-}
-
-enum PaymentMethod {
-  WECHAT
-  ALIPAY
-}
-```
+枚举 **`TestMode`**：`UNIVERSAL` | `STAGED` | `SCENARIO`。
 
 ---
 
-## 题目设计
+## 五、题目与计分（文件索引）
 
-### 通用版题目（1-7 李克特量表）
+| 内容 | 路径 |
+|------|------|
+| 通用版题目 | `src/lib/questions-universal.ts` |
+| 分阶段题目 | `src/lib/questions.ts`（及题库拆分文件，以 import 为准） |
+| 场景专题定义与题干 | `src/lib/scenario-quizzes.ts` |
+| 通用 / 阶段计分与契合度 | `src/lib/scoring.ts` 等 |
+| 场景专题计分 | `src/lib/scoring-scenario.ts` |
+| 种子数据（问卷入库） | `scripts/seed-questions-from-code.ts`（**不覆盖**场景题干；场景题以代码为准） |
+| 场景报告 UI 辅助（题脉） | `src/lib/scenario-report-sections.ts` |
 
-```typescript
-// lib/questions-universal.ts
-
-interface UniversalQuestion {
-  id: number;
-  category: 'attachment' | 'loveLanguage' | 'communication' | 'values' | 'personality' | 'conflict';
-  text: string;
-  // 1-7 分别对应的得分权重
-  scoring: {
-    dimension: string;
-    weights: number[]; // [1分权重, 2分权重, ..., 7分权重]
-  }[];
-}
-
-// 答案选项（所有题目通用）
-const universalOptions = [
-  { value: 1, label: '完全不符合' },
-  { value: 2, label: '比较不符合' },
-  { value: 3, label: '有点不符合' },
-  { value: 4, label: '不确定' },
-  { value: 5, label: '有点符合' },
-  { value: 6, label: '比较符合' },
-  { value: 7, label: '完全符合' },
-];
-
-// 示例题目
-const universalQuestions: UniversalQuestion[] = [
-  // === 依恋类型题目 ===
-  {
-    id: 1,
-    category: 'attachment',
-    text: '我很容易与伴侣建立亲密关系',
-    scoring: [
-      { dimension: 'attachment_secure', weights: [0, 0, 0, 1, 2, 3, 4] },
-      { dimension: 'attachment_avoidant', weights: [4, 3, 2, 1, 0, 0, 0] },
-    ],
-  },
-  {
-    id: 2,
-    category: 'attachment',
-    text: '我经常担心伴侣不是真的爱我',
-    scoring: [
-      { dimension: 'attachment_anxious', weights: [0, 0, 0, 1, 2, 3, 4] },
-      { dimension: 'attachment_secure', weights: [4, 3, 2, 1, 0, 0, 0] },
-    ],
-  },
-  {
-    id: 3,
-    category: 'attachment',
-    text: '当关系变得太亲密时，我会感到不自在',
-    scoring: [
-      { dimension: 'attachment_avoidant', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 4,
-    category: 'attachment',
-    text: '我需要伴侣经常确认对我的感情',
-    scoring: [
-      { dimension: 'attachment_anxious', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 5,
-    category: 'attachment',
-    text: '我相信伴侣在我需要时会支持我',
-    scoring: [
-      { dimension: 'attachment_secure', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-
-  // === 爱的语言题目 ===
-  {
-    id: 6,
-    category: 'loveLanguage',
-    text: '伴侣的赞美和鼓励让我感到被爱',
-    scoring: [
-      { dimension: 'love_words', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 7,
-    category: 'loveLanguage',
-    text: '我很看重与伴侣单独相处的时间',
-    scoring: [
-      { dimension: 'love_time', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 8,
-    category: 'loveLanguage',
-    text: '收到伴侣精心准备的礼物让我很开心',
-    scoring: [
-      { dimension: 'love_gifts', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 9,
-    category: 'loveLanguage',
-    text: '伴侣帮我做事让我感到被关心',
-    scoring: [
-      { dimension: 'love_service', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 10,
-    category: 'loveLanguage',
-    text: '我喜欢与伴侣有身体上的亲近（拥抱、牵手等）',
-    scoring: [
-      { dimension: 'love_touch', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-
-  // === 沟通风格题目 ===
-  {
-    id: 11,
-    category: 'communication',
-    text: '我会主动与伴侣分享我的想法和感受',
-    scoring: [
-      { dimension: 'comm_openness', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 12,
-    category: 'communication',
-    text: '我善于倾听伴侣的心声',
-    scoring: [
-      { dimension: 'comm_listening', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 13,
-    category: 'communication',
-    text: '遇到分歧时，我倾向于直接表达不满',
-    scoring: [
-      { dimension: 'comm_direct', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-
-  // === 价值观题目 ===
-  {
-    id: 14,
-    category: 'values',
-    text: '我认为家庭比事业更重要',
-    scoring: [
-      { dimension: 'value_family', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 15,
-    category: 'values',
-    text: '我对金钱的态度是能省则省',
-    scoring: [
-      { dimension: 'value_frugal', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 16,
-    category: 'values',
-    text: '我认为双方应该保持一定的个人空间',
-    scoring: [
-      { dimension: 'value_independence', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-
-  // === 冲突处理题目 ===
-  {
-    id: 17,
-    category: 'conflict',
-    text: '吵架后，我需要时间独处冷静',
-    scoring: [
-      { dimension: 'conflict_withdraw', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-  {
-    id: 18,
-    category: 'conflict',
-    text: '我会主动道歉来化解矛盾',
-    scoring: [
-      { dimension: 'conflict_repair', weights: [0, 0, 0, 1, 2, 3, 4] },
-    ],
-  },
-
-  // ... 继续添加到 38 题
-];
-
-export { universalQuestions, universalOptions };
-```
-
-### 阶段版题目（A/B/C/D 选项）
-
-```typescript
-// lib/questions-staged.ts
-
-interface StagedQuestion {
-  id: number;
-  stages: Stage[];  // 适用阶段
-  category: string;
-  text: string;
-  options: {
-    key: 'A' | 'B' | 'C' | 'D';
-    text: string;
-    scores: Record<string, number>;
-  }[];
-}
-
-// 示例题目
-const stagedQuestions: StagedQuestion[] = [
-  {
-    id: 1,
-    stages: ['AMBIGUOUS', 'ROMANCE', 'STABLE'],
-    category: 'attachment',
-    text: '当你感到压力很大时，你更希望伴侣：',
-    options: [
-      { 
-        key: 'A', 
-        text: '给我空间，让我自己消化', 
-        scores: { attachment_avoidant: 2 } 
-      },
-      { 
-        key: 'B', 
-        text: '主动关心我，陪在我身边', 
-        scores: { attachment_secure: 2 } 
-      },
-      { 
-        key: 'C', 
-        text: '我会反复确认TA是否还在乎我', 
-        scores: { attachment_anxious: 2 } 
-      },
-      { 
-        key: 'D', 
-        text: '我不确定自己想要什么', 
-        scores: { attachment_fearful: 2 } 
-      },
-    ],
-  },
-  
-  // 暧昧期专属题目
-  {
-    id: 101,
-    stages: ['AMBIGUOUS'],
-    category: 'attraction',
-    text: '你们目前的互动频率是：',
-    options: [
-      { key: 'A', text: '每天都会联系', scores: { attraction: 4 } },
-      { key: 'B', text: '隔天联系一次', scores: { attraction: 3 } },
-      { key: 'C', text: '一周几次', scores: { attraction: 2 } },
-      { key: 'D', text: '偶尔联系', scores: { attraction: 1 } },
-    ],
-  },
-
-  // 热恋期专属题目
-  {
-    id: 201,
-    stages: ['ROMANCE'],
-    category: 'commitment',
-    text: '你们是否讨论过未来：',
-    options: [
-      { key: 'A', text: '经常讨论，有明确计划', scores: { commitment: 4 } },
-      { key: 'B', text: '偶尔提及', scores: { commitment: 3 } },
-      { key: 'C', text: '很少谈', scores: { commitment: 2 } },
-      { key: 'D', text: '从不讨论', scores: { commitment: 1 } },
-    ],
-  },
-
-  // 稳定期专属题目
-  {
-    id: 301,
-    stages: ['STABLE'],
-    category: 'gottman',
-    text: '当你们有分歧时，通常如何解决：',
-    options: [
-      { key: 'A', text: '平和讨论，找到共识', scores: { gottman_repair: 4 } },
-      { key: 'B', text: '一方妥协', scores: { gottman_repair: 2 } },
-      { key: 'C', text: '冷战一段时间', scores: { gottman_repair: 1 } },
-      { key: 'D', text: '经常升级为激烈争吵', scores: { gottman_contempt: 3 } },
-    ],
-  },
-
-  // ... 更多题目
-];
-
-export { stagedQuestions };
-```
+**说明**：通用版题量以 `universalQuestions` 数组长度为准；历史文档中的「38 题」等数字可能过期，**一律以代码为准**。
 
 ---
 
-## 计分逻辑
+## 六、API 设计（要点）
 
-### 通用版计分
+基础路径：`/api/v1/...`
 
-```typescript
-// lib/scoring-universal.ts
+### 6.1 开始测评 `POST /api/v1/quiz/start`
 
-interface UniversalScores {
-  // 依恋类型得分
-  attachment: {
-    secure: number;
-    anxious: number;
-    avoidant: number;
-    fearful: number;
-  };
-  // 爱的语言得分
-  loveLanguage: {
-    words: number;
-    time: number;
-    gifts: number;
-    service: number;
-    touch: number;
-  };
-  // 沟通风格得分
-  communication: {
-    openness: number;
-    listening: number;
-    direct: number;
-  };
-  // 价值观得分
-  values: {
-    family: number;
-    frugal: number;
-    independence: number;
-  };
-  // 冲突处理得分
-  conflict: {
-    withdraw: number;
-    repair: number;
-  };
-}
-
-function calculateUniversalScores(answers: { questionId: number; value: number }[]): UniversalScores {
-  const scores: UniversalScores = {
-    attachment: { secure: 0, anxious: 0, avoidant: 0, fearful: 0 },
-    loveLanguage: { words: 0, time: 0, gifts: 0, service: 0, touch: 0 },
-    communication: { openness: 0, listening: 0, direct: 0 },
-    values: { family: 0, frugal: 0, independence: 0 },
-    conflict: { withdraw: 0, repair: 0 },
-  };
-
-  for (const answer of answers) {
-    const question = universalQuestions.find(q => q.id === answer.questionId);
-    if (!question) continue;
-
-    for (const scoring of question.scoring) {
-      const weight = scoring.weights[answer.value - 1]; // value 1-7 对应 index 0-6
-      const [category, dimension] = scoring.dimension.split('_');
-      
-      if (scores[category] && dimension in scores[category]) {
-        scores[category][dimension] += weight;
-      }
-    }
-  }
-
-  return scores;
-}
-
-function determineAttachmentType(scores: UniversalScores['attachment']): AttachmentType {
-  const { secure, anxious, avoidant, fearful } = scores;
-  const max = Math.max(secure, anxious, avoidant, fearful);
-  
-  if (max === secure) return 'SECURE';
-  if (max === anxious) return 'ANXIOUS';
-  if (max === avoidant) return 'AVOIDANT';
-  return 'FEARFUL';
-}
-
-function determineLoveLanguage(scores: UniversalScores['loveLanguage']): LoveLanguage {
-  const entries = Object.entries(scores);
-  const [topLanguage] = entries.sort((a, b) => b[1] - a[1])[0];
-  
-  const mapping = {
-    words: 'WORDS',
-    time: 'TIME',
-    gifts: 'GIFTS',
-    service: 'SERVICE',
-    touch: 'TOUCH',
-  };
-  
-  return mapping[topLanguage] as LoveLanguage;
-}
-
-function calculateCompatibility(
-  scoresA: UniversalScores,
-  scoresB: UniversalScores
-): number {
-  let totalScore = 0;
-  let totalWeight = 0;
-
-  // 依恋类型契合度（权重 30%）
-  const attachmentCompat = calculateAttachmentCompatibility(
-    scoresA.attachment,
-    scoresB.attachment
-  );
-  totalScore += attachmentCompat * 0.3;
-  totalWeight += 0.3;
-
-  // 爱的语言契合度（权重 25%）
-  const loveLanguageCompat = calculateVectorSimilarity(
-    Object.values(scoresA.loveLanguage),
-    Object.values(scoresB.loveLanguage)
-  );
-  totalScore += loveLanguageCompat * 0.25;
-  totalWeight += 0.25;
-
-  // 沟通风格契合度（权重 20%）
-  const commCompat = calculateVectorSimilarity(
-    Object.values(scoresA.communication),
-    Object.values(scoresB.communication)
-  );
-  totalScore += commCompat * 0.2;
-  totalWeight += 0.2;
-
-  // 价值观契合度（权重 15%）
-  const valuesCompat = calculateVectorSimilarity(
-    Object.values(scoresA.values),
-    Object.values(scoresB.values)
-  );
-  totalScore += valuesCompat * 0.15;
-  totalWeight += 0.15;
-
-  // 冲突处理契合度（权重 10%）
-  const conflictCompat = calculateConflictCompatibility(
-    scoresA.conflict,
-    scoresB.conflict
-  );
-  totalScore += conflictCompat * 0.1;
-  totalWeight += 0.1;
-
-  return Math.round((totalScore / totalWeight) * 100);
-}
-
-// 向量相似度计算（余弦相似度）
-function calculateVectorSimilarity(a: number[], b: number[]): number {
-  const dotProduct = a.reduce((sum, val, i) => sum + val * b[i], 0);
-  const magnitudeA = Math.sqrt(a.reduce((sum, val) => sum + val * val, 0));
-  const magnitudeB = Math.sqrt(b.reduce((sum, val) => sum + val * val, 0));
-  
-  if (magnitudeA === 0 || magnitudeB === 0) return 0;
-  return (dotProduct / (magnitudeA * magnitudeB) + 1) / 2; // 归一化到 0-1
-}
-
-export { 
-  calculateUniversalScores, 
-  determineAttachmentType, 
-  determineLoveLanguage,
-  calculateCompatibility 
-};
-```
-
----
-
-## API 设计
-
-### 基础路径
-`/api/v1/...`
-
-### 1. 开始测评
-
-#### POST /api/v1/quiz/start
+请求体（核心字段）：
 
 ```typescript
-// 请求
 {
-  "deviceId": "dev_xxx",
-  "mode": "UNIVERSAL" | "STAGED",
-  "stage": "UNIVERSAL" | "AMBIGUOUS" | "ROMANCE" | "STABLE",
-  "nickname": "小红"
-}
-
-// 响应
-{
-  "sessionId": "xxx",
-  "inviteCode": "ABC123",
-  "questions": [...],  // 根据 mode 和 stage 返回对应题目
-  "questionCount": 38,
-  "answerType": "scale" | "choice",  // scale=1-7, choice=ABCD
-  "expiresAt": "2025-02-03T12:00:00Z"
+  deviceId: string;
+  nickname: string;
+  mode: "UNIVERSAL" | "STAGED" | "SCENARIO";
+  stage?: "UNIVERSAL" | "AMBIGUOUS" | "ROMANCE" | "STABLE"; // STAGED 时必选合理值；SCENARIO 时服务端会规范化
+  scenarioSlug?: string;  // mode === "SCENARIO" 时必填且合法
+  productSlug?: string;   // 默认 couple-compatibility
+  usageId?: string;       // 兑换等场景
 }
 ```
 
-### 2. 提交答案
+`SCENARIO` 模式下必须传入 **`isValidScenarioSlug` 通过的 `scenarioSlug`**。
 
-#### POST /api/v1/quiz/submit
+### 6.2 其他接口（已实现，细节以路由为准）
 
-```typescript
-// 通用版请求
-{
-  "sessionId": "xxx",
-  "deviceId": "xxx",
-  "answers": [
-    { "questionId": 1, "value": 5 },  // 1-7
-    { "questionId": 2, "value": 3 },
-    // ...
-  ]
-}
-
-// 阶段版请求
-{
-  "sessionId": "xxx",
-  "deviceId": "xxx",
-  "answers": [
-    { "questionId": 1, "answer": "A" },
-    { "questionId": 2, "answer": "C" },
-    // ...
-  ]
-}
-```
-
-### 3. 其他 API（不变）
-
-- `POST /api/v1/quiz/join` - 加入测评
-- `GET /api/v1/quiz/status/:sessionId` - 查询状态
-- `GET /api/v1/result/:sessionId` - 获取结果
-- `GET /api/v1/history` - 历史记录
+- `POST /api/v1/quiz/join` — 加入会话  
+- `POST /api/v1/quiz/submit` — 提交答案  
+- `GET /api/v1/quiz/status/:sessionId` — 状态轮询  
+- `GET /api/v1/quiz/preview` — 预览题目（若已启用）  
+- `GET /api/v1/result/:sessionId` — 结果与报告数据  
+- `GET /api/v1/result/:sessionId/report/stream` — 报告流式输出（若已启用）  
+- 订单与支付：`/api/v1/orders/...`  
 
 ---
 
-## 页面结构
+## 七、页面与路由（当前）
 
 ```
-app/
-├── page.tsx                    # 首页（含通用版+阶段版选择）
+src/app/
+├── page.tsx                      # 首页（三幕步骤：个人自测 + 阶段选择 + 场景专题等）
+├── me/page.tsx                   # 重定向首页（旧链接兼容）
+├── me/[personalSlug]/page.tsx    # 重定向 /quiz?mode=PERSONAL&personalSlug=…
+├── ready/result/[sessionId]/     # 第一幕：个人自测结果（非双人结果页）
 ├── quiz/
-│   ├── page.tsx                # 选择模式 + 输入昵称
-│   └── [sessionId]/
-│       └── page.tsx            # 答题页（根据 mode 显示不同 UI）
-├── result/
-│   └── [sessionId]/
-│       └── page.tsx            # 结果页
-├── history/
-│   └── page.tsx                # 历史记录
-└── api/
-    └── v1/
-        ├── quiz/
-        │   ├── start/route.ts
-        │   ├── join/route.ts
-        │   ├── submit/route.ts
-        │   └── status/[sessionId]/route.ts
-        └── result/
-            └── [sessionId]/route.ts
+│   ├── page.tsx                  # 开始测评 / 填昵称等
+│   ├── join/page.tsx             # 输入邀请码加入
+│   └── [sessionId]/page.tsx      # 答题（含 PERSONAL / Universal / Staged / Scenario UI）
+├── result/[sessionId]/page.tsx   # 双人结果与报告（阶段 vs 场景版式不同）
+└── api/v1/...
 ```
 
 ---
 
-## 首页布局设计
+## 八、结果与报告（第二幕 / 第三幕）
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  导航栏                                                      │
-│  Logo(合拍吗)                    历史记录 | 输入邀请码        │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│                       Hero 区域                              │
-│                                                             │
-│                    我们合拍吗？                              │
-│              用科学的方式，读懂你们的爱情密码                  │
-│                                                             │
-│         30,000+ 对情侣  |  78.5% 契合度  |  96% 好评         │
-│                                                             │
-│                     [开始探索 ↓]                             │
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│                    选择测评方式                              │
-│                                                             │
-│  ┌───────────────────────────────────────────────────────┐ │
-│  │                                                        │ │
-│  │  🎯 通用版                               推荐新用户    │ │
-│  │                                                        │ │
-│  │  不确定关系阶段？没关系！                               │ │
-│  │  38题全面测评，1-7分作答，适合任何阶段的你们            │ │
-│  │                                                        │ │
-│  │  ⏱ 约8分钟                              ¥12.9 起      │ │
-│  │                                                        │ │
-│  │                                      [开始测评]        │ │
-│  │                                                        │ │
-│  └───────────────────────────────────────────────────────┘ │
-│                                                             │
-│                    ─── 或按阶段选择 ───                      │
-│                                                             │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐│
-│  │                 │ │                 │ │                 ││
-│  │    💗 暧昧期    │ │   💕 热恋期     │ │   💑 稳定期     ││
-│  │                 │ │    最多人选     │ │                 ││
-│  │   还在互相了解   │ │   确定关系中    │ │  1年+/同居/已婚 ││
-│  │                 │ │                 │ │                 ││
-│  │   25题·约5分钟  │ │  32题·约7分钟  │ │  40题·约10分钟 ││
-│  │                 │ │                 │ │                 ││
-│  │    ¥9.9 起     │ │    ¥14.9 起    │ │    ¥19.9 起    ││
-│  │                 │ │                 │ │                 ││
-│  │   [开始测试]    │ │   [开始测试]    │ │   [开始测试]    ││
-│  │                 │ │                 │ │                 ││
-│  └─────────────────┘ └─────────────────┘ └─────────────────┘│
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│                   基于经典心理学理论                          │
-│                    科学严谨，专业可靠                         │
-│                                                             │
-│  ┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐│
-│  │   🔗 依恋理论   │ │   💬 爱的语言   │ │  📊 Gottman研究 ││
-│  │                 │ │                 │ │                 ││
-│  │  理解双方在亲   │ │  解码彼此表达   │ │  基于数十年婚   ││
-│  │  密关系中的依   │ │  与接收爱的独   │ │  姻研究，预测   ││
-│  │  恋模式...     │ │  特方式...      │ │  关系健康度...  ││
-│  └─────────────────┘ └─────────────────┘ └─────────────────┘│
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│                   专业详细的分析报告                          │
-│                  深度解读，助你们更好地成长                    │
-│                                                             │
-│  ┌─────────────────────────┬───────────────────────────────┐│
-│  │                         │                               ││
-│  │    ┌─────────────┐      │  ✨ 契合度总览                ││
-│  │    │             │      │     整体评分与关系健康指数     ││
-│  │    │    85%      │      │                               ││
-│  │    │   ○○○○○     │      │  🛡️ 依恋类型配对              ││
-│  │    │             │      │     深入分析双方依恋模式       ││
-│  │    └─────────────┘      │                               ││
-│  │                         │  📈 成长建议                   ││
-│  │  依恋契合  沟通风格  价值观 │     针对性的关系提升指南       ││
-│  │    高       中       高   │                               ││
-│  │                         │                               ││
-│  └─────────────────────────┴───────────────────────────────┘│
-│                                                             │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│                         Footer                              │
-│         © 2026 合拍吗 hepaima.com | 隐私政策 | 服务条款      │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+### 8.1 阶段版 / 通用版（双人）
+
+- 免费：总分、依恋与爱的语言类型、六维等（以实际页面为准）。  
+- 简版 AI：契合向解读（文案见产品实现）。  
+- 付费深度：更深分析、情景演练、周任务、沟通指南等；**不包含**场景专题下已隐藏模块的，以代码分支为准（如场景下对 `attachmentDeep` / `relationshipForecast` 等的处理）。
+
+### 8.2 场景专题（双人）
+
+- 强调与本专题**题干一致**的「场上焦点」、按维度展示**题脉**、**AI 场景复盘**（子标题与阶段版「契合解读」区分）。  
+- 付费：**场景深度包**（专题向延伸分析与练习，不等同完整阶段测评）。
+
+### 8.3 第一幕（个人自测 · MVP）
+
+- 免费：自测指数（0–100）、五维条形、`reportBasic` 规则模板（`type: personal_readiness`）；不生成付费深度报告。  
+- CTA：引导 `/quiz` 双人测评与首页阶段/场景入口。
 
 ---
 
-## 答题页 UI 差异
+## 九、付费与报告等级
 
-### 通用版（1-7 量表）
+历史上 PRD 中的价格档（通用 ¥12.9 / 阶段分档等）**可能已与现网不一致**。以下原则以代码与运营配置为准：
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│  合拍吗          通用版测评           15/38                  │
-│                                                             │
-│  ████████████████░░░░░░░░░░░░░░░  39%                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│     我很容易与伴侣建立亲密关系                                │
-│                                                             │
-│     完全                                          完全      │
-│     不符合                                        符合      │
-│                                                             │
-│       1     2     3     4     5     6     7                │
-│       ○     ○     ○     ○     ●     ○     ○                │
-│                                                             │
-│              [上一题]          [下一题]                      │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+- 免费简版 + 付费解锁深度（微信支付 / 支付宝）。  
+- 优惠码、兑换码逻辑见 `prisma` 与 `src/app/api` 实现。  
 
-### 阶段版（A/B/C/D 选项）
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│  合拍吗          热恋期             12/32                   │
-│                                                             │
-│  ██████████████░░░░░░░░░░░░░░░░░  38%                      │
-├─────────────────────────────────────────────────────────────┤
-│                                                             │
-│     当你感到压力很大时，你更希望伴侣：                        │
-│                                                             │
-│     ┌─────────────────────────────────────────────────┐    │
-│     │  A  给我空间，让我自己消化                        │    │
-│     └─────────────────────────────────────────────────┘    │
-│     ┌─────────────────────────────────────────────────┐    │
-│     │  B  主动关心我，陪在我身边                  ✓    │    │
-│     └─────────────────────────────────────────────────┘    │
-│     ┌─────────────────────────────────────────────────┐    │
-│     │  C  我会反复确认TA是否还在乎我                   │    │
-│     └─────────────────────────────────────────────────┘    │
-│     ┌─────────────────────────────────────────────────┐    │
-│     │  D  我不确定自己想要什么                         │    │
-│     └─────────────────────────────────────────────────┘    │
-│                                                             │
-│              [上一题]                                        │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+**建议**：在 PRD 中不再写死具体金额，或单独维护「运营价格表」链接/附录并定期同步。
 
 ---
 
-## 报告等级（更新）
+## 十、首页与信息架构（方向）
 
-| 内容 | 免费版 | 标准版 | 深度版 |
-|------|--------|--------|--------|
-| **通用版价格** | 免费 | ¥19.9 | ¥39.9 |
-| **阶段版价格** | 免费 | ¥14.9 | ¥29.9 |
-| 契合度总分 | ✅ | ✅ | ✅ |
-| 依恋类型 | ✅ 仅类型 | ✅ 含分析 | ✅ 深度 |
-| 爱的语言 | ✅ 仅类型 | ✅ 含分析 | ✅ 深度 |
-| 五维雷达图 | ❌ | ✅ | ✅ |
-| 沟通风格分析 | ❌ | ✅ | ✅ |
-| 价值观匹配 | ❌ | ✅ | ✅ |
-| AI 深度解读 | ❌ | ❌ | ✅ |
-| 成长建议 | ❌ | ✅ 基础 | ✅ 详细 |
-| 情侣任务卡 | ❌ | ❌ | ✅ |
-| Gottman 指标 | ❌ | ❌ | ✅ 稳定期 |
+当前首页已包含：**步骤 1 个人自测**、**步骤 2 按关系阶段选择**、通用版入口、**步骤 3 按现实场景选择** 等模块（见 `src/components/home/StageSelector.tsx`）。
+
+**三幕对齐（现状）**：
+
+1. **第一块**：先了解自己（三卡链至 `/quiz?mode=PERSONAL&personalSlug=…`）。  
+2. **第二块**：双人合拍 — 通用版 + 阶段版。  
+3. **第三块**：在一起之后 · 现实场景 — 专题卡片。
+
+社会证明数据、Hero 文案以实际上线为准，需与法务/运营核对真实性。
 
 ---
 
-## 开发顺序
+## 十一、答题与报告 UI 要点
 
-### 第一阶段：核心流程（1-2周）
-1. ⬜ 项目初始化
-2. ⬜ 首页（V0生成）
-3. ⬜ 答题页 - 通用版 UI
-4. ⬜ 答题页 - 阶段版 UI
-5. ⬜ 题目数据整理
-6. ⬜ 开始/提交 API
-7. ⬜ 邀请码流程
-8. ⬜ 结果页（基础版）
+- **个人自测**：1–5 分量表（`PersonalReadinessQuiz`），题目来自 `GET /api/v1/quiz/personal-questions`。  
+- **通用版**：1–7 量表，进度与动效（`UniversalQuiz` 等）。  
+- **阶段版**：选项题 UI（`StagedQuizUI` 等）。  
+- **场景版**：1–5 分场景量表（如 `ScenarioScaleQuiz`），与 `scenarioSlug` 对应文案。  
 
-### 第二阶段：AI 报告（1周）
-1. ⬜ DeepSeek API 对接
-2. ⬜ 计分逻辑实现
-3. ⬜ 报告生成
-4. ⬜ 结果页完善
-
-### 第三阶段：完善（1周）
-1. ⬜ 历史记录
-2. ⬜ 分享功能
-3. ⬜ 部署上线
-
-### 第四阶段：支付（后续）
-1. ⬜ 微信支付
-2. ⬜ 支付宝支付
+详细线框图可参考本文档历史版本或设计稿；实现以组件为准。
 
 ---
 
-## V0 Prompt 示例
+## 十二、开发阶段与状态（滚动维护）
 
-### 首页
+### 已完成（核心）
 
-```
-创建情侣契合度测评产品"合拍吗"的首页。
+- 项目脚手架、首页与测评入口  
+- 通用版 / 阶段版全流程（开始、加入、答题、提交、结果）  
+- 场景专题模式（`SCENARIO`、`scenarioSlug`、计分、结果页差异化版块）  
+- 第一幕个人自测（`PERSONAL`、题库与计分、个人结果页、首页三幕步骤）  
+- AI 报告与流式/轮询（以当前实现为准；**不含** `PERSONAL` 单人链）  
+- 支付与订单、优惠相关能力（以 schema 与 API 为准）  
+- 设备 ID、邀请码、基础风控与文案免责  
 
-技术栈：Next.js 15 App Router + TypeScript + Shadcn UI + Tailwind CSS + Framer Motion + Lucide Icons
+### 进行中 / 待办（产品向）
 
-设计风格：
-- 温暖浪漫但不俗气
-- 主色：粉色 #EC4899，紫色 #8B5CF6
-- 背景：#FAFAFA
-- 移动端优先
+- 第一幕迭代：分享策略、更细报告维度、可选 AI 润色等  
+- 运营数据看板、转化漏斗（可选）  
+- 微信小程序 / App（长期）  
 
-页面结构：
-1. 导航栏：Logo "合拍吗"（渐变） + 历史记录 + 输入邀请码
+### 数据与部署
 
-2. Hero：标题 + 副标题 + 社会证明 + CTA按钮
-
-3. 测评方式选择：
-   - 通用版大卡片（推荐标签）：38题，1-7量表，¥12.9起，约8分钟
-   - 分隔线 "或按阶段选择"
-   - 三个阶段小卡片横排：暧昧期/热恋期(最多人选)/稳定期
-
-4. 科学背书：三个理论卡片
-
-5. 报告预览：契合度圆环 + 功能点
-
-6. Footer
-```
-
-### 答题页（通用版）
-
-```
-创建通用版答题页，使用 1-7 李克特量表。
-
-技术栈：Next.js 15 + TypeScript + Shadcn UI + Tailwind CSS + Framer Motion
-
-设计要求：
-- 顶部：Logo + "通用版测评" + 进度 (15/38)
-- 进度条：渐变色
-- 题目：居中显示
-- 答案：1-7 圆形选项，横向排列
-- 两端标签：完全不符合 ←→ 完全符合
-- 选中效果：放大 + 渐变色填充
-- 底部：上一题/下一题按钮
-- 动画：题目切换淡入淡出
-```
+- 新环境：`prisma migrate deploy` 必备。  
+- `prisma db seed`：在**新库**或需把**代码中的通用/阶段题目**同步到 DB 时执行；脚本会重建部分问卷题目，**生产执行前需评估**；场景题干主要走代码，不一定依赖该 seed。
 
 ---
 
-*文档版本：v2.0*
-*最后更新：2025年2月*
+## 十三、附录：给设计与前端的 Brief 摘要（可选）
+
+**品牌**：主色粉 `#EC4899`、紫 `#8B5CF6`；背景 `#FAFAFA` / `#FDF2F8`；中文文案；移动端优先，桌面最大宽度约 1000px。
+
+**三幕文案方向**：
+
+- 第一幕：了解自己、无评判、非诊断。  
+- 第二幕：科学看合拍、双人同行。  
+- 第三幕：真实场景、可练可聊。
+
+---
+
+*若本文与代码冲突，以仓库当前实现为准；重大产品变更请同步更新版本号与「最后更新」日期。*

@@ -12,6 +12,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const routes = [
     "",
+    "/me",
     "/quiz",
     "/history",
     "/contact",

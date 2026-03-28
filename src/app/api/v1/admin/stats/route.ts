@@ -94,6 +94,7 @@ export async function GET(req: NextRequest) {
         take: 50,
         select: {
           id: true,
+          mode: true,
           stage: true,
           createdAt: true,
           initiatorName: true,
@@ -109,6 +110,7 @@ export async function GET(req: NextRequest) {
         take: 50,
         select: {
           id: true,
+          mode: true,
           createdAt: true,
           initiatorCompletedAt: true,
           partnerCompletedAt: true,
@@ -143,6 +145,7 @@ export async function GET(req: NextRequest) {
     // 近期测评场次列表
     const recentSessionsList = recentSessions.map((s) => ({
       id: s.id,
+      mode: s.mode,
       stage: s.stage,
       createdAt: s.createdAt,
       initiatorName: s.initiatorName,
@@ -173,6 +176,7 @@ export async function GET(req: NextRequest) {
       const paid = resultId ? paidOrderByResult.get(resultId) : undefined;
       return {
         id: s.id,
+        mode: s.mode,
         stage: s.stage,
         createdAt: s.createdAt,
         initiatorName: s.initiatorName,

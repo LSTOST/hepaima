@@ -21,6 +21,7 @@ import { Button } from "@/components/ui/button";
 import { STAGE_SUBTITLES, STAGE_LABELS } from "@/lib/stage-copy";
 import { STAGE_CARD_ENTRIES } from "@/lib/home-quiz-entries";
 import { listScenarioSummariesForHome } from "@/lib/scenario-quizzes";
+import { PersonalFirstActCards } from "@/components/home/PersonalFirstActCards";
 
 const SCENARIO_ENTRIES = listScenarioSummariesForHome();
 
@@ -47,14 +48,27 @@ const STAGE_ICON: Record<
 const RULE_LINE_CLASS =
   "flex-1 min-w-2 sm:min-w-4 h-0 border-t border-dashed border-[#E5B2D4]/75";
 
+function StepBadge({ n }: { n: number }) {
+  return (
+    <span
+      className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 border-gray-200 bg-white text-sm font-semibold text-gray-500 tabular-nums"
+      aria-label={`步骤 ${n}`}
+    >
+      {n}
+    </span>
+  );
+}
+
 function SectionHeadingWithRules({
   title,
   subtitle,
   delay = 0,
+  step,
 }: {
   title: string;
   subtitle?: string;
   delay?: number;
+  step?: number;
 }) {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const [showSideRules, setShowSideRules] = useState(true);
@@ -106,11 +120,12 @@ function SectionHeadingWithRules({
           ref={titleRef}
           className={
             showSideRules
-              ? "shrink-0 px-2 text-center text-2xl font-bold text-[#1F2937] sm:text-3xl"
-              : "w-full text-center text-2xl font-bold text-[#1F2937] sm:text-3xl"
+              ? "shrink-0 px-2 text-center text-2xl font-bold text-[#1F2937] sm:text-3xl inline-flex items-center justify-center gap-3 flex-wrap"
+              : "w-full text-center text-2xl font-bold text-[#1F2937] sm:text-3xl inline-flex items-center justify-center gap-3 flex-wrap"
           }
         >
-          {title}
+          {step != null ? <StepBadge n={step} /> : null}
+          <span>{title}</span>
         </h2>
         {showSideRules ? (
           <div className={RULE_LINE_CLASS} aria-hidden />
@@ -127,30 +142,52 @@ function SectionHeadingWithRules({
 
 export function StageSelector() {
   return (
-    <section id="stage-selection" className="py-16 sm:py-20 px-4 sm:px-6">
+    <section className="py-16 sm:py-20 px-4 sm:px-6">
       <div className="max-w-[1000px] mx-auto">
         <SectionHeadingWithRules
-          title="按关系阶段选择"
-          subtitle="每段关系都有独特的旅程"
+          step={1}
+          title="先了解自己"
+          subtitle="进入关系前的自我觉察"
         />
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {STAGE_CARD_ENTRIES.map((entry, index) => (
-            <StageCard key={entry.stageKey} entry={entry} index={index} />
-          ))}
+        <PersonalFirstActCards />
+
+        {/** 锚点须在此块：#/stage-selection 应对准「按关系阶段选择」，而非第一幕 */}
+        <div
+          id="stage-selection"
+          className="scroll-mt-[5.5rem] sm:scroll-mt-24 pt-2 sm:pt-0"
+        >
+          <div className="mt-6 sm:mt-10">
+            <SectionHeadingWithRules
+              step={2}
+              title="按关系阶段选择"
+              subtitle="每段关系都有独特的旅程"
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+            {STAGE_CARD_ENTRIES.map((entry, index) => (
+              <StageCard key={entry.stageKey} entry={entry} index={index} />
+            ))}
+          </div>
+
+          <p className="text-center text-sm text-[#9CA3AF] mb-14">
+            还不确定所处阶段？{" "}
+            <Link
+              href="/quiz?mode=UNIVERSAL"
+              className="text-pink-600 hover:text-pink-700 font-medium underline underline-offset-2"
+            >
+              试试通用版测评
+            </Link>
+          </p>
         </div>
 
-        <p className="text-center text-sm text-[#9CA3AF] mb-14">
-          还不确定所处阶段？{" "}
-          <Link
-            href="/quiz?mode=UNIVERSAL"
-            className="text-pink-600 hover:text-pink-700 font-medium underline underline-offset-2"
-          >
-            试试通用版测评
-          </Link>
-        </p>
-
+        <div
+          id="scenario"
+          className="scroll-mt-[5.5rem] sm:scroll-mt-24"
+        >
         <SectionHeadingWithRules
+          step={3}
           title="按现实场景选择"
           subtitle="从最常卡住的那类小事开始"
           delay={0.05}
@@ -189,6 +226,7 @@ export function StageSelector() {
             </motion.div>
             );
           })}
+        </div>
         </div>
       </div>
     </section>
@@ -270,14 +308,21 @@ function StageCard({
 
         <div className="relative">
           <div
-            className={`mb-5 flex h-14 w-14 items-center justify-center rounded-2xl ${styles.iconBg}`}
+            className={`flex items-center gap-3 sm:gap-4 mb-3 sm:mb-4 ${isPopular ? "pr-20 sm:pr-24" : ""}`}
           >
-            <StageIcon className={`h-7 w-7 ${styles.iconColor}`} aria-hidden />
+            <div
+              className={`shrink-0 flex h-11 w-11 sm:h-14 sm:w-14 items-center justify-center rounded-xl sm:rounded-2xl ${styles.iconBg}`}
+            >
+              <StageIcon
+                className={`h-5 w-5 sm:h-7 sm:w-7 ${styles.iconColor}`}
+                aria-hidden
+              />
+            </div>
+            <h3 className="text-lg sm:text-xl md:text-2xl font-bold text-gray-800 leading-snug min-w-0 flex-1">
+              {title}
+            </h3>
           </div>
 
-          <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2 pr-14 sm:pr-16">
-            {title}
-          </h3>
           <p className="text-gray-500 mb-4 text-sm leading-relaxed flex-1">
             {subtitle}
           </p>

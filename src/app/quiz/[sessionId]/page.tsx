@@ -7,6 +7,7 @@ import type { Stage } from "@/lib/questions";
 import { UniversalQuiz } from "@/components/quiz/UniversalQuiz";
 import type { UniversalAnswerItem } from "@/components/quiz/UniversalQuiz";
 import { ScenarioScaleQuiz } from "@/components/quiz/ScenarioScaleQuiz";
+import { PersonalReadinessQuiz } from "@/components/quiz/PersonalReadinessQuiz";
 import { StagedQuizUI } from "@/components/quiz/StagedQuizUI";
 
 const VALID_STAGES: Stage[] = ["AMBIGUOUS", "ROMANCE", "STABLE"];
@@ -41,6 +42,7 @@ function QuizContent() {
 
   const isUniversal = mode === "UNIVERSAL";
   const isScenario = mode === "SCENARIO";
+  const isPersonal = mode === "PERSONAL";
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -114,6 +116,32 @@ function QuizContent() {
     [sessionId, submitValueAnswers]
   );
 
+  const handlePersonalComplete = useCallback(
+    (answers: UniversalAnswerItem[]) => {
+      if (isSubmittingRef.current) return;
+      isSubmittingRef.current = true;
+      lastValueAnswersRef.current = answers;
+      setSubmitError(null);
+      setSubmitting(true);
+      submitValueAnswers(answers)
+        .then((data) => {
+          if (typeof window !== "undefined") {
+            sessionStorage.removeItem(`quiz_personal_${sessionId}`);
+            const ready = data?.bothCompleted ? "?ready=1" : "";
+            window.location.assign(
+              `${window.location.origin}/ready/result/${sessionId}${ready}`,
+            );
+          }
+        })
+        .catch((err) => {
+          setSubmitError(err instanceof Error ? err.message : "提交失败，请重试");
+          setSubmitting(false);
+          isSubmittingRef.current = false;
+        });
+    },
+    [sessionId, submitValueAnswers]
+  );
+
   const handleValueRetry = useCallback(() => {
     const ans = lastValueAnswersRef.current;
     if (!ans) return;
@@ -121,15 +149,18 @@ function QuizContent() {
     isSubmittingRef.current = true;
     setSubmitError(null);
     setSubmitting(true);
+    const personal = mode === "PERSONAL";
     submitValueAnswers(ans)
       .then((data) => {
         if (typeof window !== "undefined") {
           sessionStorage.removeItem(`quiz_universal_${sessionId}`);
           sessionStorage.removeItem(`quiz_scenario_${sessionId}`);
+          sessionStorage.removeItem(`quiz_personal_${sessionId}`);
           const ready = data?.bothCompleted ? "?ready=1" : "";
-          window.location.assign(
-            `${window.location.origin}/result/${sessionId}${ready}`,
-          );
+          const path = personal
+            ? `/ready/result/${sessionId}${ready}`
+            : `/result/${sessionId}${ready}`;
+          window.location.assign(`${window.location.origin}${path}`);
         }
       })
       .catch((err) => {
@@ -137,7 +168,7 @@ function QuizContent() {
         setSubmitting(false);
         isSubmittingRef.current = false;
       });
-  }, [sessionId, submitValueAnswers]);
+  }, [sessionId, submitValueAnswers, mode]);
 
   if (isUniversal) {
     return (
@@ -156,6 +187,18 @@ function QuizContent() {
       <ScenarioScaleQuiz
         sessionId={sessionId}
         onComplete={handleScenarioComplete}
+        isSubmitting={submitting}
+        submitError={submitError}
+        onRetry={handleValueRetry}
+      />
+    );
+  }
+
+  if (isPersonal) {
+    return (
+      <PersonalReadinessQuiz
+        sessionId={sessionId}
+        onComplete={handlePersonalComplete}
         isSubmitting={submitting}
         submitError={submitError}
         onRetry={handleValueRetry}

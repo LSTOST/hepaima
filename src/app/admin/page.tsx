@@ -54,6 +54,26 @@ const ADMIN_HEADER = (password: string): HeadersInit => ({
   [ADMIN_PASSWORD_HEADER_KEY]: password,
 });
 
+const ADMIN_STAGE_LABEL: Record<string, string> = {
+  UNIVERSAL: "通用",
+  AMBIGUOUS: "了解期",
+  ROMANCE: "热恋期",
+  STABLE: "稳定期",
+};
+
+const ADMIN_TEST_MODE_LABEL: Record<string, string> = {
+  STAGED: "分阶段双人",
+  UNIVERSAL: "通用双人",
+  SCENARIO: "专题双人",
+  PERSONAL: "个人自测",
+};
+
+/** 列表「阶段」列：个人自测单独展示，不与 stage=UNIVERSAL 混淆 */
+function adminSessionStageCell(s: { stage: string; mode?: string | null }) {
+  if (s.mode === "PERSONAL") return "个人自测";
+  return ADMIN_STAGE_LABEL[s.stage] ?? s.stage;
+}
+
 type TabKey = "overview" | "site" | "products" | "analytics";
 
 export default function AdminDashboardPage() {
@@ -124,6 +144,7 @@ export default function AdminDashboardPage() {
     }[];
     recentSessions?: {
       id: string;
+      mode?: string;
       stage: string;
       createdAt: string;
       initiatorName: string;
@@ -134,6 +155,7 @@ export default function AdminDashboardPage() {
     }[];
     recentCompletedSessions?: {
       id: string;
+      mode?: string;
       stage: string;
       createdAt: string;
       initiatorName: string;
@@ -155,14 +177,19 @@ export default function AdminDashboardPage() {
   const [loadingStats, setLoadingStats] = useState(false);
   type DetailView = "sessions" | "completed" | "orders" | "revenue" | null;
   const [detailView, setDetailView] = useState<DetailView>(null);
-  const [completedStageFilter, setCompletedStageFilter] = useState<"all" | "UNIVERSAL" | "AMBIGUOUS" | "ROMANCE" | "STABLE">("all");
+  const [completedStageFilter, setCompletedStageFilter] = useState<
+    "all" | "UNIVERSAL" | "AMBIGUOUS" | "ROMANCE" | "STABLE" | "PERSONAL"
+  >("all");
   const [completedPaidFilter, setCompletedPaidFilter] = useState<"all" | "paid" | "unpaid">("all");
   const [previewSessionId, setPreviewSessionId] = useState<string | null>(null);
   const [previewSessionLoading, setPreviewSessionLoading] = useState(false);
   const [previewSessionData, setPreviewSessionData] = useState<{
     session: {
       id: string;
+      mode?: string;
       stage: string;
+      scenarioSlug?: string | null;
+      personalSlug?: string | null;
       createdAt: string;
       initiatorName: string;
       partnerName: string | null;
@@ -887,12 +914,6 @@ export default function AdminDashboardPage() {
                       const values = daily.map((d) => d.sessions);
                       const maxVal = Math.max(1, ...values);
                       const sessions = overviewStats.recentSessions ?? [];
-                      const stageMap: Record<string, string> = {
-                        UNIVERSAL: "通用",
-                        AMBIGUOUS: "了解期",
-                        ROMANCE: "热恋期",
-                        STABLE: "稳定期",
-                      };
                       const statusLabel: Record<string, string> = {
                         WAITING_PARTNER: "等待另一方加入",
                         IN_PROGRESS: "问卷进行中",
@@ -950,7 +971,13 @@ export default function AdminDashboardPage() {
                                       ).padStart(2, "0")}`;
 
                                       let progress = statusLabel[s.status] ?? s.status;
-                                      if (s.status === "COMPLETED") {
+                                      if (s.mode === "PERSONAL") {
+                                        if (s.status === "COMPLETED") {
+                                          progress = "个人自测已完成";
+                                        } else if (s.status === "IN_PROGRESS") {
+                                          progress = "个人自测答题中";
+                                        }
+                                      } else if (s.status === "COMPLETED") {
                                         progress = "双方已完成问卷";
                                       } else if (s.status === "IN_PROGRESS") {
                                         if (s.initiatorCompletedAt && !s.partnerCompletedAt) {
@@ -968,13 +995,15 @@ export default function AdminDashboardPage() {
                                             {timeStr}
                                           </td>
                                           <td className="py-2.5 pr-3 text-slate-600">
-                                            {stageMap[s.stage] ?? s.stage}
+                                            {adminSessionStageCell(s)}
                                           </td>
                                           <td className="py-2.5 pr-3 text-slate-600">
                                             {s.initiatorName}
                                           </td>
                                           <td className="py-2.5 pr-3 text-slate-600">
-                                            {s.partnerName ?? "—"}
+                                            {s.mode === "PERSONAL"
+                                              ? "—"
+                                              : (s.partnerName ?? "—")}
                                           </td>
                                           <td className="py-2.5 pr-3 text-slate-600">
                                             {progress}
@@ -1008,19 +1037,18 @@ export default function AdminDashboardPage() {
                       );
                       const completedSessionsAll = overviewStats.recentCompletedSessions ?? [];
                       const completedSessions = completedSessionsAll.filter((s) => {
-                        if (completedStageFilter !== "all" && s.stage !== completedStageFilter) {
-                          return false;
+                        if (completedStageFilter !== "all") {
+                          if (completedStageFilter === "PERSONAL") {
+                            if (s.mode !== "PERSONAL") return false;
+                          } else {
+                            if (s.mode === "PERSONAL") return false;
+                            if (s.stage !== completedStageFilter) return false;
+                          }
                         }
                         if (completedPaidFilter === "paid" && !s.hasPaid) return false;
                         if (completedPaidFilter === "unpaid" && s.hasPaid) return false;
                         return true;
                       });
-                      const stageMap: Record<string, string> = {
-                        UNIVERSAL: "通用",
-                        AMBIGUOUS: "了解期",
-                        ROMANCE: "热恋期",
-                        STABLE: "稳定期",
-                      };
                       return (
                         <div className="rounded-xl bg-white border border-slate-200 p-5">
                           <div className="flex items-center justify-between mb-4">
@@ -1069,12 +1097,14 @@ export default function AdminDashboardPage() {
                                           | "UNIVERSAL"
                                           | "AMBIGUOUS"
                                           | "ROMANCE"
-                                          | "STABLE",
+                                          | "STABLE"
+                                          | "PERSONAL",
                                       )
                                     }
                                     className="px-2 py-1 rounded-md border border-slate-200 bg-white"
                                   >
                                     <option value="all">全部阶段</option>
+                                    <option value="PERSONAL">个人自测</option>
                                     <option value="UNIVERSAL">通用</option>
                                     <option value="AMBIGUOUS">了解期</option>
                                     <option value="ROMANCE">热恋期</option>
@@ -1161,13 +1191,15 @@ export default function AdminDashboardPage() {
                                             {timeStr}
                                           </td>
                                           <td className="py-2.5 pr-3 text-slate-600">
-                                            {stageMap[s.stage] ?? s.stage}
+                                            {adminSessionStageCell(s)}
                                           </td>
                                           <td className="py-2.5 pr-3 text-slate-600">
                                             {s.initiatorName}
                                           </td>
                                           <td className="py-2.5 pr-3 text-slate-600">
-                                            {s.partnerName ?? "—"}
+                                            {s.mode === "PERSONAL"
+                                              ? "—"
+                                              : (s.partnerName ?? "—")}
                                           </td>
                                           <td className="py-2.5 pr-3 text-slate-600">
                                             {s.hasPaid
@@ -2182,18 +2214,40 @@ export default function AdminDashboardPage() {
                       </div>
                     </div>
                     <div>
-                      <div className="text-xs text-slate-400 mb-0.5">阶段</div>
+                      <div className="text-xs text-slate-400 mb-0.5">测评模式</div>
                       <div>
-                        {previewSessionData.session.stage}
+                        {ADMIN_TEST_MODE_LABEL[
+                          previewSessionData.session.mode ?? ""
+                        ] ?? previewSessionData.session.mode ?? "—"}
                       </div>
                     </div>
+                    <div>
+                      <div className="text-xs text-slate-400 mb-0.5">阶段</div>
+                      <div>
+                        {adminSessionStageCell(previewSessionData.session)}
+                      </div>
+                    </div>
+                    {previewSessionData.session.mode === "PERSONAL" && (
+                      <div>
+                        <div className="text-xs text-slate-400 mb-0.5">
+                          第一幕子测评
+                        </div>
+                        <div className="font-mono text-[11px]">
+                          {previewSessionData.session.personalSlug ?? "—"}
+                        </div>
+                      </div>
+                    )}
                     <div>
                       <div className="text-xs text-slate-400 mb-0.5">发起人</div>
                       <div>{previewSessionData.session.initiatorName}</div>
                     </div>
                     <div>
                       <div className="text-xs text-slate-400 mb-0.5">另一方</div>
-                      <div>{previewSessionData.session.partnerName ?? "—"}</div>
+                      <div>
+                        {previewSessionData.session.mode === "PERSONAL"
+                          ? "—"
+                          : (previewSessionData.session.partnerName ?? "—")}
+                      </div>
                     </div>
                   </div>
 

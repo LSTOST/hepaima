@@ -38,7 +38,14 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import Link from "next/link";
 import { getCompatibilityLevel } from "@/lib/scoring";
 import {
@@ -49,6 +56,10 @@ import {
 import { getScenarioDimensionStems } from "@/lib/scenario-report-sections";
 import { getDeviceId } from "@/lib/device";
 import { STAGE_LABELS } from "@/lib/stage-copy";
+
+/** 双人海报导出：与 html2canvas / html-to-image 对齐的中文字体栈 */
+const COUPLE_POSTER_FONT =
+  '"PingFang SC","Hiragino Sans GB","Noto Sans SC","Source Han Sans SC","Microsoft YaHei","Microsoft JhengHei",sans-serif';
 
 type PageState = "loading" | "waiting" | "generating" | "ready" | "error";
 
@@ -1115,6 +1126,7 @@ function ReadyReport({
   onRefetchResult?: () => void | Promise<void>;
 }) {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [posterSaving, setPosterSaving] = useState(false);
   const [unlocked, setUnlocked] = useState(resultData.purchasedTier === "PREMIUM");
 
   const [payDialogOpen, setPayDialogOpen] = useState(false);
@@ -1645,6 +1657,93 @@ function ReadyReport({
   const scoreCounter = useCounter(resultData.overallScore, 1600);
   const ratingLabel = getCompatibilityLevel(resultData.overallScore);
 
+  const saveCouplePoster = useCallback(async () => {
+    const el = document.getElementById("couple-share-poster");
+    if (!el) return;
+    setPosterSaving(true);
+    try {
+      if (typeof document !== "undefined" && document.fonts?.ready) {
+        await document.fonts.ready;
+      }
+      await new Promise<void>((resolve) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
+      });
+
+      const dpr =
+        typeof window !== "undefined"
+          ? Math.min(3, Math.max(2, window.devicePixelRatio || 2))
+          : 2;
+      const w = Math.round(el.offsetWidth);
+      const h = Math.round(el.offsetHeight);
+
+      const applyPosterFontTree = (root: HTMLElement) => {
+        const walk = (node: HTMLElement) => {
+          node.style.fontFamily = COUPLE_POSTER_FONT;
+          node.style.fontVariantLigatures = "none";
+          node.style.fontFeatureSettings = '"liga" 0';
+          node.style.letterSpacing = "0px";
+          for (let i = 0; i < node.children.length; i++) {
+            const c = node.children[i];
+            if (c instanceof HTMLElement) walk(c);
+          }
+        };
+        walk(root);
+      };
+
+      let url: string;
+      try {
+        const { toPng } = await import("html-to-image");
+        url = await toPng(el, {
+          pixelRatio: dpr,
+          cacheBust: true,
+          width: w,
+          height: h,
+          backgroundColor: "transparent",
+        });
+      } catch (toPngErr) {
+        console.warn(
+          "couple poster: html-to-image failed, fallback html2canvas",
+          toPngErr,
+        );
+        const { default: html2canvas } = await import("html2canvas-oklch");
+        const canvas = await html2canvas(el, {
+          scale: dpr,
+          useCORS: true,
+          logging: false,
+          backgroundColor: null,
+          foreignObjectRendering: false,
+          scrollX: 0,
+          scrollY: 0,
+          width: w,
+          height: h,
+          onclone: (clonedDoc, clonedEl) => {
+            const root =
+              clonedEl instanceof HTMLElement
+                ? clonedEl
+                : clonedDoc.getElementById("couple-share-poster");
+            if (!(root instanceof HTMLElement)) return;
+            applyPosterFontTree(root);
+          },
+        });
+        url = canvas.toDataURL("image/png");
+      }
+
+      const raw = isScenarioReport
+        ? scenarioReportTitle || "场景测评"
+        : stageLabel || "双人测评";
+      const safe =
+        raw.replace(/[/\\?%*:|"<>]/g, "_").trim().slice(0, 24) || "双人";
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `合拍吗-${safe}-双人海报.png`;
+      a.click();
+    } catch (e) {
+      console.error("couple poster export:", e);
+    } finally {
+      setPosterSaving(false);
+    }
+  }, [isScenarioReport, scenarioReportTitle, stageLabel]);
+
   useEffect(() => {
     const timer = setTimeout(() => scoreCounter.start(), 600);
     return () => clearTimeout(timer);
@@ -1672,11 +1771,14 @@ function ReadyReport({
               ) : null}
             </div>
             <Button
-              variant="ghost"
+              type="button"
+              variant="outline"
+              size="sm"
               onClick={handleOpenShareDialog}
-              className="text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-full shrink-0"
+              className="shrink-0 gap-1.5 rounded-full border-pink-200 bg-white text-pink-700 hover:bg-pink-50 hover:text-pink-800"
             >
-              <Share2 className="w-5 h-5" />
+              <Share2 className="h-4 w-4 shrink-0" aria-hidden />
+              <span className="text-sm font-medium">生成海报</span>
             </Button>
           </div>
         </nav>
@@ -2788,11 +2890,12 @@ function ReadyReport({
                 </Button>
               </Link>
               <Button
+                type="button"
                 onClick={handleOpenShareDialog}
                 className="min-w-0 flex-1 bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] text-white rounded-xl py-5 text-base font-medium shadow-lg shadow-pink-500/10 transition-all duration-200"
               >
                 <Share2 className="w-4.5 h-4.5 mr-2 shrink-0" />
-                分享结果
+                生成海报
               </Button>
             </div>
           </ScrollCard>
@@ -2828,13 +2931,21 @@ function ReadyReport({
       </div>
 
         <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
-          <DialogContent className="sm:max-w-md">
-            <DialogTitle className="sr-only">分享结果</DialogTitle>
-            {/* 只展示分享卡片，用户自行截图或长按保存 */}
+          <DialogContent className="sm:max-w-md gap-4">
+            <DialogHeader className="text-left">
+              <DialogTitle>分享海报</DialogTitle>
+              <DialogDescription>
+                保存后可分享给好友，或发送到朋友圈、小红书等社交平台。
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="flex justify-center overflow-hidden rounded-xl bg-gray-100 p-2">
             <div
-              id="share-card"
-              className="relative w-[300px] h-[400px] mx-auto rounded-[28px] p-6 text-white overflow-hidden"
+              id="couple-share-poster"
+              className="relative w-[300px] h-[400px] rounded-[28px] p-6 text-white overflow-hidden shadow-lg"
               style={{
+                fontFamily: COUPLE_POSTER_FONT,
+                letterSpacing: 0,
                 background: isScenarioReport
                   ? "linear-gradient(140deg, #4F46E5, #A855F7 45%, #EC4899)"
                   : "linear-gradient(140deg, #EC4899, #8B5CF6)",
@@ -2945,6 +3056,33 @@ function ReadyReport({
                   </div>
                 </div>
               </div>
+            </div>
+
+            <DialogFooter className="gap-2 sm:gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setShareDialogOpen(false)}
+                className="rounded-full"
+              >
+                关闭
+              </Button>
+              <Button
+                type="button"
+                disabled={posterSaving}
+                onClick={saveCouplePoster}
+                className="rounded-full bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] text-white hover:from-[#DB2777] hover:to-[#7C3AED] inline-flex items-center gap-2"
+              >
+                {posterSaving ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin shrink-0" />
+                    生成中…
+                  </>
+                ) : (
+                  "保存图片"
+                )}
+              </Button>
+            </DialogFooter>
           </DialogContent>
         </Dialog>
 

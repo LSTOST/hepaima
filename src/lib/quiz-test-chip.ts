@@ -11,9 +11,15 @@ import {
   Sprout,
   Flame,
   Wallet,
+  UserRound,
 } from "lucide-react";
 import { STAGE_LABELS } from "@/lib/stage-copy";
 import { getScenarioBySlug, isValidScenarioSlug } from "@/lib/scenario-quizzes";
+import { PERSONAL_TRACK_ICONS } from "@/lib/personal-readiness/personal-track-icons";
+import {
+  PERSONAL_TRACK_CARD_COPY,
+  isValidPersonalSlug,
+} from "@/lib/personal-readiness/tracks";
 
 /** 专题测评 slug → 图标（与首页专题卡片一致） */
 export const SCENARIO_QUIZ_ICONS: Record<string, LucideIcon> = {
@@ -35,6 +41,8 @@ export type QuizTestChipInput = {
   mode?: string | null;
   stage?: string | null;
   scenarioSlug?: string | null;
+  /** 第一幕子测评 slug */
+  personalSlug?: string | null;
   /** 未识别具体测评时（如邀请码未输全） */
   fallbackLabel?: string | null;
 };
@@ -53,6 +61,20 @@ export function getQuizTestChipMeta(input: QuizTestChipInput): {
 
   if (mode === "UNIVERSAL" || stage === "UNIVERSAL") {
     return { label: STAGE_LABELS.UNIVERSAL, Icon: Layers };
+  }
+
+  if (mode === "PERSONAL") {
+    const ps =
+      typeof input.personalSlug === "string"
+        ? input.personalSlug.trim()
+        : "";
+    if (ps && isValidPersonalSlug(ps)) {
+      return {
+        label: PERSONAL_TRACK_CARD_COPY[ps].title,
+        Icon: PERSONAL_TRACK_ICONS[ps],
+      };
+    }
+    return { label: "先了解自己", Icon: UserRound };
   }
 
   if (mode === "SCENARIO") {

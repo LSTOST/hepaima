@@ -9,6 +9,8 @@ import Link from "next/link";
 import { getDeviceId } from "@/lib/device";
 import { getCompatibilityLevel } from "@/lib/scoring";
 import { STAGE_LABELS } from "@/lib/stage-copy";
+import { personalTrackShortLabel } from "@/lib/personal-readiness/tracks";
+import { getScenarioBySlug } from "@/lib/scenario-quizzes";
 
 // --- Types ---
 
@@ -25,6 +27,7 @@ interface QuizRecord {
   score?: number;
   label?: string;
   inviteCode?: string;
+  mode?: string;
 }
 
 // --- Stage Badge Colors ---
@@ -34,6 +37,9 @@ const STAGE_BADGE_STYLES: Record<string, string> = {
   AMBIGUOUS: "bg-pink-100 text-pink-600 border-pink-200",
   ROMANCE: "bg-pink-100 text-pink-600 border-pink-200",
   STABLE: "bg-violet-100 text-violet-600 border-violet-200",
+  PERSONAL: "bg-fuchsia-100 text-fuchsia-700 border-fuchsia-200",
+  SCENARIO:
+    "bg-gradient-to-r from-pink-50 to-violet-50 text-violet-700 border-violet-200/80",
 };
 
 // --- Record Card ---
@@ -65,6 +71,7 @@ function RecordCard({
   const isExpired = record.status === "expired";
   const isWaiting = record.status === "waiting";
   const isCompleted = record.status === "completed";
+  const isPersonal = record.mode === "PERSONAL";
 
   const cardContent = (
     <motion.div
@@ -90,14 +97,30 @@ function RecordCard({
           {/* Row 1: Names + Score/Status */}
           <div className="flex items-center justify-between mb-2.5">
             <h3 className="text-base font-semibold text-gray-800">
-              {record.nameA}{" "}
-              <span className="text-gray-300 font-normal mx-1">{"&"}</span>{" "}
-              {record.nameB}
+              {isPersonal ? (
+                <span>
+                  {record.nameA}
+                  <span className="text-gray-400 font-normal mx-1.5">·</span>
+                  个人自测
+                </span>
+              ) : (
+                <>
+                  {record.nameA}{" "}
+                  <span className="text-gray-300 font-normal mx-1">{"&"}</span>{" "}
+                  {record.nameB}
+                </>
+              )}
             </h3>
 
             {isCompleted && record.score !== undefined && (
               <span className="text-xl font-bold bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] bg-clip-text text-transparent">
-                {record.score}%
+                {record.score}
+                {isPersonal ? "" : "%"}
+                {isPersonal ? (
+                  <span className="text-xs font-semibold text-gray-400 ml-0.5">
+                    分
+                  </span>
+                ) : null}
               </span>
             )}
 
@@ -121,7 +144,7 @@ function RecordCard({
           {/* Row 2: Badge + Label/Status */}
           <div className="flex items-center gap-2 mb-2.5">
             <Badge
-              className={`text-xs px-2 py-0.5 border ${
+              className={`text-xs px-2.5 py-0.5 border whitespace-normal leading-snug ${
                 STAGE_BADGE_STYLES[record.stageKey] || STAGE_BADGE_STYLES.ROMANCE
               }`}
             >
@@ -134,7 +157,7 @@ function RecordCard({
 
             {isWaiting && (
               <span className="text-sm text-amber-500 font-medium">
-                等待对方完成
+                {isPersonal ? "继续完成自测" : "等待对方完成"}
               </span>
             )}
           </div>
@@ -143,7 +166,7 @@ function RecordCard({
           <div className="flex items-center justify-between">
             <span className="text-xs text-gray-400">{record.date}</span>
 
-            {isWaiting && (
+            {isWaiting && !isPersonal && (
               <button
                 type="button"
                 onClick={handleShareInvite}
@@ -170,8 +193,14 @@ function RecordCard({
   );
 
   if (isCompleted || isWaiting) {
+    const href =
+      record.mode === "PERSONAL"
+        ? isCompleted
+          ? `/ready/result/${record.id}`
+          : `/quiz/${record.id}?mode=PERSONAL`
+        : `/result/${record.id}`;
     return (
-      <Link href={`/result/${record.id}`} className="block">
+      <Link href={href} className="block">
         {cardContent}
       </Link>
     );
@@ -213,6 +242,9 @@ function EmptyState() {
 function mapSessionToRecord(session: {
   id: string;
   inviteCode: string;
+  mode?: string;
+  personalSlug?: string | null;
+  scenarioSlug?: string | null;
   stage: string;
   status: string;
   initiatorName: string;
@@ -236,29 +268,57 @@ function mapSessionToRecord(session: {
     status = "waiting";
   }
 
-  const stageLabel = STAGE_LABELS[session.stage] ?? session.stage;
+  const isPersonal = session.mode === "PERSONAL";
+  const trackShort = session.personalSlug
+    ? personalTrackShortLabel(session.personalSlug)
+    : null;
+  const scenarioSlug =
+    typeof session.scenarioSlug === "string"
+      ? session.scenarioSlug.trim() || null
+      : null;
+  const isScenarioSession = session.mode === "SCENARIO" || Boolean(scenarioSlug);
+  const scenarioDef = scenarioSlug ? getScenarioBySlug(scenarioSlug) : null;
+  const stageLabel = isPersonal
+    ? trackShort
+      ? `先了解自己 · ${trackShort}`
+      : "先了解自己"
+      : isScenarioSession
+      ? scenarioDef
+        ? `现实场景 · ${scenarioDef.title}`
+        : scenarioSlug
+          ? `现实场景 · ${scenarioSlug}`
+          : "现实场景测评"
+      : `关系阶段 · ${STAGE_LABELS[session.stage] ?? session.stage}`;
   const dateStr = new Date(session.createdAt).toISOString().slice(0, 10);
 
   const record: QuizRecord = {
     id: session.id,
     nameA: session.initiatorName,
-    nameB:
-      status === "waiting"
+    nameB: isPersonal
+      ? "个人自测"
+      : status === "waiting"
         ? session.partnerName ?? "等待中"
         : status === "expired"
           ? "未完成"
           : session.partnerName ?? "TA",
     stage: stageLabel,
-    stageKey: session.stage,
+    stageKey: isPersonal
+      ? "PERSONAL"
+      : isScenarioSession
+        ? "SCENARIO"
+        : session.stage,
     date: dateStr,
     status,
     inviteCode: session.inviteCode,
+    mode: session.mode,
   };
 
   if (status === "completed") {
     if (session.result) {
       record.score = session.result.overallScore;
-      record.label = getCompatibilityLevel(session.result.overallScore);
+      record.label = isPersonal
+        ? undefined
+        : getCompatibilityLevel(session.result.overallScore);
     } else {
       record.label = "生成中";
     }

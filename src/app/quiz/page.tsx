@@ -9,6 +9,11 @@ import { Button } from "@/components/ui/button";
 import { getDeviceId } from "@/lib/device";
 import { STAGE_LABELS } from "@/lib/stage-copy";
 import { getScenarioBySlug, isValidScenarioSlug } from "@/lib/scenario-quizzes";
+import {
+  isValidPersonalSlug,
+  PERSONAL_TRACK_CARD_COPY,
+  PERSONAL_TRACK_QUESTION_IDS,
+} from "@/lib/personal-readiness/tracks";
 import { QuizTestTitleChip } from "@/components/quiz/QuizTestTitleChip";
 import { getQuizTestChipMeta } from "@/lib/quiz-test-chip";
 
@@ -45,7 +50,7 @@ const STAGE_CONFIG: Record<
   },
 };
 
-const VALID_MODES = ["UNIVERSAL", "STAGED", "SCENARIO"] as const;
+const VALID_MODES = ["UNIVERSAL", "STAGED", "SCENARIO", "PERSONAL"] as const;
 const VALID_STAGES = ["AMBIGUOUS", "ROMANCE", "STABLE"] as const;
 type ModeValue = (typeof VALID_MODES)[number];
 type StageValue = (typeof VALID_STAGES)[number];
@@ -58,6 +63,7 @@ function QuizStartContent() {
     const m = (searchParams.get("mode") || "").toUpperCase();
     if (m === "UNIVERSAL") return "UNIVERSAL";
     if (m === "SCENARIO") return "SCENARIO";
+    if (m === "PERSONAL") return "PERSONAL";
     return "STAGED";
   });
 
@@ -70,6 +76,10 @@ function QuizStartContent() {
     (searchParams.get("scenario") || "").trim(),
   );
 
+  const [personalSlug] = useState(() =>
+    (searchParams.get("personalSlug") || "").trim(),
+  );
+
   const [nickname, setNickname] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -79,19 +89,36 @@ function QuizStartContent() {
   const scenarioInvalid =
     mode === "SCENARIO" && !isValidScenarioSlug(scenarioSlug);
 
-  const stageCfg =
-    mode === "UNIVERSAL"
-      ? STAGE_CONFIG.UNIVERSAL
-      : mode === "SCENARIO" && scenarioDef
-        ? {
-            label: scenarioDef.title,
-            totalQuestions: scenarioDef.questions.length,
-            minutes: scenarioDef.minutes,
-          }
-        : STAGE_CONFIG[stage];
-  const stageLabel = stageCfg?.label ?? STAGE_LABELS.ROMANCE;
+  const personalInvalid =
+    mode === "PERSONAL" && !isValidPersonalSlug(personalSlug);
+
+  const stageCfg = useMemo(() => {
+    if (mode === "PERSONAL") {
+      if (isValidPersonalSlug(personalSlug)) {
+        const meta = PERSONAL_TRACK_CARD_COPY[personalSlug];
+        const n = PERSONAL_TRACK_QUESTION_IDS[personalSlug].length;
+        return { label: meta.title, totalQuestions: n, minutes: 6 };
+      }
+      return { label: "先了解自己", totalQuestions: 15, minutes: 6 };
+    }
+    if (mode === "UNIVERSAL") return STAGE_CONFIG.UNIVERSAL;
+    if (mode === "SCENARIO" && scenarioDef) {
+      return {
+        label: scenarioDef.title,
+        totalQuestions: scenarioDef.questions.length,
+        minutes: scenarioDef.minutes,
+      };
+    }
+    return STAGE_CONFIG[stage];
+  }, [mode, stage, scenarioDef, personalSlug]);
 
   const testChip = useMemo(() => {
+    if (mode === "PERSONAL") {
+      return getQuizTestChipMeta({
+        mode: "PERSONAL",
+        personalSlug: personalInvalid ? undefined : personalSlug,
+      });
+    }
     if (mode === "SCENARIO") {
       return getQuizTestChipMeta({
         mode: "SCENARIO",
@@ -102,7 +129,7 @@ function QuizStartContent() {
       return getQuizTestChipMeta({ mode: "UNIVERSAL" });
     }
     return getQuizTestChipMeta({ mode: "STAGED", stage });
-  }, [mode, stage, scenarioSlug, scenarioInvalid]);
+  }, [mode, stage, scenarioSlug, scenarioInvalid, personalSlug, personalInvalid]);
 
   // 移动端从首页点「开始测试」进入时，页面顶部常被遮挡，进入时强制滚到顶部
   useEffect(() => {
@@ -127,6 +154,10 @@ function QuizStartContent() {
       setError("专题链接无效，请从首页重新选择");
       return;
     }
+    if (mode === "PERSONAL" && !isValidPersonalSlug(personalSlug)) {
+      setError("个人自测链接无效，请从首页重新选择");
+      return;
+    }
     setLoading(true);
     try {
       const deviceId = getDeviceId();
@@ -136,8 +167,12 @@ function QuizStartContent() {
         body: JSON.stringify({
           deviceId,
           mode,
-          stage: mode === "UNIVERSAL" ? "UNIVERSAL" : stage,
+          stage:
+            mode === "UNIVERSAL" || mode === "PERSONAL"
+              ? "UNIVERSAL"
+              : stage,
           scenarioSlug: mode === "SCENARIO" ? scenarioSlug : undefined,
+          personalSlug: mode === "PERSONAL" ? personalSlug : undefined,
           nickname: name,
         }),
       });
@@ -149,7 +184,9 @@ function QuizStartContent() {
       const quizQs =
         mode === "SCENARIO"
           ? `mode=SCENARIO`
-          : `mode=${mode}&stage=${stage}`;
+          : mode === "PERSONAL"
+            ? `mode=PERSONAL`
+            : `mode=${mode}&stage=${stage}`;
       router.push(`/quiz/${data.sessionId}?${quizQs}`);
     } catch {
       setError("网络错误，请稍后重试");
@@ -211,6 +248,11 @@ function QuizStartContent() {
               专题链接无效，请返回首页选择「专题/场景」测评
             </p>
           )}
+          {personalInvalid && (
+            <p className="text-center text-sm text-red-500 mb-4">
+              个人自测链接无效，请返回首页选择「先了解自己」下的测评
+            </p>
+          )}
           <motion.form
             onSubmit={handleSubmitNickname}
             initial={{ opacity: 0, y: 16 }}
@@ -250,7 +292,9 @@ function QuizStartContent() {
             >
               <Button
                 type="submit"
-                disabled={!nickname.trim() || loading || scenarioInvalid}
+                disabled={
+                  !nickname.trim() || loading || scenarioInvalid || personalInvalid
+                }
                 className="w-full bg-gradient-to-r from-[#EC4899] to-[#8B5CF6] hover:from-[#DB2777] hover:to-[#7C3AED] disabled:from-gray-200 disabled:to-gray-200 disabled:text-gray-400 text-white rounded-2xl py-6 text-lg font-semibold shadow-lg shadow-[#EC4899]/20 disabled:shadow-none transition-all duration-300"
               >
                 {loading ? (
@@ -278,7 +322,9 @@ function QuizStartContent() {
             <span>
               答题约需 {stageCfg?.minutes ?? 7} 分钟，共{" "}
               {stageCfg?.totalQuestions ?? 32} 题
-              {mode === "SCENARIO" ? "（1–5 分量表）" : ""}
+              {mode === "SCENARIO" || mode === "PERSONAL"
+                ? "（1–5 分量表）"
+                : ""}
             </span>
           </motion.div>
         </div>

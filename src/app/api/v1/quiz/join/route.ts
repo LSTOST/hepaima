@@ -35,6 +35,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (session.mode === "PERSONAL") {
+      return NextResponse.json(
+        { message: "个人自测无需对方加入，请从「我的自测」继续完成即可" },
+        { status: 400 },
+      );
+    }
+
     if (session.partnerDeviceId) {
       return NextResponse.json(
         { message: "该测试已有人加入" },

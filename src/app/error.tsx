@@ -26,7 +26,14 @@ export default function GlobalError({
             页面开小差了
           </h1>
           <p className="text-gray-500 mb-6 text-sm sm:text-base">
-            刷新一下页面或稍后重试。如果问题持续出现，可以在「联系我们」页面告诉我们。
+            刷新一下页面或稍后重试。如果问题持续出现，可以在
+            <Link
+              href="/contact"
+              className="text-pink-600 hover:text-pink-700 underline underline-offset-2 mx-0.5 font-medium"
+            >
+              联系我们
+            </Link>
+            页面告诉我们。
           </p>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <Button
