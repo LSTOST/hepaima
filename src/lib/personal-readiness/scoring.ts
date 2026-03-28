@@ -4,6 +4,59 @@ import {
   PERSONAL_READINESS_QUESTIONS,
   type PersonalReadinessDimension,
 } from "./questions";
+
+/** 各维度「相对从容」段落的收尾短句（多套轮换，避免千人一面） */
+const HIGHLIGHT_CLOSINGS: Record<
+  PersonalReadinessDimension,
+  readonly string[]
+> = {
+  attachmentReadiness: [
+    "这是你靠近他人时的一份心理缓冲带，有助于慢慢建立互信。",
+    "在关系早期，这份安稳感往往让你更愿意尝试坦诚相处。",
+    "可视为你在「敢不敢信、敢不敢靠」上的内在资源。",
+    "它不保证每段关系都顺利，但通常是更健康的起点之一。",
+    "当你心里打鼓时，这一侧往往先帮你稳住一点再行动。",
+  ],
+  communicationOpenness: [
+    "有助于你在分歧里仍能把话说开，而不是把人推开。",
+    "需要表达脆弱或不同意见时，你通常会多一份底气。",
+    "这是你维系理解与连结时的一个优势面。",
+    "对话变难时，这份基础常能帮你回到「对事不对人」。",
+    "别人听不听得进另说，你这边先不容易把自己憋坏。",
+  ],
+  conflictSkills: [
+    "争执过后仍愿意修复，这份弹性很可贵。",
+    "有助于你在情绪峰值过后重新拉近距离。",
+    "可看作你在「吵不散」这件事上的一点储备。",
+    "冲突来临时，你更有机会把场面带回可商量的状态。",
+    "不必喜欢吵架，但你有更多路径从僵局里走出来。",
+  ],
+  boundariesAutonomy: [
+    "在「在一起」与「做自己」之间，你更容易找到舒服的站位。",
+    "让你在说「要」与「不要」时少一些内疚或摇摆。",
+    "这是你在关系里维持健康距离感的内在支点。",
+    "需要独处或划清界限时，这份清晰常能减轻双方的猜测。",
+    "你不太容易在讨好与硬扛之间只有极端两档。",
+  ],
+  commitmentReadiness: [
+    "指向你对认真进入一段关系的心理与现实准备。",
+    "考虑承诺时，你更能分清心动、合适与可承受。",
+    "可作为你评估「要不要更进一步」时的一个参考强项。",
+    "不代表必须立刻确定关系，而是你对节奏的把握相对稳一些。",
+    "面对「认真谈」的压力时，你往往不至于只剩逃避或硬顶。",
+  ],
+};
+
+/** FNV-1a 32-bit：同一 seed 永远得到同一索引，便于同一会话文案稳定 */
+function stablePickIndex(seed: string, modulo: number): number {
+  if (modulo <= 0) return 0;
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) {
+    h ^= seed.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) % modulo;
+}
 import { getPersonalTrackQuestionIds } from "./tracks";
 
 export type PersonalAnswerItem = { questionId: number; value: number };
@@ -137,10 +190,13 @@ export function buildPersonalReadinessReport(
   dimensions: PersonalDimensionsRecord,
   overallScore: number,
   activeDimensions: PersonalReadinessDimension[],
+  /** 用于 highlights 多套短句的确定性轮换（建议传 sessionId） */
+  rotationSeed?: string | null,
 ): PersonalReadinessReportBasic {
   const sorted = sortedDimsFromPartial(dimensions, activeDimensions);
   const top = sorted.slice(0, Math.min(2, sorted.length));
   const bottom = [...sorted].reverse();
+  const seedBase = rotationSeed?.trim() || "hepaima-personal";
 
   let summary: string;
   if (overallScore >= 78) {
@@ -154,10 +210,12 @@ export function buildPersonalReadinessReport(
       "从本套自测看，部分相关题目上得分偏低。这更像在标出「值得慢慢留意的区域」，而不是对你个人的评判。若曾经历创伤性关系，建议同时寻求专业心理咨询支持。";
   }
 
-  const highlights: string[] = top.map(
-    ({ key, score }) =>
-      `「${PERSONAL_DIMENSION_LABELS[key]}」相对从容（约 ${score}/100，量表均值约 ${score0to100ToMean1to5(score)}）：可视为你进入亲密或认真关系时的一份内在资源。`,
-  );
+  const highlights: string[] = top.map(({ key, score }, rankIdx) => {
+    const closings = HIGHLIGHT_CLOSINGS[key];
+    const pick = stablePickIndex(`${seedBase}|${key}|${rankIdx}`, closings.length);
+    const closing = closings[pick] ?? closings[0];
+    return `「${PERSONAL_DIMENSION_LABELS[key]}」相对从容（约 ${score}/100，量表均值约 ${score0to100ToMean1to5(score)}）：${closing}`;
+  });
 
   const attentionPool: string[] = [];
   for (const { key, score } of bottom) {
@@ -202,6 +260,7 @@ export function buildPersonalReadinessReport(
 export function scorePersonalReadinessFull(
   answers: PersonalAnswerItem[],
   personalSlug: string | null | undefined,
+  rotationSeed?: string | null,
 ) {
   const ids = getPersonalTrackQuestionIds(personalSlug ?? null);
   const filter = new Set<number>(
@@ -216,6 +275,7 @@ export function scorePersonalReadinessFull(
     dimensions,
     overallScore,
     activeDimensions,
+    rotationSeed,
   );
   return { overallScore, dimensions, reportBasic };
 }

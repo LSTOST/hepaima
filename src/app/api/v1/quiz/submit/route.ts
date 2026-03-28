@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
         const initiatorItems = toUniversalAnswerItems(updated.initiatorAnswers);
         const pSlug = updated.personalSlug;
         const { overallScore, dimensions, reportBasic } =
-          scorePersonalReadinessFull(initiatorItems, pSlug);
+          scorePersonalReadinessFull(initiatorItems, pSlug, sessionId);
         const trackTitle =
           pSlug && isValidPersonalSlug(pSlug)
             ? PERSONAL_TRACK_CARD_COPY[pSlug].title
