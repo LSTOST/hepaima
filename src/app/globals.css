@@ -204,3 +204,67 @@ html {
   color: #ffffff !important;
   -webkit-text-fill-color: #ffffff !important;
 }
+
+/* 知我实验室 · 依恋问卷 H5（/attachment-test） */
+.attachment-zhiwo {
+  --at-primary: #7c5cbf;
+  --at-primary-dark: #5e3fa3;
+  --at-ink: #1a1a2e;
+  --at-ink-secondary: #4a4a6a;
+  --at-ink-tertiary: #8a8aaa;
+  --at-border: #e8e4f0;
+  --at-surface: #fafaf8;
+  --at-surface-raised: #ffffff;
+  --at-error: #d4544a;
+  background-color: var(--at-surface);
+  color: var(--at-ink);
+  min-height: 100vh;
+  font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+}
+
+.attachment-zhiwo .at-font-serif {
+  font-family: "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, serif;
+}
+
+.attachment-zhiwo .at-btn-primary {
+  min-height: 52px;
+  border-radius: 12px;
+  border: none;
+  padding: 14px 24px;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #ffffff;
+  background: var(--at-primary);
+  transition: transform 0.15s ease, background-color 0.15s ease;
+}
+
+.attachment-zhiwo .at-btn-primary:active {
+  background: var(--at-primary-dark);
+  transform: scale(0.98);
+}
+
+.attachment-zhiwo .at-card {
+  background: var(--at-surface-raised);
+  border-radius: 16px;
+  padding: 24px;
+  border: 1px solid var(--at-border);
+  box-shadow: 0 2px 12px rgba(124, 92, 191, 0.06);
+}
+
+.attachment-zhiwo .at-input {
+  border-radius: 12px;
+  border: 1px solid var(--at-border);
+  background: var(--at-surface-raised);
+  padding: 14px 16px;
+  font-size: 1rem;
+  color: var(--at-ink);
+  outline: none;
+}
+
+.attachment-zhiwo .at-input::placeholder {
+  color: var(--at-ink-tertiary);
+}
+
+.attachment-zhiwo .at-input:focus {
+  border-color: var(--at-border);
+}

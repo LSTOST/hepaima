@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合拍吗 · 小红书配图</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700;900&family=Noto+Serif+SC:wght@600;700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --pink: #EC4899;
+    --purple: #8B5CF6;
+    --dark: #1F2937;
+    --body: #374151;
+    --sub: #6B7280;
+    --light: #9CA3AF;
+    --sans: 'Noto Sans SC', -apple-system, 'PingFang SC', sans-serif;
+    --serif: 'Noto Serif SC', 'Songti SC', serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--sans);
+    background: #E0E0E0; padding: 40px;
+    display: flex; flex-direction: column; align-items: center; gap: 48px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .slide-label { font-size: 13px; color: #999; margin-bottom: 6px; text-align: center; letter-spacing: 1px; }
+  .slide-wrapper { display: flex; flex-direction: column; align-items: center; }
+  .slide { width: 1080px; height: 1440px; position: relative; overflow: hidden; }
+
+  /* ============================================ */
+  /* SLIDE 1 — 封面                               */
+  /* 暖粉底 + 宋体大标题 + 浮动报告卡             */
+  /* ============================================ */
+  .s1 { background: #FEF1F6; }
+  .s1::before {
+    content: ''; position: absolute; top: -200px; right: -150px;
+    width: 600px; height: 600px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(139,92,246,0.08) 0%, transparent 70%);
+  }
+  .s1::after {
+    content: ''; position: absolute; bottom: -100px; left: -100px;
+    width: 400px; height: 400px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(236,72,153,0.06) 0%, transparent 70%);
+  }
+  .s1-inner {
+    position: relative; z-index: 1;
+    height: 100%; padding: 72px 80px 64px;
+    display: flex; flex-direction: column; justify-content: space-between;
+  }
+  .s1-tag {
+    display: inline-flex; align-self: flex-start;
+    font-size: 14px; font-weight: 500; color: var(--pink);
+    letter-spacing: 2px; background: rgba(236,72,153,0.08);
+    padding: 8px 18px; border-radius: 6px;
+  }
+  .s1-hero { margin-top: 32px; }
+  .s1-title {
+    font-family: var(--serif);
+    font-size: 68px; font-weight: 900; color: var(--dark);
+    line-height: 1.3; letter-spacing: -1px;
+  }
+  .s1-title-em { color: var(--pink); }
+  .s1-sub {
+    margin-top: 20px; font-size: 19px; color: var(--sub);
+    font-weight: 400; letter-spacing: 1px;
+  }
+  .s1-card {
+    margin-top: 48px; background: white; border-radius: 24px;
+    padding: 36px 40px 32px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02), 0 16px 40px rgba(236,72,153,0.08);
+  }
+  .s1-card-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 28px;
+  }
+  .s1-card-label { font-size: 15px; color: var(--light); font-weight: 400; }
+  .s1-card-score { font-size: 48px; font-weight: 900; color: var(--dark); letter-spacing: -2px; }
+  .s1-card-score i { font-style: normal; font-size: 24px; color: var(--sub); margin-left: 2px; }
+  .s1-bars { display: flex; flex-direction: column; gap: 14px; }
+  .s1-bar { display: flex; align-items: center; gap: 16px; }
+  .s1-bar-name { width: 72px; font-size: 14px; color: var(--sub); text-align: right; }
+  .s1-bar-track { flex: 1; height: 8px; background: #F3F0F5; border-radius: 4px; overflow: hidden; }
+  .s1-bar-fill { height: 100%; border-radius: 4px; }
+  .s1-bf1 { width: 92%; background: linear-gradient(90deg, #EC4899, #D946BF); }
+  .s1-bf2 { width: 68%; background: linear-gradient(90deg, #C084FC, #A78BFA); }
+  .s1-bf3 { width: 89%; background: linear-gradient(90deg, #8B5CF6, #7C3AED); }
+  .s1-bf4 { width: 73%; background: linear-gradient(90deg, #A78BFA, #8B5CF6); }
+  .s1-bar-val { width: 28px; font-size: 15px; font-weight: 600; color: var(--dark); }
+  .s1-bottom {
+    display: flex; justify-content: space-between; align-items: flex-end;
+  }
+  .s1-brand {
+    font-family: var(--serif); font-size: 22px; font-weight: 700;
+    color: var(--dark); letter-spacing: 3px;
+  }
+  .s1-credit { font-size: 13px; color: var(--light); letter-spacing: 1px; }
+
+  /* ============================================ */
+  /* SLIDE 2 — 产品展示                           */
+  /* 淡紫渐变底 + 大标题居中                       */
+  /* ============================================ */
+  .s2 { background: linear-gradient(160deg, #FEF7FF 0%, #F5F0FF 40%, #FDF2F8 100%); }
+  .s2::before {
+    content: ''; position: absolute; top: 12%; left: 8%;
+    width: 420px; height: 420px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(236,72,153,0.07) 0%, transparent 70%);
+  }
+  .s2::after {
+    content: ''; position: absolute; bottom: 15%; right: 5%;
+    width: 380px; height: 380px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+  }
+  .s2-inner {
+    position: relative; z-index: 1;
+    height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 80px;
+  }
+  .s2-mark {
+    font-family: var(--serif); font-size: 18px; font-weight: 700;
+    color: var(--pink); letter-spacing: 6px; margin-bottom: 64px;
+  }
+  .s2-title {
+    font-family: var(--serif);
+    font-size: 80px; font-weight: 900; color: var(--dark);
+    letter-spacing: -2px; margin-bottom: 20px;
+  }
+  .s2-sub {
+    font-size: 22px; color: var(--sub); font-weight: 300;
+    letter-spacing: 3px; margin-bottom: 80px;
+  }
+  .s2-stats {
+    display: flex; gap: 56px; margin-bottom: 80px;
+  }
+  .s2-stat { text-align: center; }
+  .s2-stat-val { font-size: 32px; font-weight: 700; color: var(--dark); }
+  .s2-stat-label { font-size: 13px; color: var(--light); margin-top: 6px; letter-spacing: 2px; }
+  .s2-stat-sep { width: 1px; background: rgba(0,0,0,0.06); }
+  .s2-cta {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    color: white; font-size: 20px; font-weight: 500;
+    padding: 18px 52px; border-radius: 50px;
+    box-shadow: 0 8px 24px rgba(236,72,153,0.2);
+    letter-spacing: 2px;
+  }
+
+  /* ============================================ */
+  /* SLIDE 3 — 三幕                               */
+  /* 白底 + 有色序号 + 标签                        */
+  /* ============================================ */
+  .s3 { background: #FAFAFA; }
+  .s3-inner { height: 100%; padding: 72px 80px; display: flex; flex-direction: column; }
+  .s3-head { margin-bottom: 56px; }
+  .s3-head h2 {
+    font-family: var(--serif); font-size: 44px; font-weight: 900;
+    color: var(--dark); letter-spacing: -1px; margin-bottom: 10px;
+  }
+  .s3-head p { font-size: 18px; color: var(--light); letter-spacing: 1px; }
+  .s3-items { flex: 1; display: flex; flex-direction: column; gap: 24px; justify-content: center; }
+  .s3-item {
+    display: flex; gap: 28px; align-items: flex-start;
+    background: white; border-radius: 20px; padding: 32px 36px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.03), 0 8px 24px rgba(0,0,0,0.03);
+  }
+  .s3-num {
+    flex-shrink: 0; width: 52px; height: 52px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; font-weight: 700; color: white;
+  }
+  .s3-n1 { background: linear-gradient(135deg, #EC4899, #F472B6); }
+  .s3-n2 { background: linear-gradient(135deg, #D946BF, #8B5CF6); }
+  .s3-n3 { background: linear-gradient(135deg, #8B5CF6, #7C3AED); }
+  .s3-item-body { flex: 1; padding-top: 4px; }
+  .s3-item-title { font-size: 24px; font-weight: 700; color: var(--dark); margin-bottom: 8px; }
+  .s3-item-desc { font-size: 16px; color: var(--sub); line-height: 1.7; }
+  .s3-tags { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+  .s3-tag {
+    font-size: 13px; font-weight: 500; padding: 5px 14px; border-radius: 6px;
+  }
+  .s3-t-pink { color: var(--pink); background: #FDF2F8; }
+  .s3-t-purple { color: var(--purple); background: #F5F3FF; }
+
+  /* ============================================ */
+  /* SLIDE 4 — 报告页                             */
+  /* 淡粉底 + 白卡 + 环形图                       */
+  /* ============================================ */
+  .s4 { background: linear-gradient(170deg, #FEF7FF 0%, #FDF2F8 100%); }
+  .s4-inner {
+    height: 100%; padding: 64px 72px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .s4-head { text-align: center; margin-bottom: 40px; }
+  .s4-head h2 {
+    font-family: var(--serif); font-size: 40px; font-weight: 900;
+    color: var(--dark); margin-bottom: 10px;
+  }
+  .s4-head p { font-size: 17px; color: var(--sub); }
+  .s4-card {
+    background: white; border-radius: 24px; padding: 44px 48px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.02), 0 16px 48px rgba(139,92,246,0.06);
+    width: 100%; flex: 1; display: flex; flex-direction: column;
+  }
+  .s4-card-top {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding-bottom: 24px; border-bottom: 1px solid #F3F4F6; margin-bottom: 36px;
+  }
+  .s4-card-t { font-size: 17px; color: var(--light); }
+  .s4-card-names { font-size: 15px; color: var(--light); }
+  .s4-mid { display: flex; align-items: center; gap: 48px; margin-bottom: 36px; }
+  .s4-ring { position: relative; width: 200px; height: 200px; flex-shrink: 0; }
+  .s4-ring-center {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .s4-ring-val { font-size: 52px; font-weight: 900; color: var(--dark); letter-spacing: -2px; }
+  .s4-ring-lbl { font-size: 12px; color: var(--light); letter-spacing: 2px; margin-top: -2px; }
+  .s4-dims { flex: 1; display: flex; flex-direction: column; gap: 18px; }
+  .s4-dim { display: flex; align-items: center; gap: 14px; }
+  .s4-dim-name { width: 68px; font-size: 14px; color: var(--sub); }
+  .s4-dim-track { flex: 1; height: 6px; background: #F3F0F5; border-radius: 3px; overflow: hidden; }
+  .s4-dim-fill { height: 100%; border-radius: 3px; }
+  .s4-df1 { width: 92%; background: linear-gradient(90deg, #EC4899, #D946BF); }
+  .s4-df2 { width: 68%; background: linear-gradient(90deg, #C084FC, #A78BFA); }
+  .s4-df3 { width: 89%; background: linear-gradient(90deg, #8B5CF6, #7C3AED); }
+  .s4-df4 { width: 73%; background: linear-gradient(90deg, #A78BFA, #8B5CF6); }
+  .s4-dim-val { width: 30px; font-size: 16px; font-weight: 600; color: var(--dark); text-align: right; }
+  .s4-insight {
+    margin-top: auto;
+    padding: 24px 28px; border-radius: 16px;
+    background: linear-gradient(135deg, #FDF2F8, #F5F3FF);
+    border-left: 3px solid var(--purple);
+  }
+  .s4-insight-t {
+    font-size: 13px; font-weight: 600; color: var(--purple);
+    letter-spacing: 2px; margin-bottom: 8px;
+  }
+  .s4-insight-p { font-size: 16px; color: var(--body); line-height: 1.8; }
+
+  /* ============================================ */
+  /* SLIDE 5 — AI 报告文字                        */
+  /* 暖白底 + 彩色引用条                           */
+  /* ============================================ */
+  .s5 { background: #FFFBFD; }
+  .s5-inner { height: 100%; padding: 64px 76px; display: flex; flex-direction: column; }
+  .s5-top {
+    display: flex; align-items: center; gap: 14px;
+    margin-bottom: 40px; padding-bottom: 28px;
+    border-bottom: 1px solid #F3F0F5;
+  }
+  .s5-ai {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    color: white; display: flex; align-items: center; justify-content: center;
+    font-size: 15px; font-weight: 700; letter-spacing: 1px;
+  }
+  .s5-top-info h3 { font-size: 22px; font-weight: 700; color: var(--dark); }
+  .s5-top-info p { font-size: 13px; color: var(--light); margin-top: 2px; letter-spacing: 1px; }
+  .s5-body { flex: 1; }
+  .s5-sec { margin-bottom: 32px; }
+  .s5-sec-t {
+    font-size: 20px; font-weight: 700; color: var(--dark); margin-bottom: 12px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .s5-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .s5-dot-pk { background: var(--pink); }
+  .s5-dot-pp { background: var(--purple); }
+  .s5-dot-dk { background: var(--dark); }
+  .s5-p {
+    font-size: 17px; color: #555; line-height: 2;
+    padding-left: 17px; border-left: 2px solid #F3F0F5;
+  }
+  .s5-p strong { color: var(--dark); font-weight: 600; }
+  .s5-quote {
+    margin: 20px 0; padding: 22px 26px; border-radius: 14px;
+    background: linear-gradient(135deg, rgba(236,72,153,0.05), rgba(139,92,246,0.05));
+    border-left: 3px solid var(--pink);
+  }
+  .s5-quote p { font-size: 17px; color: var(--dark); line-height: 1.9; font-weight: 500; }
+  .s5-foot {
+    margin-top: auto; padding-top: 20px; border-top: 1px solid #F3F0F5;
+    font-size: 13px; color: var(--light); letter-spacing: 1px;
+  }
+
+  /* ============================================ */
+  /* SLIDE 6 — 场景                               */
+  /* 浅紫底 + 白卡网格                             */
+  /* ============================================ */
+  .s6 { background: linear-gradient(180deg, #FAF8FF 0%, #F5F0FF 100%); }
+  .s6-inner { height: 100%; padding: 64px 72px; display: flex; flex-direction: column; }
+  .s6-head { margin-bottom: 12px; }
+  .s6-head h2 {
+    font-family: var(--serif); font-size: 40px; font-weight: 900;
+    color: var(--dark); margin-bottom: 10px;
+  }
+  .s6-head p { font-size: 17px; color: var(--sub); letter-spacing: 1px; }
+  .s6-meta {
+    display: flex; gap: 16px; margin-bottom: 36px; padding-bottom: 28px;
+    border-bottom: 1px solid rgba(139,92,246,0.1);
+  }
+  .s6-meta span {
+    font-size: 13px; font-weight: 500; padding: 6px 16px; border-radius: 6px;
+  }
+  .s6-m-pk { color: var(--pink); background: rgba(236,72,153,0.06); }
+  .s6-m-pp { color: var(--purple); background: rgba(139,92,246,0.06); }
+  .s6-grid { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .s6-card {
+    background: white; border-radius: 18px; padding: 28px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.02), 0 6px 20px rgba(139,92,246,0.04);
+    display: flex; flex-direction: column;
+  }
+  .s6-card-icon {
+    width: 48px; height: 48px; border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; margin-bottom: 16px;
+  }
+  .s6-ci1 { background: #FDF2F8; }
+  .s6-ci2 { background: #FEF9EC; }
+  .s6-ci3 { background: #F0FDF4; }
+  .s6-ci4 { background: #FDF2F8; }
+  .s6-ci5 { background: #F5F3FF; }
+  .s6-ci6 { background: #ECFDF5; }
+  .s6-card h4 { font-size: 20px; font-weight: 700; color: var(--dark); margin-bottom: 6px; }
+  .s6-card p { font-size: 14px; color: var(--sub); line-height: 1.6; flex: 1; }
+  .s6-card-ft { font-size: 12px; color: var(--light); margin-top: 10px; }
+
+  /* ============================================ */
+  /* SLIDE 7 — 代码                               */
+  /* 深色 + 底部标语                               */
+  /* ============================================ */
+  .s7 { background: #0D1117; }
+  .s7-inner { height: 100%; display: flex; flex-direction: column; }
+  .s7-bar {
+    padding: 16px 24px; display: flex; align-items: center; gap: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .s7-d { width: 12px; height: 12px; border-radius: 50%; }
+  .s7-dr { background: #FF5F57; } .s7-dy { background: #FEBC2E; } .s7-dg { background: #28C840; }
+  .s7-tab {
+    margin-left: 16px; font-size: 13px; color: rgba(255,255,255,0.35);
+    font-family: 'SF Mono', 'Menlo', monospace;
+  }
+  .s7-code {
+    flex: 1; padding: 28px 32px; overflow: hidden;
+    font-family: 'SF Mono', 'Menlo', monospace;
+    font-size: 16.5px; line-height: 2.1; color: #C9D1D9;
+  }
+  .s7-l { display: flex; }
+  .s7-ln { width: 36px; text-align: right; padding-right: 20px; color: #2D333B; font-size: 14px; }
+  .kw { color: #FF7B72; } .fn { color: #D2A8FF; } .st { color: #A5D6FF; }
+  .cm { color: #8B949E; font-style: italic; } .op { color: #79C0FF; }
+  .tp { color: #79C0FF; } .nm { color: #FFA657; }
+  .s7-bottom {
+    padding: 48px 72px; border-top: 1px solid rgba(255,255,255,0.04);
+    background: linear-gradient(180deg, transparent 0%, rgba(13,17,23,0.95) 20%);
+  }
+  .s7-accent { width: 36px; height: 3px; background: linear-gradient(90deg, var(--pink), var(--purple)); border-radius: 2px; margin-bottom: 20px; }
+  .s7-text {
+    font-family: var(--sans); font-size: 20px; color: rgba(255,255,255,0.45); line-height: 1.8;
+  }
+  .s7-text strong { color: rgba(255,255,255,0.85); font-weight: 600; }
+
+  /* ============================================ */
+  /* SLIDE 8 — 产品实机                           */
+  /* 渐变底 + 浏览器窗                             */
+  /* ============================================ */
+  .s8 { background: linear-gradient(155deg, #FEF1F6 0%, #F5F0FF 50%, #FDF2F8 100%); }
+  .s8-inner { height: 100%; padding: 64px 72px; display: flex; flex-direction: column; }
+  .s8-label { font-size: 13px; color: var(--pink); letter-spacing: 3px; font-weight: 500; margin-bottom: 8px; }
+  .s8-title {
+    font-family: var(--serif); font-size: 38px; font-weight: 900;
+    color: var(--dark); margin-bottom: 40px;
+  }
+  .s8-frame {
+    flex: 1; background: white; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.03), 0 24px 64px rgba(139,92,246,0.1);
+  }
+  .s8-frame-bar {
+    padding: 12px 18px; display: flex; align-items: center; gap: 7px;
+    border-bottom: 1px solid #F0F0F0; background: #FAFAFA;
+  }
+  .s8-fd { width: 10px; height: 10px; border-radius: 50%; }
+  .s8-fdr { background: #FF5F57; } .s8-fdy { background: #FEBC2E; } .s8-fdg { background: #28C840; }
+  .s8-furl {
+    margin-left: 12px; flex: 1; height: 26px; background: #F0F0F0;
+    border-radius: 6px; display: flex; align-items: center;
+    padding: 0 12px; font-size: 12px; color: var(--light);
+  }
+  .s8-screen {
+    flex: 1; padding: 56px 48px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: linear-gradient(170deg, #FEF7FF 0%, white 50%, #FAF8FF 100%);
+    position: relative;
+  }
+  .s8-sb1 {
+    position: absolute; top: -40px; left: -20px;
+    width: 180px; height: 180px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(236,72,153,0.05) 0%, transparent 70%);
+  }
+  .s8-sb2 {
+    position: absolute; bottom: -30px; right: -10px;
+    width: 160px; height: 160px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(139,92,246,0.04) 0%, transparent 70%);
+  }
+  .s8-s-brand {
+    font-family: var(--serif); font-size: 16px; font-weight: 700;
+    color: var(--pink); letter-spacing: 5px; margin-bottom: 28px; position: relative;
+  }
+  .s8-s-title {
+    font-family: var(--serif); font-size: 40px; font-weight: 900;
+    color: var(--dark); margin-bottom: 10px; position: relative;
+  }
+  .s8-s-sub { font-size: 15px; color: var(--sub); letter-spacing: 2px; margin-bottom: 32px; position: relative; }
+  .s8-s-stats {
+    display: flex; gap: 40px; margin-bottom: 32px; position: relative;
+  }
+  .s8-ss { text-align: center; }
+  .s8-ss-v { font-size: 22px; font-weight: 700; color: var(--dark); }
+  .s8-ss-l { font-size: 11px; color: var(--light); margin-top: 2px; letter-spacing: 1px; }
+  .s8-s-btn {
+    font-size: 15px; font-weight: 500; color: white; letter-spacing: 2px;
+    background: linear-gradient(135deg, var(--pink), var(--purple));
+    padding: 12px 36px; border-radius: 50px;
+    box-shadow: 0 6px 20px rgba(236,72,153,0.15);
+    position: relative;
+  }
+  .s8-note {
+    margin-top: 28px; text-align: center;
+    font-size: 15px; color: var(--sub); letter-spacing: 1px;
+  }
+  .s8-note strong { color: var(--dark); }
+
+  /* ============================================ */
+  /* SLIDE 9 — 钩子                               */
+  /* 深色 + 粉紫微光                               */
+  /* ============================================ */
+  .s9 { background: #161822; }
+  .s9::before {
+    content: ''; position: absolute; top: 25%; left: 10%;
+    width: 400px; height: 400px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(236,72,153,0.08) 0%, transparent 70%);
+  }
+  .s9::after {
+    content: ''; position: absolute; bottom: 20%; right: 8%;
+    width: 360px; height: 360px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(139,92,246,0.06) 0%, transparent 70%);
+  }
+  .s9-inner {
+    position: relative; z-index: 1;
+    height: 100%; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 80px; text-align: center;
+  }
+  .s9-tag {
+    font-size: 13px; color: rgba(255,255,255,0.25);
+    letter-spacing: 6px; margin-bottom: 48px; font-weight: 500;
+  }
+  .s9-title {
+    font-family: var(--serif);
+    font-size: 52px; font-weight: 900; color: #F3F4F6;
+    line-height: 1.5; margin-bottom: 28px;
+  }
+  .s9-title em { font-style: normal; color: var(--pink); }
+  .s9-sub {
+    font-size: 19px; color: rgba(255,255,255,0.3);
+    line-height: 1.9; margin-bottom: 64px; letter-spacing: 1px;
+  }
+  .s9-btns { display: flex; gap: 16px; }
+  .s9-btn {
+    padding: 16px 40px; border-radius: 10px;
+    font-size: 18px; font-weight: 500; letter-spacing: 2px;
+  }
+  .s9-btn-w { background: white; color: var(--dark); }
+  .s9-btn-o {
+    border: 1px solid rgba(255,255,255,0.12);
+    color: rgba(255,255,255,0.45);
+  }
+  .s9-brand-b {
+    position: absolute; bottom: 48px;
+    font-family: var(--serif); font-size: 16px; font-weight: 700;
+    color: rgba(255,255,255,0.08); letter-spacing: 6px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== 01 封面 ===== -->
+<div class="slide-wrapper">
+  <div class="slide-label">01 · 封面</div>
+  <div class="slide s1">
+    <div class="s1-inner">
+      <div>
+        <div class="s1-tag">独立开发 × AI 产品</div>
+        <div class="s1-hero">
+          <h1 class="s1-title">我用 AI 给我和<br>女朋友做了个<br><span class="s1-title-em">契合度测评</span></h1>
+          <p class="s1-sub">基于依恋理论 · 爱的语言 · Gottman 研究</p>
+        </div>
+      </div>
+      <div class="s1-card">
+        <div class="s1-card-head">
+          <span class="s1-card-label">契合度报告</span>
+          <span class="s1-card-score">85<i>%</i></span>
+        </div>
+        <div class="s1-bars">
+          <div class="s1-bar"><span class="s1-bar-name">依恋契合</span><div class="s1-bar-track"><div class="s1-bar-fill s1-bf1"></div></div><span class="s1-bar-val">92</span></div>
+          <div class="s1-bar"><span class="s1-bar-name">沟通风格</span><div class="s1-bar-track"><div class="s1-bar-fill s1-bf2"></div></div><span class="s1-bar-val">68</span></div>
+          <div class="s1-bar"><span class="s1-bar-name">价值观</span><div class="s1-bar-track"><div class="s1-bar-fill s1-bf3"></div></div><span class="s1-bar-val">89</span></div>
+          <div class="s1-bar"><span class="s1-bar-name">冲突处理</span><div class="s1-bar-track"><div class="s1-bar-fill s1-bf4"></div></div><span class="s1-bar-val">73</span></div>
+        </div>
+      </div>
+      <div class="s1-bottom">
+        <span class="s1-brand">合拍吗</span>
+        <span class="s1-credit">AI × 心理学 × 独立开发</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 02 产品展示 ===== -->
+<div class="slide-wrapper">
+  <div class="slide-label">02 · 产品展示</div>
+  <div class="slide s2">
+    <div class="s2-inner">
+      <div class="s2-mark">合拍吗</div>
+      <h1 class="s2-title">我们合拍吗？</h1>
+      <p class="s2-sub">用科学的方式，读懂你们的爱情密码</p>
+      <div class="s2-stats">
+        <div class="s2-stat"><div class="s2-stat-val">30,000+</div><div class="s2-stat-label">对情侣已测</div></div>
+        <div class="s2-stat-sep"></div>
+        <div class="s2-stat"><div class="s2-stat-val">78.5%</div><div class="s2-stat-label">平均契合度</div></div>
+        <div class="s2-stat-sep"></div>
+        <div class="s2-stat"><div class="s2-stat-val">96%</div><div class="s2-stat-label">好评率</div></div>
+      </div>
+      <div class="s2-cta">✨ 开始探索</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 03 三幕 ===== -->
+<div class="slide-wrapper">
+  <div class="slide-label">03 · 三幕架构</div>
+  <div class="slide s3">
+    <div class="s3-inner">
+      <div class="s3-head">
+        <h2>三步读懂你们的关系</h2>
+        <p>从了解自己开始，到具体场景的深度对话</p>
+      </div>
+      <div class="s3-items">
+        <div class="s3-item">
+          <div class="s3-num s3-n1">①</div>
+          <div class="s3-item-body">
+            <div class="s3-item-title">先了解自己</div>
+            <div class="s3-item-desc">进入关系前的自我觉察，了解你在亲密关系中的模式</div>
+            <div class="s3-tags"><span class="s3-tag s3-t-pink">亲密与连接</span><span class="s3-tag s3-t-pink">冲突与边界</span><span class="s3-tag s3-t-pink">承诺与准备</span></div>
+          </div>
+        </div>
+        <div class="s3-item">
+          <div class="s3-num s3-n2">②</div>
+          <div class="s3-item-body">
+            <div class="s3-item-title">看你们合不合拍</div>
+            <div class="s3-item-desc">两个人分别答题，AI 对比分析差异，按关系阶段定制量表</div>
+            <div class="s3-tags"><span class="s3-tag s3-t-pink">了解期</span><span class="s3-tag s3-t-pink">热恋期</span><span class="s3-tag s3-t-pink">稳定期</span></div>
+          </div>
+        </div>
+        <div class="s3-item">
+          <div class="s3-num s3-n3">③</div>
+          <div class="s3-item-body">
+            <div class="s3-item-title">按场景深度对话</div>
+            <div class="s3-item-desc">从最常卡住的那类小事开始，AI 给出针对性的改善建议</div>
+            <div class="s3-tags"><span class="s3-tag s3-t-purple">争吵修复</span><span class="s3-tag s3-t-purple">金钱观</span><span class="s3-tag s3-t-purple">家务分工</span><span class="s3-tag s3-t-purple">亲密节奏</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 04 报告 ===== -->
+<div class="slide-wrapper">
+  <div class="slide-label">04 · 报告展示</div>
+  <div class="slide s4">
+    <div class="s4-inner">
+      <div class="s4-head">
+        <h2>专业详细的分析报告</h2>
+        <p>不是模板话术，根据你们的具体答案生成</p>
+      </div>
+      <div class="s4-card">
+        <div class="s4-card-top"><span class="s4-card-t">契合度报告</span><span class="s4-card-names">小明 &amp; 小红</span></div>
+        <div class="s4-mid">
+          <div class="s4-ring">
+            <svg width="200" height="200" viewBox="0 0 200 200">
+              <circle cx="100" cy="100" r="84" stroke="#F3F0F5" stroke-width="10" fill="none"/>
+              <circle cx="100" cy="100" r="84" stroke="url(#g4c)" stroke-width="10" fill="none"
+                stroke-dasharray="528" stroke-dashoffset="79" stroke-linecap="round"
+                transform="rotate(-90 100 100)"/>
+              <defs><linearGradient id="g4c" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stop-color="#EC4899"/><stop offset="100%" stop-color="#8B5CF6"/>
+              </linearGradient></defs>
+            </svg>
+            <div class="s4-ring-center"><div class="s4-ring-val">85</div><div class="s4-ring-lbl">CONTRACT</div></div>
+          </div>
+          <div class="s4-dims">
+            <div class="s4-dim"><span class="s4-dim-name">依恋契合</span><div class="s4-dim-track"><div class="s4-dim-fill s4-df1"></div></div><span class="s4-dim-val">92</span></div>
+            <div class="s4-dim"><span class="s4-dim-name">沟通风格</span><div class="s4-dim-track"><div class="s4-dim-fill s4-df2"></div></div><span class="s4-dim-val">68</span></div>
+            <div class="s4-dim"><span class="s4-dim-name">价值观</span><div class="s4-dim-track"><div class="s4-dim-fill s4-df3"></div></div><span class="s4-dim-val">89</span></div>
+            <div class="s4-dim"><span class="s4-dim-name">冲突处理</span><div class="s4-dim-track"><div class="s4-dim-fill s4-df4"></div></div><span class="s4-dim-val">73</span></div>
+          </div>
+        </div>
+        <div class="s4-insight">
+          <div class="s4-insight-t">AI INSIGHT</div>
+          <div class="s4-insight-p">你们在情感表达上有较好的默契，但在处理冲突时节奏不太一致——一方需要冷静空间，另一方更想立刻解决。</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 05 AI 报告 ===== -->
+<div class="slide-wrapper">
+  <div class="slide-label">05 · AI 报告节选</div>
+  <div class="slide s5">
+    <div class="s5-inner">
+      <div class="s5-top">
+        <div class="s5-ai">AI</div>
+        <div class="s5-top-info"><h3>深度分析报告（节选）</h3><p>根据双方 35 道题目的作答差异生成</p></div>
+      </div>
+      <div class="s5-body">
+        <div class="s5-sec">
+          <div class="s5-sec-t"><span class="s5-dot s5-dot-pk"></span>依恋模式配对分析</div>
+          <div class="s5-p">小明在亲密关系中呈现<strong>安全型偏回避型</strong>的依恋模式。当感受到压力时，倾向于先独处消化情绪，而非立刻向伴侣倾诉。这并非不在乎，而是他处理情绪的方式。</div>
+        </div>
+        <div class="s5-sec">
+          <div class="s5-sec-t"><span class="s5-dot s5-dot-pp"></span>沟通风格差异</div>
+          <div class="s5-p">小红更偏好<strong>即时反馈</strong>——发了消息希望尽快收到回复，而小明的回复节奏较慢。这不是谁对谁错的问题，而是双方对「被重视」的感知方式不同。</div>
+        </div>
+        <div class="s5-quote">
+          <p>小明可以在需要独处时，先给一句「我需要一点时间想想，但这件事我很在乎」——这一句话就能极大缓解小红的不安全感。</p>
+        </div>
+        <div class="s5-sec">
+          <div class="s5-sec-t"><span class="s5-dot s5-dot-dk"></span>冲突修复模式</div>
+          <div class="s5-p">小红倾向于「谈清楚再和好」，小明倾向于「做件好事当作和好」。理解这一点后，可以尝试<strong>先做再谈</strong>——用行动表达善意，再找合适的时机复盘。</div>
+        </div>
+      </div>
+      <div class="s5-foot">由 AI 根据双方作答差异生成 · 非模板话术</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 06 场景 ===== -->
+<div class="slide-wrapper">
+  <div class="slide-label">06 · 场景专题</div>
+  <div class="slide s6">
+    <div class="s6-inner">
+      <div class="s6-head"><h2>真实会吵架的事</h2><p>六大场景专题，从最常卡住的地方开始</p></div>
+      <div class="s6-meta">
+        <span class="s6-m-pk">双人作答</span>
+        <span class="s6-m-pp">10 题 · 约 5 分钟</span>
+        <span class="s6-m-pk">AI 场景复盘</span>
+      </div>
+      <div class="s6-grid">
+        <div class="s6-card"><div class="s6-card-icon s6-ci1">💬</div><h4>日常沟通与倾听</h4><p>线上回复速度、打断习惯、情绪是否被接住</p><div class="s6-card-ft">10 题 · 约 5 分钟</div></div>
+        <div class="s6-card"><div class="s6-card-icon s6-ci2">🩹</div><h4>争吵与修复</h4><p>冷战时长、道歉方式、和好的节奏差异</p><div class="s6-card-ft">10 题 · 约 5 分钟</div></div>
+        <div class="s6-card"><div class="s6-card-icon s6-ci3">🛡</div><h4>信任与个人边界</h4><p>社交自由度、手机隐私、报备的舒适度</p><div class="s6-card-ft">10 题 · 约 5 分钟</div></div>
+        <div class="s6-card"><div class="s6-card-icon s6-ci4">💗</div><h4>亲密与身体节奏</h4><p>频率期待、拒绝方式、彼此的尊重感</p><div class="s6-card-ft">10 题 · 约 5 分钟</div></div>
+        <div class="s6-card"><div class="s6-card-icon s6-ci5">💰</div><h4>金钱观与消费</h4><p>日常分摊、大额支出决策、储蓄观念差异</p><div class="s6-card-ft">10 题 · 约 5 分钟</div></div>
+        <div class="s6-card"><div class="s6-card-icon s6-ci6">🏠</div><h4>家务与分工</h4><p>谁做多少、隐形劳动、公平感的衡量标准</p><div class="s6-card-ft">10 题 · 约 5 分钟</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 07 代码 ===== -->
+<div class="slide-wrapper">
+  <div class="slide-label">07 · 代码</div>
+  <div class="slide s7">
+    <div class="s7-inner">
+      <div class="s7-bar">
+        <div class="s7-d s7-dr"></div><div class="s7-d s7-dy"></div><div class="s7-d s7-dg"></div>
+        <span class="s7-tab">generate-report.ts</span>
+      </div>
+      <div class="s7-code">
+        <div class="s7-l"><span class="s7-ln">1</span><span class="cm">// 用 AI 给情侣生成专属契合度报告</span></div>
+        <div class="s7-l"><span class="s7-ln">2</span><span class="kw">import</span> { <span class="fn">generateText</span> } <span class="kw">from</span> <span class="st">'ai'</span></div>
+        <div class="s7-l"><span class="s7-ln">3</span><span class="kw">import</span> { <span class="fn">prisma</span> } <span class="kw">from</span> <span class="st">'@/lib/prisma'</span></div>
+        <div class="s7-l"><span class="s7-ln">4</span></div>
+        <div class="s7-l"><span class="s7-ln">5</span><span class="kw">export async function</span> <span class="fn">generateCoupleReport</span>(</div>
+        <div class="s7-l"><span class="s7-ln">6</span>  sessionId<span class="op">:</span> <span class="tp">string</span></div>
+        <div class="s7-l"><span class="s7-ln">7</span>) {</div>
+        <div class="s7-l"><span class="s7-ln">8</span><span class="cm">  // 从数据库获取双方的作答数据</span></div>
+        <div class="s7-l"><span class="s7-ln">9</span>  <span class="kw">const</span> session <span class="op">=</span> <span class="kw">await</span> <span class="fn">prisma</span>.session.<span class="fn">findUnique</span>({</div>
+        <div class="s7-l"><span class="s7-ln">10</span>    where<span class="op">:</span> { id<span class="op">:</span> sessionId },</div>
+        <div class="s7-l"><span class="s7-ln">11</span>    include<span class="op">:</span> { answers<span class="op">:</span> <span class="nm">true</span> }</div>
+        <div class="s7-l"><span class="s7-ln">12</span>  })</div>
+        <div class="s7-l"><span class="s7-ln">13</span></div>
+        <div class="s7-l"><span class="s7-ln">14</span><span class="cm">  // 构建 prompt：心理学理论 + 双方差异</span></div>
+        <div class="s7-l"><span class="s7-ln">15</span>  <span class="kw">const</span> prompt <span class="op">=</span> <span class="fn">buildAnalysisPrompt</span>({</div>
+        <div class="s7-l"><span class="s7-ln">16</span>    stage<span class="op">:</span> session.stage,</div>
+        <div class="s7-l"><span class="s7-ln">17</span>    answersA<span class="op">:</span> session.answers.<span class="fn">filter</span>(a <span class="op">=&gt;</span> a.role <span class="op">===</span> <span class="st">'A'</span>),</div>
+        <div class="s7-l"><span class="s7-ln">18</span>    answersB<span class="op">:</span> session.answers.<span class="fn">filter</span>(a <span class="op">=&gt;</span> a.role <span class="op">===</span> <span class="st">'B'</span>),</div>
+        <div class="s7-l"><span class="s7-ln">19</span>    theories<span class="op">:</span> [<span class="st">'attachment'</span>, <span class="st">'loveLanguage'</span>, <span class="st">'gottman'</span>]</div>
+        <div class="s7-l"><span class="s7-ln">20</span>  })</div>
+        <div class="s7-l"><span class="s7-ln">21</span></div>
+        <div class="s7-l"><span class="s7-ln">22</span><span class="cm">  // 调用 DeepSeek 生成专属报告</span></div>
+        <div class="s7-l"><span class="s7-ln">23</span>  <span class="kw">const</span> { text } <span class="op">=</span> <span class="kw">await</span> <span class="fn">generateText</span>({</div>
+        <div class="s7-l"><span class="s7-ln">24</span>    model<span class="op">:</span> <span class="st">'deepseek/deepseek-chat'</span>,</div>
+        <div class="s7-l"><span class="s7-ln">25</span>    system<span class="op">:</span> <span class="st">`你是一位亲密关系心理咨询师...</span></div>
+        <div class="s7-l"><span class="s7-ln">26</span><span class="st">      请根据双方的作答数据，从依恋理论、</span></div>
+        <div class="s7-l"><span class="s7-ln">27</span><span class="st">      爱的语言、Gottman 四骑士模型三个</span></div>
+        <div class="s7-l"><span class="s7-ln">28</span><span class="st">      维度进行深度分析...`</span>,</div>
+        <div class="s7-l"><span class="s7-ln">29</span>    prompt,</div>
+        <div class="s7-l"><span class="s7-ln">30</span>  })</div>
+        <div class="s7-l"><span class="s7-ln">31</span></div>
+        <div class="s7-l"><span class="s7-ln">32</span>  <span class="kw">return</span> text</div>
+        <div class="s7-l"><span class="s7-ln">33</span>}</div>
+      </div>
+      <div class="s7-bottom">
+        <div class="s7-accent"></div>
+        <div class="s7-text"><strong>一个人写的全部代码</strong><br>从心理学量表建模到 AI 报告生成<br>设计 · 开发 · 运营</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 08 产品实机 ===== -->
+<div class="slide-wrapper">
+  <div class="slide-label">08 · 产品实机</div>
+  <div class="slide s8">
+    <div class="s8-inner">
+      <div class="s8-label">PRODUCT</div>
+      <h2 class="s8-title">已上线，搜索「合拍吗」</h2>
+      <div class="s8-frame">
+        <div class="s8-frame-bar">
+          <div class="s8-fd s8-fdr"></div><div class="s8-fd s8-fdy"></div><div class="s8-fd s8-fdg"></div>
+          <div class="s8-furl">合拍吗 — 情侣契合度测评</div>
+        </div>
+        <div class="s8-screen">
+          <div class="s8-sb1"></div><div class="s8-sb2"></div>
+          <div class="s8-s-brand">合拍吗</div>
+          <div class="s8-s-title">我们合拍吗？</div>
+          <div class="s8-s-sub">用科学的方式，读懂你们的爱情密码</div>
+          <div class="s8-s-stats">
+            <div class="s8-ss"><div class="s8-ss-v">30,000+</div><div class="s8-ss-l">对情侣已测</div></div>
+            <div class="s8-ss"><div class="s8-ss-v">78.5%</div><div class="s8-ss-l">平均契合度</div></div>
+            <div class="s8-ss"><div class="s8-ss-v">96%</div><div class="s8-ss-l">好评率</div></div>
+          </div>
+          <div class="s8-s-btn">✨ 开始探索</div>
+        </div>
+      </div>
+      <div class="s8-note">评论区告诉你<strong>怎么找到我们</strong></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== 09 钩子 ===== -->
+<div class="slide-wrapper">
+  <div class="slide-label">09 · 钩子</div>
+  <div class="slide s9">
+    <div class="s9-inner">
+      <div class="s9-tag">下 一 篇 预 告</div>
+      <h1 class="s9-title">AI 怎么写出<br><em>不像 AI</em> 的<br>情侣分析报告？</h1>
+      <p class="s9-sub">从 Prompt 工程到心理学建模<br>一个独立开发者的 AI 调教笔记</p>
+      <div class="s9-btns">
+        <div class="s9-btn s9-btn-w">关注看下篇</div>
+        <div class="s9-btn s9-btn-o">收藏不迷路</div>
+      </div>
+    </div>
+    <div class="s9-brand-b">合拍吗</div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const p = new URLSearchParams(location.search);
+  const n = parseInt(p.get('slide'));
+  if (!n) return;
+  document.body.style.cssText = 'padding:0;gap:0;background:transparent';
+  document.querySelectorAll('.slide-wrapper').forEach((w, i) => {
+    if (i + 1 !== n) w.style.display = 'none';
+    else { const l = w.querySelector('.slide-label'); if (l) l.style.display = 'none'; }
+  });
+})();
+</script>
+</body>
+</html>
