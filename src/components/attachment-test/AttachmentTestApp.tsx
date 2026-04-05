@@ -85,11 +85,13 @@ export function AttachmentTestApp() {
       }
 
       try {
+        console.log("即将提交", SUBMIT_PATH);
         const res = await fetch(SUBMIT_PATH, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
+        console.log("提交结果", { ok: res.ok, status: res.status });
         const data = (await res.json().catch(() => ({}))) as {
           status?: string;
           error?: string;
@@ -108,7 +110,8 @@ export function AttachmentTestApp() {
           return;
         }
         router.push("/attachment-test/result");
-      } catch {
+      } catch (e) {
+        console.log("提交结果", { error: e instanceof Error ? e.message : String(e) });
         if (id !== submitGen.current) return;
         setSubmitError("网络异常，请检查网络后重试。");
         setStep("question");
