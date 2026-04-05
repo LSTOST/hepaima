@@ -56,6 +56,36 @@ if ! ssh "$DEPLOY_SSH" "test -f $REMOTE_DIR/.next/routes-manifest.json"; then
 fi
 
 echo ">>> 3. 服务器安装依赖、执行数据库迁移、用代码里的题目更新数据库并重启..."
-ssh "$DEPLOY_SSH" "cd $REMOTE_DIR && pnpm install --frozen-lockfile && pnpm prisma migrate deploy && pnpm seed && pm2 restart hepaima"
+# 注意：ssh 远程执行默认是非交互、非登录 shell，不会读 ~/.bashrc，nvm/fnm 下的 node、pnpm 常因此找不到。
+ssh "$DEPLOY_SSH" "bash -s" <<EOF
+set -e
+cd "$REMOTE_DIR"
+# 宝塔等面板常见：Node 不在默认 PATH 里
+if ! command -v node >/dev/null 2>&1; then
+  for d in /www/server/nodejs/v*/bin; do
+    if [ -d "\$d" ]; then
+      export PATH="\$d:\$PATH"
+      break
+    fi
+  done
+fi
+export NVM_DIR="\${NVM_DIR:-\$HOME/.nvm}"
+if [ -s "\$NVM_DIR/nvm.sh" ]; then
+  # shellcheck source=/dev/null
+  . "\$NVM_DIR/nvm.sh"
+fi
+if ! command -v pnpm >/dev/null 2>&1 && command -v corepack >/dev/null 2>&1; then
+  corepack enable
+  corepack prepare pnpm@latest --activate
+fi
+if ! command -v pnpm >/dev/null 2>&1; then
+  echo "错误：远程仍找不到 pnpm。请 SSH 登录服务器执行: which node; which pnpm; type corepack" >&2
+  exit 127
+fi
+pnpm install --frozen-lockfile
+pnpm prisma migrate deploy
+pnpm seed
+pm2 restart hepaima
+EOF
 
 echo "全部完成，站点应已更新。"
