@@ -21,6 +21,14 @@ export async function POST(req: NextRequest) {
 
   const url = `${base.replace(/\/$/, "")}/quiz/submit`;
 
+  console.log(
+    "[attachment-test submit proxy] forwarding",
+    "url=",
+    url,
+    "body=",
+    JSON.stringify(body)
+  );
+
   try {
     const upstream = await fetch(url, {
       method: "POST",
