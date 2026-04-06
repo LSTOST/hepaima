@@ -167,34 +167,33 @@ export function AttachmentTestApp() {
 
   if (step === "welcome") {
     return (
-      <div className="relative min-h-[100dvh]">
-        <div className="flex min-h-[100dvh] flex-col px-0 pb-[calc(88px+env(safe-area-inset-bottom,0px))] pt-6">
-          <div className="flex flex-1 flex-col justify-center">
-            <p className="mb-6 text-center text-xs font-medium tracking-[0.2em] text-[var(--at-ink-tertiary)]">
-              知我实验室
-            </p>
-            <h1 className="at-font-serif mb-3 px-1 text-center text-[1.875rem] font-semibold leading-tight text-[#7C5CBF]">
-              了解你的依恋类型
-            </h1>
-            <p className="mb-8 text-center text-sm text-[var(--at-ink-tertiary)]">
-              12道题 · 5分钟 · 专属深度报告
-            </p>
-            <input
-              className="at-input w-full"
-              placeholder="给报告起个称呼，选填"
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              autoComplete="nickname"
-            />
-          </div>
+      <div className="flex min-h-[100dvh] flex-col pt-6">
+        <p className="mb-6 text-center text-xs font-medium tracking-[0.2em] text-[var(--at-ink-tertiary)]">
+          知我实验室
+        </p>
+        <h1 className="at-font-serif mb-3 px-1 text-center text-[1.875rem] font-semibold leading-tight text-[#7C5CBF]">
+          了解你的依恋类型
+        </h1>
+        <p className="text-center text-sm text-[var(--at-ink-tertiary)]">
+          12道题 · 5分钟 · 专属深度报告
+        </p>
+        <div className="min-h-0 flex-1" aria-hidden />
+        <div className="flex flex-col gap-3">
+          <input
+            className="at-input w-full"
+            placeholder="输入昵称"
+            value={nickname}
+            onChange={(e) => setNickname(e.target.value)}
+            autoComplete="nickname"
+          />
+          <button type="button" className="at-btn-primary w-full" onClick={startQuestions}>
+            开始测试
+          </button>
         </div>
-        <div className="fixed inset-x-0 bottom-0 z-10 bg-[var(--at-surface)]">
-          <div className="mx-auto max-w-[390px] px-5 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-3">
-            <button type="button" className="at-btn-primary w-full" onClick={startQuestions}>
-              开始测试
-            </button>
-          </div>
-        </div>
+        <div
+          className="min-h-[35dvh] shrink-0 pb-[env(safe-area-inset-bottom,0px)]"
+          aria-hidden
+        />
       </div>
     );
   }
