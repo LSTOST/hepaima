@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function AttachmentTestLayout({ children }: { children: ReactNode }) {
   return (
     <div className="attachment-zhiwo">
-      <div className="mx-auto min-h-screen max-w-[390px] px-5 py-6">{children}</div>
+      <div className="mx-auto min-h-dvh max-w-[390px] px-5 pb-6 pt-0">{children}</div>
     </div>
   );
 }

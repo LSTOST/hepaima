@@ -12,7 +12,7 @@ import {
 } from "@/lib/attachment-test/wechat";
 import { LikertScale7 } from "./LikertScale7";
 
-type Step = "welcome" | "profile" | "question" | "submitting";
+type Step = "welcome" | "question" | "submitting";
 
 const OAUTH_PATH = "/api/v1/wechat/oauth";
 const SUBMIT_PATH = "/api/v1/attachment-test/submit";
@@ -36,8 +36,6 @@ export function AttachmentTestApp() {
   const [step, setStep] = useState<Step>("welcome");
   const [oauthGateDone, setOauthGateDone] = useState(false);
   const [nickname, setNickname] = useState("");
-  const [contact, setContact] = useState("");
-  const [contactError, setContactError] = useState("");
   const [qIndex, setQIndex] = useState(0);
   const [answers, setAnswers] = useState<Partial<Record<AttachmentAnswerKey, number>>>(
     {}
@@ -73,7 +71,7 @@ export function AttachmentTestApp() {
       try {
         body = {
           nickname: nickname.trim(),
-          contact: contact.trim(),
+          contact: "",
           openid: getWxOpenIdFromCookie() ?? "",
           answers: buildAnswersRecord(answers),
         };
@@ -124,33 +122,27 @@ export function AttachmentTestApp() {
     }
 
     void submit();
-  }, [step, nickname, contact, answers, router]);
+  }, [step, nickname, answers, router]);
 
   const currentQuestion = ATTACHMENT_QUESTIONS[qIndex];
   const progressDone = qIndex + 1;
   const progressPct = (progressDone / ATTACHMENT_QUESTIONS.length) * 100;
 
-  const onSelectLikert = useCallback((v: number) => {
-    const key = ATTACHMENT_QUESTIONS[qIndex].key;
-    setSubmitError("");
-    setAnswers((prev) => ({ ...prev, [key]: v }));
-    if (qIndex < ATTACHMENT_QUESTIONS.length - 1) {
-      setQIndex((i) => i + 1);
-    } else {
-      setStep("submitting");
-    }
-  }, [qIndex]);
-
-  const goProfile = () => {
-    setStep("profile");
-  };
+  const onSelectLikert = useCallback(
+    (v: number) => {
+      const key = ATTACHMENT_QUESTIONS[qIndex].key;
+      setSubmitError("");
+      setAnswers((prev) => ({ ...prev, [key]: v }));
+      if (qIndex < ATTACHMENT_QUESTIONS.length - 1) {
+        setQIndex((i) => i + 1);
+      } else {
+        setStep("submitting");
+      }
+    },
+    [qIndex]
+  );
 
   const startQuestions = () => {
-    setContactError("");
-    if (!contact.trim()) {
-      setContactError("请填写邮箱或微信号，用于备份接收报告。");
-      return;
-    }
     setQIndex(0);
     setAnswers({});
     setStep("question");
@@ -159,7 +151,7 @@ export function AttachmentTestApp() {
   const goPrevQuestion = () => {
     setSubmitError("");
     if (qIndex <= 0) {
-      setStep("profile");
+      setStep("welcome");
       return;
     }
     setQIndex((i) => i - 1);
@@ -167,7 +159,7 @@ export function AttachmentTestApp() {
 
   if (!oauthGateDone) {
     return (
-      <div className="flex min-h-[50vh] flex-col items-center justify-center px-5 text-center text-sm text-[var(--at-ink-secondary)]">
+      <div className="flex min-h-[50vh] flex-col items-center justify-center px-5 pt-8 text-center text-sm text-[var(--at-ink-secondary)]">
         <p>正在连接微信…</p>
       </div>
     );
@@ -175,74 +167,41 @@ export function AttachmentTestApp() {
 
   if (step === "welcome") {
     return (
-      <div className="flex flex-col items-center pt-4 pb-10">
-        <p className="mb-8 text-center text-sm font-medium tracking-[0.2em] text-[var(--at-ink-secondary)]">
-          知我实验室
-        </p>
-        <h1 className="at-font-serif mb-3 text-center text-[1.875rem] font-semibold leading-tight text-[var(--at-ink)]">
-          了解你的依恋类型
-        </h1>
-        <p className="mb-2 text-center text-base leading-relaxed text-[var(--at-ink-secondary)]">
-          12道题 · 5分钟 · 专属深度报告
-        </p>
-        <p className="mb-10 max-w-[22rem] text-center text-sm leading-relaxed text-[var(--at-ink-tertiary)]">
-          完成后报告将发送到此服务号，请保持关注
-        </p>
-        <button
-          type="button"
-          className="at-btn-primary w-full max-w-[22rem]"
-          onClick={goProfile}
-        >
-          开始测试
-        </button>
-      </div>
-    );
-  }
-
-  if (step === "profile") {
-    return (
-      <div className="flex flex-col pt-2 pb-10">
-        <div className="at-card mb-8">
-          <label className="mb-1 block text-sm text-[var(--at-ink-secondary)]">
-            称呼（选填）
-          </label>
-          <input
-            className="at-input mb-6 w-full"
-            placeholder='给报告起个称呼，比如"小月"'
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            autoComplete="nickname"
-          />
-          <label className="mb-1 block text-sm text-[var(--at-ink-secondary)]">
-            联系方式（必填）
-          </label>
-          <input
-            className="at-input mb-2 w-full"
-            placeholder="邮箱或微信号，用于备份接收"
-            value={contact}
-            onChange={(e) => {
-              setContact(e.target.value);
-              setContactError("");
-            }}
-            autoComplete="email"
-          />
-          {contactError ? (
-            <p className="mb-4 text-sm text-[var(--at-error)]">{contactError}</p>
-          ) : null}
-          <p className="text-sm leading-relaxed text-[var(--at-ink-tertiary)]">
-            报告将优先通过服务号发送
-          </p>
+      <div className="relative min-h-[100dvh]">
+        <div className="flex min-h-[100dvh] flex-col px-0 pb-[calc(88px+env(safe-area-inset-bottom,0px))] pt-6">
+          <div className="flex flex-1 flex-col justify-center">
+            <p className="mb-6 text-center text-xs font-medium tracking-[0.2em] text-[var(--at-ink-tertiary)]">
+              知我实验室
+            </p>
+            <h1 className="at-font-serif mb-3 px-1 text-center text-[1.875rem] font-semibold leading-tight text-[#7C5CBF]">
+              了解你的依恋类型
+            </h1>
+            <p className="mb-8 text-center text-sm text-[var(--at-ink-tertiary)]">
+              12道题 · 5分钟 · 专属深度报告
+            </p>
+            <input
+              className="at-input w-full"
+              placeholder="给报告起个称呼，选填"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              autoComplete="nickname"
+            />
+          </div>
         </div>
-        <button type="button" className="at-btn-primary w-full" onClick={startQuestions}>
-          开始答题
-        </button>
+        <div className="fixed inset-x-0 bottom-0 z-10 bg-[var(--at-surface)]">
+          <div className="mx-auto max-w-[390px] px-5 pb-[calc(12px+env(safe-area-inset-bottom,0px))] pt-3">
+            <button type="button" className="at-btn-primary w-full" onClick={startQuestions}>
+              开始测试
+            </button>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (step === "submitting") {
     return (
-      <div className="flex min-h-[55vh] flex-col items-center justify-center px-2 text-center">
+      <div className="flex min-h-[55vh] flex-col items-center justify-center px-2 pt-8 text-center">
         <p className="mb-3 text-lg font-medium text-[var(--at-ink)]">
           正在生成你的依恋报告…
         </p>
@@ -260,45 +219,55 @@ export function AttachmentTestApp() {
   }
 
   return (
-    <div className="flex flex-col pb-8">
+    <div className="flex min-h-[100dvh] flex-col">
+      <div className="mx-[-20px] h-1 w-[calc(100%+40px)] max-w-none shrink-0 overflow-hidden rounded-[2px] bg-[var(--at-border)]">
+        <div
+          className="h-full rounded-[2px] bg-[var(--at-primary)] transition-[width] duration-300 ease-out"
+          style={{ width: `${progressPct}%` }}
+        />
+      </div>
+
+      <div className="flex shrink-0 justify-end px-5 pt-2 text-sm text-[var(--at-ink-tertiary)]">
+        {qIndex + 1} / {ATTACHMENT_QUESTIONS.length}
+      </div>
+
       {submitError ? (
-        <p className="mb-4 rounded-xl border border-[var(--at-border)] bg-[var(--at-surface-raised)] px-4 py-3 text-sm text-[var(--at-error)]">
+        <p className="mx-5 mb-2 rounded-xl border border-[var(--at-border)] bg-[var(--at-surface-raised)] px-4 py-3 text-sm text-[var(--at-error)]">
           {submitError}
         </p>
       ) : null}
-      <div className="mb-6">
-        <div className="mb-2 flex justify-end text-sm text-[var(--at-ink-tertiary)]">
-          第 {qIndex + 1} 题 / 共 {ATTACHMENT_QUESTIONS.length} 题
+
+      <div className="flex min-h-0 flex-1 flex-col px-5">
+        <div className="flex min-h-0 flex-1 flex-col justify-center pt-4">
+          <h2
+            id={`q-label-${currentQuestion.key}`}
+            className="at-font-serif -mt-[8vh] px-6 text-center text-[20px] font-medium leading-[1.6] text-[var(--at-ink)]"
+          >
+            {currentQuestion.text}
+          </h2>
         </div>
-        <div className="h-[4px] w-full overflow-hidden rounded-[2px] bg-[var(--at-border)]">
-          <div
-            className="h-full rounded-[2px] bg-[var(--at-primary)] transition-[width] duration-300 ease-out"
-            style={{ width: `${progressPct}%` }}
+
+        <div
+          className="shrink-0 space-y-5"
+          style={{
+            paddingBottom: "calc(64px + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
+          <div className="flex justify-center">
+            <button
+              type="button"
+              className="text-sm text-[var(--at-ink-tertiary)] underline-offset-4 hover:underline"
+              onClick={goPrevQuestion}
+            >
+              上一题
+            </button>
+          </div>
+          <LikertScale7
+            questionKey={currentQuestion.key}
+            value={answers[currentQuestion.key]}
+            onSelect={onSelectLikert}
           />
         </div>
-      </div>
-
-      <h2
-        id={`q-label-${currentQuestion.key}`}
-        className="at-font-serif mb-10 text-center text-xl font-medium leading-tight text-[var(--at-ink)]"
-      >
-        {currentQuestion.text}
-      </h2>
-
-      <LikertScale7
-        questionKey={currentQuestion.key}
-        value={answers[currentQuestion.key]}
-        onSelect={onSelectLikert}
-      />
-
-      <div className="mt-12 flex justify-center">
-        <button
-          type="button"
-          className="text-sm text-[var(--at-ink-tertiary)] underline-offset-4 hover:underline"
-          onClick={goPrevQuestion}
-        >
-          上一题
-        </button>
       </div>
     </div>
   );

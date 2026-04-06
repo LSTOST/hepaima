@@ -13,12 +13,12 @@ interface LikertScale7Props {
 export function LikertScale7({ questionKey, value, onSelect }: LikertScale7Props) {
   return (
     <div className="w-full">
-      <div className="mb-2 flex justify-between gap-1 text-[0.75rem] leading-tight text-[var(--at-ink-tertiary)]">
-        <span className="max-w-[5rem] shrink-0">完全不符合</span>
-        <span className="max-w-[5rem] shrink-0 text-right">完全符合</span>
+      <div className="mb-2 flex justify-between text-[10px] leading-tight text-[var(--at-ink-tertiary)]">
+        <span className="shrink-0">完全不符合</span>
+        <span className="shrink-0 text-right">完全符合</span>
       </div>
       <div
-        className="flex w-full justify-between gap-1"
+        className="flex w-full justify-between"
         role="radiogroup"
         aria-labelledby={`q-label-${questionKey}`}
       >
@@ -31,10 +31,10 @@ export function LikertScale7({ questionKey, value, onSelect }: LikertScale7Props
               role="radio"
               aria-checked={selected}
               className={[
-                "flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-transform active:scale-[0.98]",
+                "flex size-11 shrink-0 items-center justify-center rounded-full text-sm font-medium transition-transform active:scale-[0.98]",
                 selected
                   ? "bg-[var(--at-primary)] text-white"
-                  : "border border-[var(--at-border)] bg-[var(--at-surface-raised)] text-[var(--at-ink-secondary)]",
+                  : "border border-[var(--at-border)] bg-white text-[var(--at-ink-secondary)]",
               ].join(" ")}
               onClick={() => onSelect(n)}
             >
