@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
  * 代理转发至 Railway FastAPI：POST {ATTACHMENT_REPORT_API_BASE}/quiz/submit
  */
 export async function POST(req: NextRequest) {
+  console.log("attachment-test submit received");
   const base = process.env.ATTACHMENT_REPORT_API_BASE?.trim();
   if (!base) {
     return NextResponse.json(

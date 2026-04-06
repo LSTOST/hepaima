@@ -77,7 +77,8 @@ export function AttachmentTestApp() {
           openid: getWxOpenIdFromCookie() ?? "",
           answers: buildAnswersRecord(answers),
         };
-      } catch {
+      } catch (e) {
+        console.error("[attachment-test] build body failed", e);
         if (id !== submitGen.current) return;
         setSubmitError("答题数据不完整，请返回检查。");
         setStep("question");
@@ -85,13 +86,17 @@ export function AttachmentTestApp() {
       }
 
       try {
-        console.log("即将提交", SUBMIT_PATH);
+        const submitUrl =
+          typeof window !== "undefined"
+            ? new URL(SUBMIT_PATH, window.location.origin).href
+            : SUBMIT_PATH;
+        console.log("[attachment-test] 即将提交", { path: SUBMIT_PATH, url: submitUrl });
         const res = await fetch(SUBMIT_PATH, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
-        console.log("提交结果", { ok: res.ok, status: res.status });
+        console.log("[attachment-test] 提交 HTTP 响应", { ok: res.ok, status: res.status });
         const data = (await res.json().catch(() => ({}))) as {
           status?: string;
           error?: string;
@@ -111,7 +116,7 @@ export function AttachmentTestApp() {
         }
         router.push("/attachment-test/result");
       } catch (e) {
-        console.log("提交结果", { error: e instanceof Error ? e.message : String(e) });
+        console.error("[attachment-test] fetch 失败", e);
         if (id !== submitGen.current) return;
         setSubmitError("网络异常，请检查网络后重试。");
         setStep("question");
