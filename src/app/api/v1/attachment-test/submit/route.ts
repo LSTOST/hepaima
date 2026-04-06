@@ -1,6 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
+ * H5 问卷不再收集邮箱/微信号：contact 固定传空串，由后端用 openid 走微信触达。
+ */
+function normalizeQuizSubmitPayload(body: unknown): Record<string, unknown> {
+  const raw =
+    body !== null && typeof body === "object" && !Array.isArray(body)
+      ? (body as Record<string, unknown>)
+      : {};
+  const answers = raw.answers;
+  const answersObj =
+    answers !== null && typeof answers === "object" && !Array.isArray(answers)
+      ? (answers as Record<string, unknown>)
+      : {};
+  return {
+    nickname: typeof raw.nickname === "string" ? raw.nickname : "",
+    contact: "",
+    openid: typeof raw.openid === "string" ? raw.openid : "",
+    answers: answersObj,
+  };
+}
+
+/**
  * 代理转发至 Railway FastAPI：POST {ATTACHMENT_REPORT_API_BASE}/quiz/submit
  */
 export async function POST(req: NextRequest) {
@@ -20,6 +41,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "请求体不是合法 JSON" }, { status: 400 });
   }
 
+  const forwardBody = normalizeQuizSubmitPayload(body);
   const url = `${base.replace(/\/$/, "")}/quiz/submit`;
 
   console.log(
@@ -27,14 +49,14 @@ export async function POST(req: NextRequest) {
     "url=",
     url,
     "body=",
-    JSON.stringify(body)
+    JSON.stringify(forwardBody)
   );
 
   try {
     const upstream = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
+      body: JSON.stringify(forwardBody),
     });
 
     const text = await upstream.text();
