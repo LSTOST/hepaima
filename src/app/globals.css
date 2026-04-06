@@ -268,3 +268,14 @@ html {
 .attachment-zhiwo .at-input:focus {
   border-color: var(--at-border);
 }
+
+/* 依恋报告 H5（/report/[responseId]）— Noto 由 next/font 注入 CSS 变量 */
+.report-h5-inner {
+  font-family: var(--font-report-sans), "Noto Sans SC", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+}
+
+.report-h5-inner .at-font-serif {
+  font-family: var(--font-report-serif), "Noto Serif SC", "Source Han Serif SC",
+    "Songti SC", STSong, serif;
+}

@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getAttachmentReportBaseUrl } from "@/lib/attachment-report/upstream";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const UPSTREAM_BASE = "http://127.0.0.1:8001/download/";
 
 const HOP_BY_HOP_REQ = new Set([
   "connection",
@@ -44,7 +43,8 @@ export async function GET(
   }
 
   const upstreamUrl = new URL(
-    `${UPSTREAM_BASE}${encodeURIComponent(responseId)}`
+    `/download/${encodeURIComponent(responseId)}`,
+    `${getAttachmentReportBaseUrl()}/`
   );
   upstreamUrl.search = req.nextUrl.search;
 
