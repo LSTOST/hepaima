@@ -71,7 +71,8 @@ export function AttachmentTestApp() {
       try {
         body = {
           nickname: nickname.trim(),
-          contact: "",
+          // 无基本信息页：占位即可，报告通过微信 openid 推送
+          contact: "wechat_user",
           openid: getWxOpenIdFromCookie() ?? "",
           answers: buildAnswersRecord(answers),
         };

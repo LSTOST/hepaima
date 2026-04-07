@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * H5 问卷不再收集邮箱/微信号：contact 固定传空串，由后端用 openid 走微信触达。
+ * H5 问卷不收集真实联系方式：contact 用占位，由后端结合 openid 走微信触达。
  */
 function normalizeQuizSubmitPayload(body: unknown): Record<string, unknown> {
   const raw =
@@ -13,9 +13,11 @@ function normalizeQuizSubmitPayload(body: unknown): Record<string, unknown> {
     answers !== null && typeof answers === "object" && !Array.isArray(answers)
       ? (answers as Record<string, unknown>)
       : {};
+  const contactRaw =
+    typeof raw.contact === "string" ? raw.contact.trim() : "";
   return {
     nickname: typeof raw.nickname === "string" ? raw.nickname : "",
-    contact: "",
+    contact: contactRaw || "wechat_user",
     openid: typeof raw.openid === "string" ? raw.openid : "",
     answers: answersObj,
   };
