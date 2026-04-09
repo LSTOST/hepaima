@@ -1,6 +1,7 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
+import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -209,40 +210,52 @@ export function AttachmentTestApp() {
   }
 
   if (step === "welcome") {
+    const canStart = nickname.trim().length > 0;
     return (
       <div className="attachment-zhiwo flex min-h-screen flex-col">
         <header className="shrink-0 pt-10 text-center">
-          <p className="text-sm text-[var(--at-ink-tertiary)]">知我实验室</p>
+          <Image
+            src="/logo.png"
+            alt="知我实验室"
+            width={200}
+            height={32}
+            className="mx-auto h-8 w-auto"
+            priority
+          />
+          <p className="mt-3 text-sm text-[var(--at-ink-tertiary)]">知我实验室</p>
         </header>
 
-        <div className="flex flex-1 flex-col justify-center px-6 text-center">
-          <h1 className="at-font-serif text-[1.875rem] font-semibold leading-[1.4] text-[var(--at-ink)]">
-            了解你的依恋类型
-          </h1>
-          <p className="mt-3 text-base leading-[1.7] text-[var(--at-ink-secondary)]">
-            12道题，5分钟，看见你在感情里的真实模式
-          </p>
-          <p className="mt-6 text-sm leading-[1.7] text-[var(--at-ink-tertiary)]">
-            本测试仅供自我觉察参考，不构成心理诊断或治疗建议。
-          </p>
-        </div>
+        <div className="flex flex-1 flex-col justify-end">
+          <div className="px-6 pb-6 text-center">
+            <h1 className="at-font-serif text-[1.875rem] font-semibold leading-[1.4] text-[var(--at-ink)]">
+              了解你的依恋类型
+            </h1>
+            <p className="mt-3 text-base leading-[1.7] text-[var(--at-ink-secondary)]">
+              12道题，5分钟，看见你在感情里的真实模式
+            </p>
+          </div>
 
-        <footer className="shrink-0 px-6 pb-10">
-          <input
-            className="mb-3 w-full rounded-[12px] border border-[var(--at-border)] bg-[var(--at-surface-raised)] px-4 py-3 text-base text-[var(--at-ink)] outline-none placeholder:text-[var(--at-ink-tertiary)] focus:border-[var(--at-primary-light)] focus:ring-[3px] focus:ring-[rgba(124,92,191,0.08)]"
-            placeholder="输入昵称"
-            value={nickname}
-            onChange={(e) => setNickname(e.target.value)}
-            autoComplete="nickname"
-          />
-          <button
-            type="button"
-            className="h-[52px] w-full rounded-[12px] bg-[var(--at-primary)] font-semibold text-white transition-transform active:scale-[0.98] active:bg-[var(--at-primary-dark)]"
-            onClick={startQuestions}
-          >
-            开始测试
-          </button>
-        </footer>
+          <footer className="shrink-0 px-6 pb-16">
+            <input
+              className="mb-3 w-full rounded-[12px] border border-[var(--at-border)] bg-[var(--at-surface-raised)] px-4 py-3 text-base text-[var(--at-ink)] outline-none placeholder:text-[var(--at-ink-tertiary)] focus:border-[var(--at-primary-light)] focus:ring-[3px] focus:ring-[rgba(124,92,191,0.08)]"
+              placeholder="输入昵称"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              autoComplete="nickname"
+            />
+            <button
+              type="button"
+              disabled={!canStart}
+              className="h-[52px] w-full rounded-[12px] bg-[var(--at-primary)] font-semibold text-white transition-transform active:scale-[0.98] active:bg-[var(--at-primary-dark)] disabled:cursor-not-allowed disabled:opacity-50 disabled:active:scale-100"
+              onClick={startQuestions}
+            >
+              开始测试
+            </button>
+            <p className="mt-3 text-center text-xs text-[var(--at-ink-tertiary)]">
+              本测试仅供自我觉察参考，不构成心理诊断或治疗建议。
+            </p>
+          </footer>
+        </div>
       </div>
     );
   }
@@ -265,25 +278,30 @@ export function AttachmentTestApp() {
 
   return (
     <div className="attachment-zhiwo min-h-screen min-h-[100dvh]">
-      <div
-        className="pointer-events-none fixed top-0 right-0 left-0 z-50 h-[3px]"
-        role="progressbar"
-        aria-valuenow={progressDone}
-        aria-valuemin={1}
-        aria-valuemax={ATTACHMENT_QUESTIONS.length}
-        aria-label={`进度 ${progressDone} / ${ATTACHMENT_QUESTIONS.length}`}
-      >
+      <div className="fixed top-0 right-0 left-0 z-50">
         <div
-          className="h-full bg-[var(--at-primary)] transition-[width] duration-500 ease-in-out"
-          style={{ width: `${progressPct}%` }}
-        />
+          className="pointer-events-none h-[3px]"
+          role="progressbar"
+          aria-valuenow={progressDone}
+          aria-valuemin={1}
+          aria-valuemax={ATTACHMENT_QUESTIONS.length}
+          aria-label={`进度 ${progressDone} / ${ATTACHMENT_QUESTIONS.length}`}
+        >
+          <div
+            className="h-full bg-[var(--at-primary)] transition-[width] duration-500 ease-in-out"
+            style={{ width: `${progressPct}%` }}
+          />
+        </div>
+        <p className="px-6 py-1 text-right text-sm text-[var(--at-ink-tertiary)]">
+          问题 {progressDone} / {ATTACHMENT_QUESTIONS.length}
+        </p>
       </div>
 
       <div
         className="flex min-h-screen min-h-[100dvh] flex-col px-6"
         style={{
           paddingTop:
-            "calc(3px + max(12px, env(safe-area-inset-top, 0px)))",
+            "calc(3px + 1.75rem + max(12px, env(safe-area-inset-top, 0px)))",
         }}
       >
         {submitError ? (
@@ -317,7 +335,7 @@ export function AttachmentTestApp() {
             </AnimatePresence>
           </div>
 
-          <div className="shrink-0 pb-24">
+          <div className="shrink-0 pb-10">
             <LikertScale7
               questionKey={currentQuestion.key}
               value={answers[currentQuestion.key]}
@@ -331,9 +349,9 @@ export function AttachmentTestApp() {
       {qIndex > 0 ? (
         <button
           type="button"
-          className="fixed bottom-0 left-1/2 z-40 -translate-x-1/2 border-0 bg-transparent px-4 py-4 text-sm text-[var(--at-ink-tertiary)]"
+          className="fixed bottom-0 left-1/2 z-40 -translate-x-1/2 border-0 bg-transparent px-4 pt-2 text-sm text-[var(--at-ink-tertiary)]"
           style={{
-            paddingBottom: "max(16px, env(safe-area-inset-bottom, 0px))",
+            paddingBottom: "max(2.5rem, env(safe-area-inset-bottom, 0px))",
           }}
           onClick={goPrevQuestion}
         >

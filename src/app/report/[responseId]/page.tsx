@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { AttachmentTypeLineIcon } from "@/components/attachment-report/AttachmentTypeLineIcons";
 import { ReportMarkdown } from "@/components/attachment-report/ReportMarkdown";
 import { fetchAttachmentReportData } from "@/lib/attachment-report/fetch-report-data";
 import {
@@ -24,36 +26,6 @@ const SECTION_ORDER: { key: keyof ReportSections; title: string }[] = [
 function formatScore(n: number): string {
   if (typeof n !== "number" || Number.isNaN(n)) return "—";
   return n.toFixed(2);
-}
-
-/** 外圈圆环边框：类型色 + 透明度 */
-function hexToRgba(hex: string, alpha: number): string {
-  let h = hex.replace("#", "").trim();
-  if (h.length === 3) {
-    h = `${h[0]}${h[0]}${h[1]}${h[1]}${h[2]}${h[2]}`;
-  }
-  if (h.length !== 6) return `rgba(124, 92, 191, ${alpha})`;
-  const r = Number.parseInt(h.slice(0, 2), 16);
-  const g = Number.parseInt(h.slice(2, 4), 16);
-  const b = Number.parseInt(h.slice(4, 6), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
-}
-
-function typeInitialChar(typeCode: string): string {
-  const u = typeCode.trim().toUpperCase();
-  const map: Record<string, string> = {
-    SECURE: "安",
-    ANXIOUS: "焦",
-    AVOIDANT: "回",
-    FEARFUL: "恐",
-  };
-  return map[u] ?? "?";
-}
-
-function ZhiwoBrandRow() {
-  return (
-    <p className="pt-8 text-center text-sm text-[var(--at-ink-tertiary)]">知我实验室</p>
-  );
 }
 
 const TYPE_LABELS: { code: string; label: string }[] = [
@@ -79,12 +51,12 @@ function AttachmentTypeLegend({ currentCode }: { currentCode: string }) {
             style={active ? { color: token } : undefined}
           >
             <span
-              className={`inline-block shrink-0 rounded-full ${
-                active ? "size-3" : "size-1.5"
-              }`}
-              style={{ backgroundColor: token }}
+              className="inline-flex size-4 shrink-0 items-center justify-center"
+              style={{ color: token }}
               aria-hidden
-            />
+            >
+              <AttachmentTypeLineIcon code={code} className="h-4 w-4" />
+            </span>
             {label}
           </li>
         );
@@ -121,30 +93,6 @@ function DimensionScoreCards({
           {formatScore(avoidanceScore)}
         </p>
         <p className="mt-1 text-xs text-[var(--at-ink-tertiary)]">满分 7 分</p>
-      </div>
-    </div>
-  );
-}
-
-function TypeResultSeal({
-  typeCode,
-  accent,
-}: {
-  typeCode: string;
-  accent: string;
-}) {
-  const initial = typeInitialChar(typeCode);
-  return (
-    <div
-      className="mt-6 flex size-[5.5rem] shrink-0 items-center justify-center rounded-full border-4 bg-transparent"
-      style={{ borderColor: hexToRgba(accent, 0.4) }}
-      aria-hidden
-    >
-      <div
-        className="flex size-14 items-center justify-center rounded-full text-2xl font-bold text-white"
-        style={{ backgroundColor: accent }}
-      >
-        {initial}
       </div>
     </div>
   );
@@ -205,15 +153,34 @@ export default async function ReportH5Page({ params }: PageProps) {
   return (
     <div style={rootStyle}>
       <header className="flex flex-col items-center border-b border-[var(--at-border)] pb-6 text-center">
-        <ZhiwoBrandRow />
-        <TypeResultSeal typeCode={data.type_code} accent={accent} />
-        <h1
-          className="at-font-serif mt-4 text-3xl font-semibold leading-tight"
-          style={{ color: accent }}
-        >
-          {data.type_name}
-        </h1>
-        <p className="mt-2 text-sm text-[var(--at-ink-tertiary)]">依恋类型深度解读报告</p>
+        <div className="w-full pt-8">
+          <Image
+            src="/logo.png"
+            alt="知我实验室"
+            width={200}
+            height={32}
+            className="mx-auto h-8 w-auto"
+            priority
+          />
+          <p className="mt-3 text-sm text-[var(--at-ink-tertiary)]">知我实验室</p>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5 text-center">
+          <AttachmentTypeLineIcon
+            code={data.type_code}
+            className="size-5 shrink-0"
+            style={{ color: accent }}
+          />
+          <p
+            className="max-w-[min(100%,18rem)] text-xl font-semibold leading-snug"
+            style={{ color: accent }}
+          >
+            你的依恋类型是：{data.type_name}
+          </p>
+        </div>
+
+        <h2 className="mt-6 text-2xl font-semibold text-[var(--at-ink)]">总览</h2>
+
         {nick ? (
           <p className="mt-2 text-sm text-[var(--at-ink-secondary)]">致 {nick}</p>
         ) : null}
@@ -239,9 +206,11 @@ export default async function ReportH5Page({ params }: PageProps) {
                   : "mt-8 border-t border-[var(--at-border)] pt-8"
               }
             >
-              <h2 className="at-font-serif mb-3 text-xl font-semibold text-[var(--at-ink)]">
-                {title}
-              </h2>
+              {index > 0 ? (
+                <h2 className="at-font-serif mb-3 text-xl font-semibold text-[var(--at-ink)]">
+                  {title}
+                </h2>
+              ) : null}
               <ReportMarkdown markdown={md} />
             </section>
           );
@@ -257,8 +226,8 @@ export default async function ReportH5Page({ params }: PageProps) {
         >
           保存报告
         </a>
-        <p className="mt-2 text-center text-xs text-[var(--at-ink-tertiary)]">
-          不想保存报告？发送「报告」给知我实验室服务号，随时可以找回
+        <p className="mt-4 text-center text-xs text-[var(--at-ink-tertiary)]">
+          不想保存报告？发送『报告』给知我实验室，随时可以找回
         </p>
         <p className="mt-6 text-center text-xs leading-relaxed text-[var(--at-ink-tertiary)]">
           知我实验室出品 · 仅供个人参考
