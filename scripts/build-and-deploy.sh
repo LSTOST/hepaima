@@ -60,14 +60,15 @@ echo ">>> 3. 服务器安装依赖、执行数据库迁移、用代码里的题�
 ssh "$DEPLOY_SSH" "bash -s" <<EOF
 set -e
 cd "$REMOTE_DIR"
-# 宝塔等面板常见：Node 不在默认 PATH 里
-if ! command -v node >/dev/null 2>&1; then
-  for d in /www/server/nodejs/v*/bin; do
-    if [ -d "\$d" ]; then
-      export PATH="\$d:\$PATH"
-      break
-    fi
-  done
+# 宝塔 Node 与系统 /usr/bin/node 并存时，必须优先用宝塔目录，否则 corepack/pnpm 装在 v24 上而 SSH 却用了系统 node。
+bt_bin=""
+for d in /www/server/nodejs/v*/bin; do
+  if [ -d "\$d" ]; then
+    bt_bin="\$d"
+  fi
+done
+if [ -n "\$bt_bin" ]; then
+  export PATH="\$bt_bin:\$PATH"
 fi
 export NVM_DIR="\${NVM_DIR:-\$HOME/.nvm}"
 if [ -s "\$NVM_DIR/nvm.sh" ]; then

@@ -4,7 +4,7 @@ import type { Components } from "react-markdown";
 const components: Partial<Components> = {
   h1: ({ children, ...props }) => (
     <h1
-      className="at-font-serif mt-8 mb-3 text-2xl font-semibold leading-[1.4] text-[var(--at-ink)] first:mt-0"
+      className="report-md-chapter mt-8 mb-3 text-xl font-semibold leading-tight text-[var(--at-ink)] first:mt-0"
       {...props}
     >
       {children}
@@ -28,7 +28,7 @@ const components: Partial<Components> = {
   ),
   p: ({ children, ...props }) => (
     <p
-      className="mb-4 text-base leading-[1.7] text-[var(--at-ink)] last:mb-0"
+      className="mb-4 text-base leading-[1.8] text-[var(--at-ink)] last:mb-0"
       {...props}
     >
       {children}
@@ -36,7 +36,7 @@ const components: Partial<Components> = {
   ),
   ul: ({ children, ...props }) => (
     <ul
-      className="mb-4 list-disc space-y-2 pl-5 text-base leading-[1.7] text-[var(--at-ink)]"
+      className="mb-4 list-disc space-y-2 pl-5 text-base leading-[1.8] text-[var(--at-ink)]"
       {...props}
     >
       {children}
@@ -44,7 +44,7 @@ const components: Partial<Components> = {
   ),
   ol: ({ children, ...props }) => (
     <ol
-      className="mb-4 list-decimal space-y-2 pl-5 text-base leading-[1.7] text-[var(--at-ink)]"
+      className="mb-4 list-decimal space-y-2 pl-5 text-base leading-[1.8] text-[var(--at-ink)]"
       {...props}
     >
       {children}
@@ -56,7 +56,7 @@ const components: Partial<Components> = {
     </li>
   ),
   strong: ({ children, ...props }) => (
-    <strong className="font-semibold text-[var(--at-ink)]" {...props}>
+    <strong className="font-medium text-[var(--at-primary)]" {...props}>
       {children}
     </strong>
   ),
@@ -70,7 +70,7 @@ const components: Partial<Components> = {
   ),
   blockquote: ({ children, ...props }) => (
     <blockquote
-      className="mb-4 border-l-[3px] pl-4 text-base leading-[1.7] text-[var(--at-ink-secondary)]"
+      className="mb-4 border-l-[3px] pl-4 text-base leading-[1.8] text-[var(--at-ink-secondary)]"
       style={{ borderLeftColor: "var(--report-accent, var(--at-primary))" }}
       {...props}
     >

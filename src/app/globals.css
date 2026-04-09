@@ -99,6 +99,8 @@
   --radius-2xl: calc(var(--radius) + 8px);
   --radius-3xl: calc(var(--radius) + 12px);
   --radius-4xl: calc(var(--radius) + 16px);
+  /* 问卷主按钮等：52px 高度 */
+  --spacing-13: 3.25rem;
 }
 
 :root {
@@ -208,6 +210,7 @@ html {
 /* 知我实验室 · 依恋问卷 H5（/attachment-test） */
 .attachment-zhiwo {
   --at-primary: #7c5cbf;
+  --at-primary-light: #9b7fd4;
   --at-primary-dark: #5e3fa3;
   --at-ink: #1a1a2e;
   --at-ink-secondary: #4a4a6a;
@@ -216,6 +219,11 @@ html {
   --at-surface: #fafaf8;
   --at-surface-raised: #ffffff;
   --at-error: #d4544a;
+  /* 依恋类型（与 DESIGN.md 一致，供 H5/PDF 引用） */
+  --color-type-secure: #4caf87;
+  --color-type-anxious: #e8a838;
+  --color-type-avoidant: #5b8fc9;
+  --color-type-fearful: #9b6b9e;
   background-color: var(--at-surface);
   color: var(--at-ink);
   min-height: 100vh;
@@ -252,10 +260,10 @@ html {
 }
 
 .attachment-zhiwo .at-input {
-  border-radius: 12px;
+  border-radius: 10px;
   border: 1px solid var(--at-border);
   background: var(--at-surface-raised);
-  padding: 14px 16px;
+  padding: 12px 16px;
   font-size: 1rem;
   color: var(--at-ink);
   outline: none;
@@ -266,7 +274,19 @@ html {
 }
 
 .attachment-zhiwo .at-input:focus {
-  border-color: var(--at-border);
+  border-color: var(--at-primary-light);
+  box-shadow: 0 0 0 3px rgba(124, 92, 191, 0.08);
+}
+
+/* 依恋问卷 H5（/attachment-test）— Noto 由 next/font 注入 */
+.attachment-test-inner {
+  font-family: var(--font-attachment-sans), "Noto Sans SC", "PingFang SC",
+    "Microsoft YaHei", sans-serif;
+}
+
+.attachment-test-inner .at-font-serif {
+  font-family: var(--font-attachment-serif), "Noto Serif SC", "Source Han Serif SC",
+    "Songti SC", STSong, serif;
 }
 
 /* 依恋报告 H5（/report/[responseId]）— Noto 由 next/font 注入 CSS 变量 */
@@ -276,6 +296,12 @@ html {
 }
 
 .report-h5-inner .at-font-serif {
+  font-family: var(--font-report-serif), "Noto Serif SC", "Source Han Serif SC",
+    "Songti SC", STSong, serif;
+}
+
+/* 报告内 Markdown 章节副标题（衬线） */
+.report-h5-inner .report-md-chapter {
   font-family: var(--font-report-serif), "Noto Serif SC", "Source Han Serif SC",
     "Songti SC", STSong, serif;
 }

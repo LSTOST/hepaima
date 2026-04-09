@@ -69,6 +69,18 @@ export async function POST(req: NextRequest) {
       data = { raw: text };
     }
 
+    // 上游 FastAPI 若只返回 snake_case，补全为前端约定的 responseId
+    if (
+      data !== null &&
+      typeof data === "object" &&
+      !Array.isArray(data) &&
+      typeof (data as { response_id?: unknown }).response_id === "string" &&
+      typeof (data as { responseId?: unknown }).responseId !== "string"
+    ) {
+      const o = data as Record<string, unknown>;
+      o.responseId = o.response_id;
+    }
+
     return NextResponse.json(data as object, { status: upstream.status });
   } catch (e) {
     console.error("[attachment-test submit proxy]", e);

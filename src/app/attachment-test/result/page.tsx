@@ -1,14 +1,14 @@
 export default function AttachmentTestResultPage() {
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-2 text-center">
-      <h1 className="at-font-serif mb-4 text-2xl font-semibold text-[var(--at-ink)]">
-        报告已生成
+    <div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
+      <h1 className="at-font-serif text-2xl font-semibold leading-[1.4] text-[var(--at-ink)]">
+        报告已完成
       </h1>
-      <p className="mb-6 max-w-[20rem] text-base leading-relaxed text-[var(--at-ink-secondary)]">
-        请返回知我实验室服务号，报告链接已发送
+      <p className="mt-2 text-base leading-relaxed text-[var(--at-ink-secondary)]">
+        稍后通过微信发送，请查收。
       </p>
-      <p className="max-w-[22rem] text-sm leading-relaxed text-[var(--at-ink-tertiary)]">
-        如未收到，请在服务号内发送「报告」重新获取
+      <p className="mt-2 text-sm leading-relaxed text-[var(--at-ink-tertiary)]">
+        可以关闭此页面。
       </p>
     </div>
   );

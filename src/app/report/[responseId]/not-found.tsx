@@ -2,7 +2,7 @@ import Link from "next/link";
 
 export default function ReportNotFound() {
   return (
-    <div className="flex min-h-[60vh] flex-col items-center justify-center px-2 text-center">
+    <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
       <h1 className="at-font-serif mb-2 text-xl font-semibold text-[var(--at-ink)]">
         未找到报告
       </h1>
