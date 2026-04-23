@@ -1,7 +1,6 @@
 "use client";
 
 import { AnimatePresence, motion } from "framer-motion";
-import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
@@ -20,6 +19,9 @@ const OAUTH_PATH = "/api/v1/wechat/oauth";
 const SUBMIT_PATH = "/api/v1/attachment-test/submit";
 
 const LIKERT_ADVANCE_MS = 300;
+
+/** PC 大屏下限制内容宽度，避免表单与量表被横向拉成「拉宽的 H5」 */
+const AT_PAGE_WIDTH = "mx-auto w-full max-w-lg";
 
 function buildAnswersRecord(
   map: Partial<Record<AttachmentAnswerKey, number>>
@@ -204,7 +206,9 @@ export function AttachmentTestApp() {
   if (!oauthGateDone) {
     return (
       <div className="attachment-zhiwo flex min-h-[50vh] flex-col items-center justify-center px-5 pt-8 text-center text-sm text-[var(--at-ink-secondary)]">
-        <p>正在连接微信…</p>
+        <div className={AT_PAGE_WIDTH}>
+          <p>正在连接微信…</p>
+        </div>
       </div>
     );
   }
@@ -212,21 +216,21 @@ export function AttachmentTestApp() {
   if (step === "welcome") {
     const canStart = nickname.trim().length > 0;
     return (
-      <div className="attachment-zhiwo flex min-h-screen flex-col">
-        <header className="shrink-0 pt-10 text-center">
-          <Image
-            src="/logo.png"
-            alt="知我实验室"
-            width={200}
-            height={32}
-            className="mx-auto h-8 w-auto"
-            priority
-          />
-          <p className="mt-3 text-sm text-[var(--at-ink-tertiary)]">知我实验室</p>
-        </header>
+      <div className="attachment-zhiwo flex min-h-screen flex-col pb-10">
+        <div className={`${AT_PAGE_WIDTH} px-6`}>
+          <header className="shrink-0 pt-10 text-center">
+            <img
+              src="/logo.png"
+              alt="知我实验室"
+              width={32}
+              height={32}
+              className="mx-auto h-8 w-8 rounded-full object-cover"
+              decoding="async"
+            />
+            <p className="mt-3 text-sm text-[var(--at-ink-tertiary)]">知我实验室</p>
+          </header>
 
-        <div className="flex flex-1 flex-col justify-end">
-          <div className="px-6 pb-6 text-center">
+          <div className="mt-12 text-center">
             <h1 className="at-font-serif text-[1.875rem] font-semibold leading-[1.4] text-[var(--at-ink)]">
               了解你的依恋类型
             </h1>
@@ -235,7 +239,7 @@ export function AttachmentTestApp() {
             </p>
           </div>
 
-          <footer className="shrink-0 px-6 pb-16">
+          <div className="mt-12">
             <input
               className="mb-3 w-full rounded-[12px] border border-[var(--at-border)] bg-[var(--at-surface-raised)] px-4 py-3 text-base text-[var(--at-ink)] outline-none placeholder:text-[var(--at-ink-tertiary)] focus:border-[var(--at-primary-light)] focus:ring-[3px] focus:ring-[rgba(124,92,191,0.08)]"
               placeholder="输入昵称"
@@ -254,7 +258,7 @@ export function AttachmentTestApp() {
             <p className="mt-3 text-center text-xs text-[var(--at-ink-tertiary)]">
               本测试仅供自我觉察参考，不构成心理诊断或治疗建议。
             </p>
-          </footer>
+          </div>
         </div>
       </div>
     );
@@ -262,102 +266,152 @@ export function AttachmentTestApp() {
 
   if (step === "submitting") {
     return (
-      <div className="attachment-zhiwo flex min-h-[55vh] flex-col items-center justify-center px-2 pt-8 text-center">
-        <p className="mb-6 max-w-[22rem] text-base leading-[1.7] text-[var(--at-ink)]">
-          正在生成你的依恋报告，通常需要30秒左右。
-        </p>
-        <p className="max-w-[20rem] text-sm leading-[1.7] text-[var(--at-ink-tertiary)]">
-          了解自己，是一切关系的起点
-        </p>
-        {submitError ? (
-          <p className="mt-8 text-sm text-[var(--at-error)]">{submitError}</p>
-        ) : null}
+      <div className="attachment-zhiwo flex min-h-[55vh] flex-col items-center justify-center px-6 pt-8 text-center">
+        <div className={`${AT_PAGE_WIDTH} flex flex-col items-center px-2`}>
+          {/* 三个脉动圆点 */}
+          <div className="mb-8 flex items-center gap-2">
+            {[0, 1, 2].map((i) => (
+              <motion.div
+                key={i}
+                className="h-3 w-3 rounded-full bg-[var(--at-primary)]"
+                animate={{ scale: [1, 1.4, 1], opacity: [0.5, 1, 0.5] }}
+                transition={{
+                  duration: 1.2,
+                  repeat: Infinity,
+                  delay: i * 0.2,
+                  ease: "easeInOut",
+                }}
+              />
+            ))}
+          </div>
+
+          <p className="mb-3 max-w-[22rem] text-base leading-[1.7] text-[var(--at-ink)]">
+            正在生成你的依恋报告，通常需要30秒左右。
+          </p>
+          <p className="mb-8 max-w-[20rem] text-sm leading-[1.7] text-[var(--at-ink-tertiary)]">
+            了解自己，是一切关系的起点
+          </p>
+
+          {/* 缓慢推进的进度条，30秒跑满给用户时间感知 */}
+          <div className="w-full max-w-[18rem] overflow-hidden rounded-full bg-[var(--at-ink-tertiary)]/20">
+            <motion.div
+              className="h-1.5 rounded-full bg-[var(--at-primary)]"
+              initial={{ width: "4%" }}
+              animate={{ width: "92%" }}
+              transition={{ duration: 28, ease: [0.25, 0.1, 0.25, 1] }}
+            />
+          </div>
+
+          {submitError ? (
+            <p className="mt-8 text-sm text-[var(--at-error)]">{submitError}</p>
+          ) : null}
+        </div>
       </div>
     );
   }
 
   return (
     <div className="attachment-zhiwo min-h-screen min-h-[100dvh]">
-      <div className="fixed top-0 right-0 left-0 z-50">
-        <div
-          className="pointer-events-none h-[3px]"
-          role="progressbar"
-          aria-valuenow={progressDone}
-          aria-valuemin={1}
-          aria-valuemax={ATTACHMENT_QUESTIONS.length}
-          aria-label={`进度 ${progressDone} / ${ATTACHMENT_QUESTIONS.length}`}
-        >
+      <div className="fixed top-0 right-0 left-0 z-50 flex justify-center">
+        <div className={AT_PAGE_WIDTH}>
           <div
-            className="h-full bg-[var(--at-primary)] transition-[width] duration-500 ease-in-out"
-            style={{ width: `${progressPct}%` }}
-          />
+            className="pointer-events-none h-[3px]"
+            role="progressbar"
+            aria-valuenow={progressDone}
+            aria-valuemin={1}
+            aria-valuemax={ATTACHMENT_QUESTIONS.length}
+            aria-label={`进度 ${progressDone} / ${ATTACHMENT_QUESTIONS.length}`}
+          >
+            <div
+              className="h-full bg-[var(--at-primary)] transition-[width] duration-500 ease-in-out"
+              style={{ width: `${progressPct}%` }}
+            />
+          </div>
+          <p className="px-6 py-1 text-right text-sm text-[var(--at-ink-tertiary)]">
+            问题 {progressDone} / {ATTACHMENT_QUESTIONS.length}
+          </p>
         </div>
-        <p className="px-6 py-1 text-right text-sm text-[var(--at-ink-tertiary)]">
-          问题 {progressDone} / {ATTACHMENT_QUESTIONS.length}
-        </p>
       </div>
 
       <div
-        className="flex min-h-screen min-h-[100dvh] flex-col px-6"
+        className="flex min-h-screen min-h-[100dvh] flex-col"
         style={{
           paddingTop:
             "calc(3px + 1.75rem + max(12px, env(safe-area-inset-top, 0px)))",
+          // 与固定底栏（上一题 / 占位）高度一致，避免首题去掉按钮后量表跳动
+          paddingBottom:
+            "max(6.75rem, calc(5.25rem + env(safe-area-inset-bottom, 0px)))",
         }}
       >
-        {submitError ? (
-          <p className="mb-2 rounded-xl border border-[var(--at-border)] bg-[var(--at-surface-raised)] px-4 py-3 text-sm text-[var(--at-error)]">
-            {submitError}
-          </p>
-        ) : null}
+        <div className={`${AT_PAGE_WIDTH} flex min-h-0 flex-1 flex-col px-6`}>
+          {submitError ? (
+            <p className="mb-2 rounded-xl border border-[var(--at-border)] bg-[var(--at-surface-raised)] px-4 py-3 text-sm text-[var(--at-error)]">
+              {submitError}
+            </p>
+          ) : null}
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex min-h-0 flex-1 flex-col items-center justify-center px-2">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={qIndex}
-                initial={{ x: 40, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{
-                  x: -40,
-                  opacity: 0,
-                  transition: { duration: 0.2, ease: "easeIn" },
-                }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-                className="-mt-[10vh] max-w-full"
-              >
-                <h2
-                  id={`q-label-${currentQuestion.key}`}
-                  className="text-center text-xl font-medium leading-relaxed text-[var(--at-ink)]"
+          <div className="flex min-h-0 flex-1 flex-col">
+            <div className="flex min-h-0 flex-1 flex-col items-center justify-center">
+              <AnimatePresence mode="wait">
+                <motion.div
+                  key={qIndex}
+                  initial={{ x: 40, opacity: 0 }}
+                  animate={{ x: 0, opacity: 1 }}
+                  exit={{
+                    x: -40,
+                    opacity: 0,
+                    transition: { duration: 0.2, ease: "easeIn" },
+                  }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                  className="-mt-[14vh] max-w-full"
                 >
-                  {currentQuestion.text}
-                </h2>
-              </motion.div>
-            </AnimatePresence>
-          </div>
+                  <h2
+                    id={`q-label-${currentQuestion.key}`}
+                    className="text-center text-xl font-medium leading-relaxed text-[var(--at-ink)]"
+                  >
+                    {currentQuestion.text}
+                  </h2>
+                </motion.div>
+              </AnimatePresence>
+            </div>
 
-          <div className="shrink-0 pb-10">
-            <LikertScale7
-              questionKey={currentQuestion.key}
-              value={answers[currentQuestion.key]}
-              onSelect={onSelectLikert}
-              disabled={likertLocked}
-            />
+            <div className="shrink-0 pb-8">
+              <LikertScale7
+                questionKey={currentQuestion.key}
+                value={answers[currentQuestion.key]}
+                onSelect={onSelectLikert}
+                disabled={likertLocked}
+              />
+            </div>
           </div>
         </div>
       </div>
 
-      {qIndex > 0 ? (
-        <button
-          type="button"
-          className="fixed bottom-0 left-1/2 z-40 -translate-x-1/2 border-0 bg-transparent px-4 pt-2 text-sm text-[var(--at-ink-tertiary)]"
-          style={{
-            paddingBottom: "max(2.5rem, env(safe-area-inset-bottom, 0px))",
-          }}
-          onClick={goPrevQuestion}
-        >
-          上一题
-        </button>
-      ) : null}
+      <div
+        className="fixed right-0 bottom-0 left-0 z-40 flex justify-center"
+        style={{
+          paddingBottom: "max(2.5rem, env(safe-area-inset-bottom, 0px))",
+        }}
+      >
+        <div className={`${AT_PAGE_WIDTH} flex justify-center px-6`}>
+          {qIndex > 0 ? (
+            <button
+              type="button"
+              className="border-0 bg-transparent px-4 pt-2 text-sm text-[var(--at-ink-tertiary)]"
+              onClick={goPrevQuestion}
+            >
+              上一题
+            </button>
+          ) : (
+            <span
+              className="invisible pointer-events-none select-none border-0 bg-transparent px-4 pt-2 text-sm"
+              aria-hidden
+            >
+              上一题
+            </span>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
